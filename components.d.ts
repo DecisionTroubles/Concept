@@ -11,6 +11,24 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    Badge: typeof import('./src/components/ui/badge/Badge.vue')['default']
+    Button: typeof import('./src/components/ui/button/Button.vue')['default']
     GreetComponent: typeof import('./src/components/GreetComponent.vue')['default']
+    ScrollArea: typeof import('./src/components/ui/scroll-area/ScrollArea.vue')['default']
+    ScrollBar: typeof import('./src/components/ui/scroll-area/ScrollBar.vue')['default']
+    Separator: typeof import('./src/components/ui/separator/Separator.vue')['default']
+    Sheet: typeof import('./src/components/ui/sheet/Sheet.vue')['default']
+    SheetClose: typeof import('./src/components/ui/sheet/SheetClose.vue')['default']
+    SheetContent: typeof import('./src/components/ui/sheet/SheetContent.vue')['default']
+    SheetDescription: typeof import('./src/components/ui/sheet/SheetDescription.vue')['default']
+    SheetFooter: typeof import('./src/components/ui/sheet/SheetFooter.vue')['default']
+    SheetHeader: typeof import('./src/components/ui/sheet/SheetHeader.vue')['default']
+    SheetOverlay: typeof import('./src/components/ui/sheet/SheetOverlay.vue')['default']
+    SheetTitle: typeof import('./src/components/ui/sheet/SheetTitle.vue')['default']
+    SheetTrigger: typeof import('./src/components/ui/sheet/SheetTrigger.vue')['default']
+    Tooltip: typeof import('./src/components/ui/tooltip/Tooltip.vue')['default']
+    TooltipContent: typeof import('./src/components/ui/tooltip/TooltipContent.vue')['default']
+    TooltipProvider: typeof import('./src/components/ui/tooltip/TooltipProvider.vue')['default']
+    TooltipTrigger: typeof import('./src/components/ui/tooltip/TooltipTrigger.vue')['default']
   }
 }

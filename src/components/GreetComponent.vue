@@ -1,25 +1,24 @@
 <script setup lang="ts">
-import { invoke } from '@tauri-apps/api/core'
-const store = useStore()
+// TauRPC usage example — bindings.ts is generated on first `pnpm tauri dev` run.
+// Once generated, import like this:
+//
+//   import { createTauRPCProxy } from './bindings'
+//   const taurpc = createTauRPCProxy()
+//   const msg = await taurpc.hello_world()
 
-const greetMsg = ref('')
-const name = ref('')
-const storeGreet = computed(() => store.storeGreet)
+const msg = ref('')
 
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke('greet', { name: name.value })
-  store.name = name.value
+async function callBackend() {
+  // Placeholder until bindings.ts is generated
+  const { createTauRPCProxy } = await import('../bindings')
+  const taurpc = createTauRPCProxy()
+  msg.value = await taurpc.hello_world()
 }
 </script>
 
 <template>
   <div>
-    <form class="" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit" class="btn">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
-    <p>{{ storeGreet }}</p>
+    <button @click="callBackend">Test TauRPC</button>
+    <p v-if="msg">{{ msg }}</p>
   </div>
 </template>
