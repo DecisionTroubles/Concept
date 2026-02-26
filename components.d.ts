@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     Badge: typeof import('./src/components/ui/badge/Badge.vue')['default']
     Button: typeof import('./src/components/ui/button/Button.vue')['default']
+    GraphScene: typeof import('./src/components/scene/GraphScene.vue')['default']
     GreetComponent: typeof import('./src/components/GreetComponent.vue')['default']
     ScrollArea: typeof import('./src/components/ui/scroll-area/ScrollArea.vue')['default']
     ScrollBar: typeof import('./src/components/ui/scroll-area/ScrollBar.vue')['default']

@@ -8,7 +8,6 @@ export const useStore = defineStore('main', {
     debug: import.meta.env.MODE === 'development',
     version: versionString,
     isInitialized: false,
-    name: '',
   }),
 
   actions: {
@@ -21,13 +20,6 @@ export const useStore = defineStore('main', {
   getters: {
     isReady: (state) => {
       return !state.isInitialized
-    },
-
-    storeGreet: (state) => {
-      if (state.name.length > 0) {
-        return `Greetings from Pinia store, ${state.name}!`
-      }
-      return ''
     },
   },
 })

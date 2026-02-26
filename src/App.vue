@@ -1,10 +1,13 @@
 <script setup lang="ts">
-const store = useStore()
-store.initApp()
+import { TresCanvas } from '@tresjs/core'
+import GraphScene from '@/components/scene/GraphScene.vue'
+
+const graphStore = useGraphStore()
+onMounted(() => graphStore.initialize())
 </script>
 
 <template>
-  <main class="flex-1 flex flex-col items-center justify-center min-h-screen">
-    <p class="text-sm text-gray-400">3D Memory Graph — coming soon</p>
-  </main>
+  <TresCanvas clear-color="#08080f" window-size>
+    <GraphScene />
+  </TresCanvas>
 </template>
