@@ -18,7 +18,7 @@ export type Node = { id: string; title: string; layer_id: string; node_type: str
  */
 connections: EdgeRef[]; created_at: string }
 
-const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"delete_edge":["id"],"get_layers":[],"get_nodes":["layer_id"],"mark_learned":["id","learned"],"seed_sample_data":[],"update_node_position":["id","x","y","z"]}' }
+const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"delete_edge":["id"],"get_layers":[],"get_nodes":["layer_id"],"mark_learned":["id","learned"],"reset_data":[],"seed_sample_data":[],"update_node_position":["id","x","y","z"]}' }
 export type Router = { "": {create_edge: (sourceId: string, targetId: string, edgeType: string) => Promise<Edge>, 
 create_layer: (name: string, displayOrder: number) => Promise<Layer>, 
 create_node: (input: CreateNodeInput) => Promise<Node>, 
@@ -26,6 +26,7 @@ delete_edge: (id: string) => Promise<null>,
 get_layers: () => Promise<Layer[]>, 
 get_nodes: (layerId: string) => Promise<Node[]>, 
 mark_learned: (id: string, learned: boolean) => Promise<Node>, 
+reset_data: () => Promise<null>, 
 seed_sample_data: () => Promise<null>, 
 update_node_position: (id: string, x: number, y: number, z: number) => Promise<null>} };
 

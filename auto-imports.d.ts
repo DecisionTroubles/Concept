@@ -70,6 +70,7 @@ declare global {
   const useAttrs: typeof import('vue').useAttrs
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
+  const useForceLayout: typeof import('./src/composables/useForceLayout').useForceLayout
   const useGraphStore: typeof import('./src/stores/graph').useGraphStore
   const useId: typeof import('vue').useId
   const useLink: typeof import('vue-router').useLink
@@ -90,6 +91,9 @@ declare global {
   // @ts-ignore
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
+  // @ts-ignore
+  export type { PositionedNode } from './src/composables/useForceLayout'
+  import('./src/composables/useForceLayout')
 }
 
 // for vue template auto import
@@ -161,6 +165,7 @@ declare module 'vue' {
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
+    readonly useForceLayout: UnwrapRef<typeof import('./src/composables/useForceLayout')['useForceLayout']>
     readonly useGraphStore: UnwrapRef<typeof import('./src/stores/graph')['useGraphStore']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useLink: UnwrapRef<typeof import('vue-router')['useLink']>

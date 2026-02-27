@@ -1,0 +1,110 @@
+{
+  "meta": {
+    "id": "japanese-n5",
+    "name": "Japanese N5",
+    "description": "Core N5 grammar particles and verb forms — the foundation of Japanese sentence structure.",
+    "author": "concept",
+    "version": "1.0.0",
+    "language": "ja"
+  },
+  "layers": [
+    { "name": "Grammar",   "display_order": 0 },
+    { "name": "Particles", "display_order": 1 }
+  ],
+  "nodes": [
+    {
+      "title": "は (wa)",
+      "layer": 1,
+      "node_type": "particle",
+      "content_data": "Topic marker — marks the sentence topic. Does not mark the grammatical subject.",
+      "tags": ["n5", "particle", "topic"],
+      "weight": 1.5
+    },
+    {
+      "title": "が (ga)",
+      "layer": 1,
+      "node_type": "particle",
+      "content_data": "Subject marker — marks the grammatical subject. Emphasises who does the action.",
+      "tags": ["n5", "particle", "subject"],
+      "weight": 1.3
+    },
+    {
+      "title": "を (wo)",
+      "layer": 1,
+      "node_type": "particle",
+      "content_data": "Object marker — marks the direct object of a verb.",
+      "tags": ["n5", "particle", "object"],
+      "weight": 1.2
+    },
+    {
+      "title": "に (ni)",
+      "layer": 1,
+      "node_type": "particle",
+      "content_data": "Direction/location/time marker — 'to', 'at', 'on', or 'for'.",
+      "tags": ["n5", "particle", "direction"],
+      "weight": 1.2
+    },
+    {
+      "title": "で (de)",
+      "layer": 1,
+      "node_type": "particle",
+      "content_data": "Location of action / means — 'at' (where action happens) or 'by means of'.",
+      "tags": ["n5", "particle", "location"],
+      "weight": 1.1
+    },
+    {
+      "title": "ます-form",
+      "layer": 0,
+      "node_type": "grammar",
+      "content_data": "Polite present/future verb form. Used in formal speech and writing. e.g. 食べます (tabemasu).",
+      "tags": ["n5", "grammar", "verb", "polite"],
+      "weight": 1.4
+    },
+    {
+      "title": "て-form",
+      "layer": 0,
+      "node_type": "grammar",
+      "content_data": "Connects actions, forms requests (〜てください), permission (〜てもいい), and compound verbs. e.g. 食べて (tabete).",
+      "tags": ["n5", "grammar", "verb", "conjunctive"],
+      "weight": 1.3
+    },
+    {
+      "title": "ない-form",
+      "layer": 0,
+      "node_type": "grammar",
+      "content_data": "Plain negative form. Negates verbs in casual speech. e.g. 食べない (tabenai).",
+      "tags": ["n5", "grammar", "verb", "negative"],
+      "weight": 1.1
+    },
+    {
+      "title": "です (desu)",
+      "layer": 0,
+      "node_type": "grammar",
+      "content_data": "Polite copula — links subject to noun or adjective predicate. Equivalent of 'is/am/are'.",
+      "tags": ["n5", "grammar", "copula", "polite"],
+      "weight": 1.3
+    },
+    {
+      "title": "だ (da)",
+      "layer": 0,
+      "node_type": "grammar",
+      "content_data": "Plain copula — casual equivalent of です. Used in plain-form sentences.",
+      "tags": ["n5", "grammar", "copula", "plain"],
+      "weight": 1.1
+    }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "type": "Context" },
+    { "from": 0, "to": 2, "type": "Context" },
+    { "from": 0, "to": 8, "type": "Context" },
+    { "from": 1, "to": 2, "type": "Semantic" },
+    { "from": 1, "to": 3, "type": "Semantic" },
+    { "from": 2, "to": 4, "type": "Semantic" },
+    { "from": 5, "to": 6, "type": "Prerequisite" },
+    { "from": 5, "to": 7, "type": "Prerequisite" },
+    { "from": 6, "to": 5, "type": "Context" },
+    { "from": 5, "to": 8, "type": "Semantic" },
+    { "from": 8, "to": 9, "type": "Context" },
+    { "from": 6, "to": 1, "type": "Context" }
+  ]
+}

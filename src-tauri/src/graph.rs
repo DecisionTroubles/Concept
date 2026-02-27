@@ -381,61 +381,27 @@ pub fn remove_edge(conn: &Connection, id: &str) -> Result<(), AppError> {
 }
 
 // ---------------------------------------------------------------------------
-// Seed data — Japanese N5 Grammar layer
+// Seed / reset helpers — delegate to the domain pack loader
 // ---------------------------------------------------------------------------
 
 pub fn seed_sample_data(conn: &Connection) -> Result<(), AppError> {
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM layers WHERE name = 'Japanese N5 Grammar'",
+    // One-time migration: remove the old hardcoded "Japanese N5 Grammar" layer
+    // (and its nodes/edges via CASCADE) that existed before the domain-pack system.
+    // Safe to call every launch — after the first run there is nothing to delete.
+    conn.execute(
+        "DELETE FROM layers WHERE name = 'Japanese N5 Grammar'",
         [],
-        |row| row.get(0),
     )?;
-    if count > 0 {
-        return Ok(()); // already seeded
-    }
 
-    let layer = insert_layer(conn, "Japanese N5 Grammar", 0)?;
+    // The Japanese N5 starter pack is embedded at compile time.
+    // To add a new domain: create domains/<name>/pack.json and call domain::seed_pack here.
+    let json = include_str!("../../domains/japanese/pack.json");
+    crate::domain::seed_pack(conn, json)
+}
 
-    let nodes_data = [
-        ("は (wa)", "grammar", "Topic marker particle — marks the sentence topic"),
-        ("が (ga)", "grammar", "Subject marker particle — marks the grammatical subject"),
-        ("を (wo)", "grammar", "Object marker particle — marks the direct object"),
-        ("ます-form", "grammar", "Polite present/future verb form (e.g. 食べます)"),
-        ("て-form", "grammar", "Te-form used to connect actions and form compounds (e.g. 食べて)"),
-        ("です (desu)", "grammar", "Polite copula — links subject to predicate"),
-    ];
-
-    let mut node_ids: Vec<String> = Vec::new();
-    for (title, node_type, content) in &nodes_data {
-        let node = insert_node(
-            conn,
-            CreateNodeInput {
-                title: title.to_string(),
-                layer_id: layer.id.clone(),
-                node_type: node_type.to_string(),
-                content_data: Some(content.to_string()),
-                tags: vec!["n5".to_string(), "grammar".to_string()],
-                weight: 1.0,
-            },
-        )?;
-        node_ids.push(node.id);
-    }
-
-    // Indices: は(0) が(1) を(2) ます-form(3) て-form(4) です(5)
-    let edges = [
-        (0, 1, "Context"),      // は → が
-        (0, 2, "Context"),      // は → を
-        (3, 4, "Prerequisite"), // ます-form → て-form
-        (4, 3, "Context"),      // て-form → ます-form
-        (0, 5, "Context"),      // は → です
-        (1, 2, "Semantic"),     // が → を
-        (3, 5, "Semantic"),     // ます-form → です
-        (4, 1, "Context"),      // て-form → が
-    ];
-
-    for (src, tgt, edge_type) in &edges {
-        insert_edge(conn, &node_ids[*src], &node_ids[*tgt], edge_type)?;
-    }
-
-    Ok(())
+/// Wipe all graph data and re-seed from the bundled domain pack.
+/// Use during development when seed data changes between runs.
+pub fn reset_and_reseed(conn: &Connection) -> Result<(), AppError> {
+    conn.execute_batch("DELETE FROM edges; DELETE FROM nodes; DELETE FROM layers;")?;
+    seed_sample_data(conn)
 }

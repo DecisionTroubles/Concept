@@ -1,4 +1,5 @@
 mod db;
+mod domain;
 mod error;
 mod graph;
 
@@ -49,6 +50,7 @@ trait GraphApi {
 
     // Dev / seed
     async fn seed_sample_data() -> Result<(), String>;
+    async fn reset_data() -> Result<(), String>;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +111,11 @@ impl GraphApi for ApiImpl {
     async fn seed_sample_data(self) -> Result<(), String> {
         let conn = db().lock().await;
         graph::seed_sample_data(&conn).map_err(|e| e.to_string())
+    }
+
+    async fn reset_data(self) -> Result<(), String> {
+        let conn = db().lock().await;
+        graph::reset_and_reseed(&conn).map_err(|e| e.to_string())
     }
 }
 
