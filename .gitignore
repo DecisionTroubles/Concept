@@ -26,7 +26,4 @@ LOCAL_NOTES.md
 .env
 target/
 
-# TauRPC — generated at app startup by the Rust backend
-src/bindings.ts
-
 .claude/
