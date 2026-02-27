@@ -29,6 +29,12 @@ pnpm test
 pnpm tauri build
 ```
 
+## Dev Notes
+
+**`src/bindings.ts` is a generated file and must be committed.** It is produced by taurpc/Specta when the Rust app first runs. Without it the frontend can't compile. If the API changes (new Tauri commands, modified types), run `pnpm tauri dev` and commit the updated file.
+
+**`vue-devtools` exits with code 0 shortly after startup** — this is normal. The dev script uses `--kill-others-on-fail` so Vite is only killed if a process crashes (non-zero exit), not on a clean devtools exit.
+
 ## Structure
 
 - `src/` — Vue 3 frontend (rendering and interaction only)
