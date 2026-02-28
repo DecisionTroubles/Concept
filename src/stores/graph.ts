@@ -8,6 +8,7 @@ export const useGraphStore = defineStore('graph', () => {
   const activeLayerId = ref<string | null>(null)
   const nodes = ref<Node[]>([])
   const selectedNodeId = ref<string | null>(null)
+  const focusVersion = ref(0)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
@@ -17,6 +18,11 @@ export const useGraphStore = defineStore('graph', () => {
 
   function selectNode(id: string | null) {
     selectedNodeId.value = id
+  }
+
+  function requestFocus(id: string) {
+    selectedNodeId.value = id
+    focusVersion.value++
   }
 
   async function loadLayers() {
@@ -80,6 +86,8 @@ export const useGraphStore = defineStore('graph', () => {
     markLearned,
     updateNodePosition,
     selectNode,
+    focusVersion,
+    requestFocus,
     initialize,
   }
 })

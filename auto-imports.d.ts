@@ -6,6 +6,7 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const COMPASS_RING_R: typeof import('./src/composables/useEditorMode').COMPASS_RING_R
   const EffectScope: typeof import('vue').EffectScope
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const computed: typeof import('vue').computed
@@ -70,6 +71,7 @@ declare global {
   const useAttrs: typeof import('vue').useAttrs
   const useCssModule: typeof import('vue').useCssModule
   const useCssVars: typeof import('vue').useCssVars
+  const useEditorMode: typeof import('./src/composables/useEditorMode').useEditorMode
   const useForceLayout: typeof import('./src/composables/useForceLayout').useForceLayout
   const useGraphStore: typeof import('./src/stores/graph').useGraphStore
   const useId: typeof import('vue').useId
@@ -77,6 +79,7 @@ declare global {
   const useModel: typeof import('vue').useModel
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
+  const useSettings: typeof import('./src/composables/useSettings').useSettings
   const useSlots: typeof import('vue').useSlots
   const useStore: typeof import('@/store').useStore
   const useTauRPC: typeof import('./src/composables/useTauRPC').useTauRPC
@@ -92,8 +95,14 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
+  export type { EditorMode, CompassDot } from './src/composables/useEditorMode'
+  import('./src/composables/useEditorMode')
+  // @ts-ignore
   export type { PositionedNode } from './src/composables/useForceLayout'
   import('./src/composables/useForceLayout')
+  // @ts-ignore
+  export type { Keybindings } from './src/composables/useSettings'
+  import('./src/composables/useSettings')
 }
 
 // for vue template auto import
@@ -101,6 +110,7 @@ import { UnwrapRef } from 'vue'
 declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
+    readonly COMPASS_RING_R: UnwrapRef<typeof import('./src/composables/useEditorMode')['COMPASS_RING_R']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
@@ -165,6 +175,7 @@ declare module 'vue' {
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
+    readonly useEditorMode: UnwrapRef<typeof import('./src/composables/useEditorMode')['useEditorMode']>
     readonly useForceLayout: UnwrapRef<typeof import('./src/composables/useForceLayout')['useForceLayout']>
     readonly useGraphStore: UnwrapRef<typeof import('./src/stores/graph')['useGraphStore']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
@@ -172,6 +183,7 @@ declare module 'vue' {
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
     readonly useRoute: UnwrapRef<typeof import('vue-router')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('vue-router')['useRouter']>
+    readonly useSettings: UnwrapRef<typeof import('./src/composables/useSettings')['useSettings']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>
     readonly useStore: UnwrapRef<typeof import('@/store')['useStore']>
     readonly useTauRPC: UnwrapRef<typeof import('./src/composables/useTauRPC')['useTauRPC']>

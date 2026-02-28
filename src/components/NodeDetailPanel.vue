@@ -40,12 +40,6 @@ function onClose() {
   graphStore.selectNode(null)
 }
 
-// Close on Escape
-onMounted(() => {
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') graphStore.selectNode(null)
-  })
-})
 </script>
 
 <template>

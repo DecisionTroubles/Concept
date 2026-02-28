@@ -6,6 +6,7 @@ import NodeDetailPanel from '@/components/NodeDetailPanel.vue'
 import LayerPanel from '@/components/LayerPanel.vue'
 
 const graphStore = useGraphStore()
+const editorMode = useEditorMode()
 onMounted(() => graphStore.initialize())
 </script>
 
@@ -29,4 +30,14 @@ onMounted(() => graphStore.initialize())
   <!-- 2D overlay panels (position: fixed inside each component) -->
   <LayerPanel />
   <NodeDetailPanel />
+  <ModeIndicator />
+  <SettingsPanel />
+  <NodeSearch />
+  <CompassHUD
+    v-if="editorMode.mode.value === 'graph' && editorMode.compassCenter.value"
+    :dots="editorMode.compassDots.value"
+    :center-x="editorMode.compassCenter.value?.x ?? 0"
+    :center-y="editorMode.compassCenter.value?.y ?? 0"
+    :active-index="editorMode.compassIndex.value"
+  />
 </template>

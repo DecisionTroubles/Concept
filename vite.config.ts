@@ -22,7 +22,13 @@ export default defineConfig({
     tailwind(),
     topLevelAwait(),
     nodePolyfills(),
-    vue(),
+    vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => tag.startsWith('Tres') && tag !== 'TresCanvas',
+        },
+      },
+    }),
     vueDevTools(),
     AutoImport({
       imports: [
