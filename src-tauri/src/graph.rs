@@ -120,8 +120,14 @@ fn query_edges_for_node(
     conn: &Connection,
     node_id: &str,
 ) -> Result<Vec<EdgeRef>, AppError> {
+    // Include both outgoing (source=node) and incoming (target=node) edges.
+    // target_id is normalised to always mean "the other end of this edge".
     let mut stmt = conn.prepare(
-        "SELECT id, target_id, edge_type, weight FROM edges WHERE source_id = ?1",
+        "SELECT id,
+                CASE WHEN source_id = ?1 THEN target_id ELSE source_id END AS neighbor_id,
+                edge_type, weight
+         FROM edges
+         WHERE source_id = ?1 OR target_id = ?1",
     )?;
     let edges = stmt
         .query_map([node_id], |row| {

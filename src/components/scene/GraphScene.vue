@@ -30,6 +30,13 @@ watch(() => graphStore.selectedNodeId, (id) => editorMode.onNodeSelected(id))
 // Clear stuck fly keys when leaving fly mode
 watch(() => editorMode.mode.value, m => { if (m !== 'fly') activeKeys.clear() })
 
+// IDs of nodes directly connected to the selected node
+const neighborIds = computed<Set<string>>(() => {
+  const sel = graphStore.selectedNode
+  if (!sel) return new Set()
+  return new Set(sel.connections.map(c => c.target_id))
+})
+
 // Focus camera when search requests focus (even for the same node re-selected)
 watch(() => graphStore.focusVersion, () => {
   const id = graphStore.selectedNodeId
@@ -93,6 +100,8 @@ onMounted(() => {
         graphStore.selectNode(id)
         const t = positionedNodes.value.find(n => n.id === id)
         if (t) focusTarget.value = new THREE.Vector3(t.x, t.y, t.z)
+      } else {
+        editorMode.escapeFromCurrentMode()
       }
       return
     }
@@ -133,6 +142,7 @@ const _orbitLerpTarget = new THREE.Vector3()
 
 // Pulse state for the core light
 let pulseT = 0
+
 
 // Camera position for distance-faded labels
 const cameraPos = shallowRef(new THREE.Vector3())
@@ -185,6 +195,7 @@ useRafFn(({ delta }) => {
     coreLightRef.value.intensity = 55 + 22 * Math.sin(pulseT * 0.4)
   }
 
+
   // Track camera position for distance-faded labels
   cameraPos.value = cam.position.clone()
 
@@ -197,9 +208,19 @@ useRafFn(({ delta }) => {
       const sy = (-_ndcVec.y + 1) / 2 * window.innerHeight
       const center = { x: sx, y: sy }
       const nodeMap = new Map(positionedNodes.value.map(n => [n.id, n]))
-      const dots = sel.connections.slice(0, 9).map((conn, i) => {
-        const nb = nodeMap.get(conn.target_id)
-        if (!nb) return null
+      // Deduplicate by target_id (same neighbor can appear via both an outgoing
+      // and an incoming edge after the bidirectional query), then filter to
+      // nodes present in this layer, so indices are always sequential 1, 2, 3…
+      const seen = new Set<string>()
+      const validConns = sel.connections
+        .filter(conn => {
+          if (!nodeMap.has(conn.target_id) || seen.has(conn.target_id)) return false
+          seen.add(conn.target_id)
+          return true
+        })
+        .slice(0, 9)
+      const dots: CompassDot[] = validConns.map((conn, i) => {
+        const nb = nodeMap.get(conn.target_id)!
         _ndcVec.set(nb.x, nb.y, nb.z).project(cam)
         const nx = (_ndcVec.x + 1) / 2 * window.innerWidth
         const ny = (-_ndcVec.y + 1) / 2 * window.innerHeight
@@ -208,10 +229,12 @@ useRafFn(({ delta }) => {
                  screenX: sx + Math.cos(angle) * COMPASS_RING_R,
                  screenY: sy + Math.sin(angle) * COMPASS_RING_R,
                  edgeType: conn.edge_type, index: i + 1 }
-      }).filter(Boolean) as CompassDot[]
+      })
+      editorMode.setNeighborOrder(dots.map(d => d.id))
       editorMode.setCompassState(dots, center)
     }
   } else {
+    editorMode.setNeighborOrder([])
     editorMode.setCompassState([], null)
   }
 })
@@ -246,18 +269,22 @@ const TYPE_EMISSIVE: Record<string, string> = {
 
 function nodeColor(node: PositionedNode): string {
   if (graphStore.selectedNodeId === node.id) return '#ffffff'
+  if (neighborIds.value.has(node.id)) return '#5ba8ff'
   if (node.learned) return '#3dd68c'
   return TYPE_COLORS[node.node_type] ?? '#5870a0'
 }
 
 function nodeEmissive(node: PositionedNode): string {
   if (graphStore.selectedNodeId === node.id) return '#5555cc'
+  if (neighborIds.value.has(node.id)) return '#1a4aee'
   if (node.learned) return '#1a6644'
   return TYPE_EMISSIVE[node.node_type] ?? '#0f1556'
 }
 
 function nodeEmissiveIntensity(node: PositionedNode): number {
   if (graphStore.selectedNodeId === node.id) return 1.5
+  if (neighborIds.value.has(node.id))
+    return 0.45 + 0.4 * Math.sin(Date.now() / 400)
   if (node.learned) return 0.8
   return 0.7
 }

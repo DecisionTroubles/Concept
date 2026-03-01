@@ -21,6 +21,10 @@ const compassCenter = shallowRef<{ x: number; y: number } | null>(null)
 const jumpList: string[] = []   // max 20 entries
 let lastNodeId: string | null = null
 
+// Ordered neighbor IDs matching compass dot indices (1-based).
+// Set every frame by GraphScene from the filtered, sequential compass dots.
+let neighborOrder: string[] = []
+
 export function useEditorMode() {
   const graphStore = useGraphStore()
 
@@ -65,12 +69,10 @@ export function useEditorMode() {
     return node.connections[compassIndex.value].target_id
   }
   function jumpToNeighbor(n: number): string | null {
-    const node = graphStore.selectedNode
-    if (!node) return null
-    const idx = n - 1
-    if (idx < 0 || idx >= node.connections.length) return null
-    compassIndex.value = idx
-    return node.connections[idx].target_id
+    return neighborOrder[n - 1] ?? null
+  }
+  function setNeighborOrder(ids: string[]) {
+    neighborOrder = ids
   }
   function setCompassState(dots: CompassDot[], center: { x: number; y: number } | null) {
     compassDots.value = dots
@@ -84,6 +86,6 @@ export function useEditorMode() {
     compassCenter,
     enterFly, enterNormal, enterGraph, escapeFromCurrentMode,
     onNodeSelected, tabNext, tabPrev, jumpToNeighbor, jumpBack,
-    setCompassState,
+    setNeighborOrder, setCompassState,
   }
 }
