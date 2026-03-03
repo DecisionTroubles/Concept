@@ -34,6 +34,15 @@ const FLY_ACTIONS: Array<{ key: ActionKey; label: string }> = [
   { key: 'flyDown',    label: 'Descend' },
 ]
 
+const GRAPH_ACTIONS: Array<{ key: ActionKey; label: string }> = [
+  { key: 'graphOrbitLeft',  label: 'Orbit left' },
+  { key: 'graphOrbitRight', label: 'Orbit right' },
+  { key: 'graphTiltUp',     label: 'Tilt up' },
+  { key: 'graphTiltDown',   label: 'Tilt down' },
+  { key: 'graphZoomIn',     label: 'Zoom in' },
+  { key: 'graphZoomOut',    label: 'Zoom out' },
+]
+
 const isOpen = ref(false)
 const listeningAction = ref<ActionKey | null>(null)
 
@@ -129,6 +138,23 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
       <div class="section">
         <div class="section-title">Fly mode</div>
         <div v-for="item in FLY_ACTIONS" :key="item.key" class="keybind-row">
+          <span class="keybind-label">{{ item.label }}</span>
+          <button
+            class="key-badge"
+            :class="{ listening: listeningAction === item.key }"
+            @click="startListening(item.key)"
+          >
+            {{ listeningAction === item.key ? 'press key…' : displayKey(settings.keys[item.key]) }}
+          </button>
+        </div>
+      </div>
+
+      <div class="section-divider" />
+
+      <!-- Graph mode section -->
+      <div class="section">
+        <div class="section-title">Graph mode</div>
+        <div v-for="item in GRAPH_ACTIONS" :key="item.key" class="keybind-row">
           <span class="keybind-label">{{ item.label }}</span>
           <button
             class="key-badge"

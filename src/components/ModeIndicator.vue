@@ -14,8 +14,8 @@ const { mode } = useEditorMode()
     </div>
     <div class="mode-hint">
       <span v-if="mode === 'normal'">F=fly · G=graph · B=pinned · M=map</span>
-      <span v-else-if="mode === 'fly'">WASD/QE · Esc to exit</span>
-      <span v-else-if="mode === 'graph'">Tab · 1-9 · E=center · P=pin · B/M buffers</span>
+      <span v-else-if="mode === 'fly'">IJKL move · U/O vertical · Esc exit</span>
+      <span v-else-if="mode === 'graph'">Tab/1-9 · H/L orbit · U/O tilt · I/K zoom</span>
     </div>
   </div>
 </template>

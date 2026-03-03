@@ -10,6 +10,12 @@ export interface Keybindings {
   pinNode:    string
   pinnedBuffer: string
   mapBuffer:    string
+  graphOrbitLeft: string
+  graphOrbitRight: string
+  graphTiltUp: string
+  graphTiltDown: string
+  graphZoomIn: string
+  graphZoomOut: string
   flyForward: string
   flyBack:    string
   flyLeft:    string
@@ -28,12 +34,18 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
   pinNode:    'p',
   pinnedBuffer: 'b',
   mapBuffer:    'm',
-  flyForward: 'w',
-  flyBack:    's',
-  flyLeft:    'a',
-  flyRight:   'd',
-  flyUp:      'k',
-  flyDown:    'j',
+  graphOrbitLeft: 'h',
+  graphOrbitRight: 'l',
+  graphTiltUp: 'u',
+  graphTiltDown: 'o',
+  graphZoomIn: 'i',
+  graphZoomOut: 'k',
+  flyForward: 'i',
+  flyBack:    'k',
+  flyLeft:    'j',
+  flyRight:   'l',
+  flyUp:      'u',
+  flyDown:    'o',
 }
 
 const STORAGE_KEY = 'concept:keybindings'
@@ -41,7 +53,29 @@ const STORAGE_KEY = 'concept:keybindings'
 function loadFromStorage(): Keybindings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...DEFAULT_KEYBINDINGS, ...(JSON.parse(raw) as Partial<Keybindings>) }
+    if (raw) {
+      const parsed = { ...DEFAULT_KEYBINDINGS, ...(JSON.parse(raw) as Partial<Keybindings>) }
+      // Migrate old default fly cluster (WASD + R/V) to the new UIOP/HJKL-style layout
+      // only when all six old defaults are still untouched.
+      const isOldFlyDefault =
+        parsed.flyForward === 'w' &&
+        parsed.flyBack === 's' &&
+        parsed.flyLeft === 'a' &&
+        parsed.flyRight === 'd' &&
+        parsed.flyUp === 'r' &&
+        parsed.flyDown === 'v'
+
+      if (isOldFlyDefault) {
+        parsed.flyForward = 'i'
+        parsed.flyBack = 'k'
+        parsed.flyLeft = 'j'
+        parsed.flyRight = 'l'
+        parsed.flyUp = 'u'
+        parsed.flyDown = 'o'
+      }
+
+      return parsed
+    }
   } catch { /* ignore */ }
   return { ...DEFAULT_KEYBINDINGS }
 }
@@ -55,17 +89,7 @@ function saveToStorage() {
 
 export function useSettings() {
   function rebind(action: keyof Keybindings, rawKey: string) {
-    const newKey = rawKey.toLowerCase()
-    const oldKey = keys[action]
-    // Swap if another action already uses this key
-    const allActions = Object.keys(keys) as (keyof Keybindings)[]
-    for (const k of allActions) {
-      if (k !== action && keys[k] === newKey) {
-        keys[k] = oldKey
-        break
-      }
-    }
-    keys[action] = newKey
+    keys[action] = rawKey.toLowerCase()
     saveToStorage()
   }
 

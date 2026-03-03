@@ -104,6 +104,55 @@ onMounted(() => {
     }
 
     if (editorMode.mode.value === 'graph' && !isInput) {
+      const rawControls = controlsRef.value
+      const controls = rawControls?.instance ?? rawControls
+      const cam = controls?.object as THREE.PerspectiveCamera | undefined
+
+      if (controls?.target && cam) {
+        const orbitStep = 0.12
+        const tiltStep = 0.09
+        const zoomInFactor = 0.9
+        const zoomOutFactor = 1.12
+        let changed = false
+
+        _orbitOffset.copy(cam.position).sub(controls.target)
+        _orbitSpherical.setFromVector3(_orbitOffset)
+
+        if (key === settings.keys.graphOrbitLeft) {
+          e.preventDefault()
+          _orbitSpherical.theta += orbitStep
+          changed = true
+        } else if (key === settings.keys.graphOrbitRight) {
+          e.preventDefault()
+          _orbitSpherical.theta -= orbitStep
+          changed = true
+        } else if (key === settings.keys.graphTiltUp) {
+          e.preventDefault()
+          _orbitSpherical.phi = Math.max(0.2, _orbitSpherical.phi - tiltStep)
+          changed = true
+        } else if (key === settings.keys.graphTiltDown) {
+          e.preventDefault()
+          _orbitSpherical.phi = Math.min(Math.PI - 0.2, _orbitSpherical.phi + tiltStep)
+          changed = true
+        } else if (key === settings.keys.graphZoomIn) {
+          e.preventDefault()
+          _orbitSpherical.radius = Math.max(3, _orbitSpherical.radius * zoomInFactor)
+          changed = true
+        } else if (key === settings.keys.graphZoomOut) {
+          e.preventDefault()
+          _orbitSpherical.radius = Math.min(140, _orbitSpherical.radius * zoomOutFactor)
+          changed = true
+        }
+
+        if (changed) {
+          _orbitOffset.setFromSpherical(_orbitSpherical)
+          cam.position.copy(controls.target).add(_orbitOffset)
+          controls.update()
+          focusTarget.value = null
+          return
+        }
+      }
+
       if (e.key === 'Tab') {
         e.preventDefault()
         const id = e.shiftKey ? editorMode.tabPrev() : editorMode.tabNext()
@@ -173,6 +222,8 @@ const _move           = new THREE.Vector3()
 const _up             = new THREE.Vector3(0, 1, 0)
 const _camLerpTarget  = new THREE.Vector3()
 const _orbitLerpTarget = new THREE.Vector3()
+const _orbitOffset = new THREE.Vector3()
+const _orbitSpherical = new THREE.Spherical()
 
 // Pulse state for the core light
 let pulseT = 0
@@ -260,16 +311,34 @@ useRafFn(({ delta }) => {
           return true
         })
         .slice(0, 9)
-      const dots: CompassDot[] = validConns.map((conn, i) => {
+      const provisional = validConns.map((conn, i) => {
         const nb = nodeMap.get(conn.target_id)!
         _ndcVec.set(nb.x, nb.y, nb.z).project(cam)
         const nx = (_ndcVec.x + 1) / 2 * window.innerWidth
         const ny = (-_ndcVec.y + 1) / 2 * window.innerHeight
         const angle = Math.atan2(ny - sy, nx - sx)
-        return { id: conn.target_id, title: nb.title,
-                 screenX: sx + Math.cos(angle) * COMPASS_RING_R,
-                 screenY: sy + Math.sin(angle) * COMPASS_RING_R,
-                 edgeType: conn.edge_type, index: i + 1 }
+        return { conn, i, angle, title: nb.title }
+      })
+      provisional.sort((a, b) => a.angle - b.angle)
+
+      const minAngularGap = 0.23
+      const dots: CompassDot[] = provisional.map((item, idx) => {
+        let ring = COMPASS_RING_R
+        if (idx > 0) {
+          const prev = provisional[idx - 1]
+          const gap = Math.abs(item.angle - prev.angle)
+          if (gap < minAngularGap) {
+            ring += 16 + (minAngularGap - gap) * 55
+          }
+        }
+        return {
+          id: item.conn.target_id,
+          title: item.title,
+          screenX: sx + Math.cos(item.angle) * ring,
+          screenY: sy + Math.sin(item.angle) * ring,
+          edgeType: item.conn.edge_type,
+          index: item.i + 1,
+        }
       })
       editorMode.setNeighborOrder(dots.map(d => d.id))
       editorMode.setCompassState(dots, center)
@@ -514,6 +583,8 @@ watch(() => graphStore.activeLayerId, () => {
     :position="[node.x, node.y + nodeRadius(node) + 1.3, node.z]"
     center
     :sprite="true"
+    :z-index-range="[4, 0]"
+    occlude
   >
     <div class="pin-tag">Pinned</div>
   </Html>
