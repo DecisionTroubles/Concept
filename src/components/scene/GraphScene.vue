@@ -47,6 +47,11 @@ watch(() => graphStore.focusVersion, () => {
 })
 
 onMounted(() => {
+  window.addEventListener('pointerdown', () => {
+    // If the user starts interacting manually, stop auto-focus lerp immediately.
+    focusTarget.value = null
+  })
+
   window.addEventListener('keydown', (e) => {
     const tag = (e.target as HTMLElement)?.tagName
     const isInput = tag === 'INPUT' || tag === 'TEXTAREA'
@@ -67,6 +72,16 @@ onMounted(() => {
     if (!isInput && e.key.toLowerCase() === settings.keys.flyMode) { editorMode.enterFly(); return }
     if (!isInput && e.key.toLowerCase() === settings.keys.graphMode && graphStore.selectedNodeId) {
       editorMode.enterGraph(); return
+    }
+    if (!isInput && graphStore.selectedNodeId && e.key.toLowerCase() === settings.keys.openNode) {
+      e.preventDefault()
+      graphStore.toggleCenteredNodePanel()
+      return
+    }
+    if (!isInput && graphStore.selectedNodeId && e.key.toLowerCase() === settings.keys.pinNode) {
+      e.preventDefault()
+      graphStore.togglePinnedNodePanel()
+      return
     }
 
     if (editorMode.mode.value === 'graph' && !isInput) {
@@ -144,8 +159,10 @@ const _orbitLerpTarget = new THREE.Vector3()
 let pulseT = 0
 
 
-// Camera position for distance-faded labels
-const cameraPos = shallowRef(new THREE.Vector3())
+// Camera position snapshot for distance-faded labels (sampled, not every frame)
+const cameraPos = new THREE.Vector3()
+const labelTick = ref(0)
+let labelSampleMs = 0
 
 const _ndcVec = new THREE.Vector3()
 
@@ -196,8 +213,13 @@ useRafFn(({ delta }) => {
   }
 
 
-  // Track camera position for distance-faded labels
-  cameraPos.value = cam.position.clone()
+  // Sample camera position at a lower rate to avoid forcing heavy full-scene reactivity.
+  labelSampleMs += delta
+  if (labelSampleMs >= 120) {
+    cameraPos.copy(cam.position)
+    labelTick.value++
+    labelSampleMs = 0
+  }
 
   // Compass projection (graph mode only)
   if (editorMode.mode.value === 'graph' && graphStore.selectedNodeId) {
@@ -241,6 +263,24 @@ useRafFn(({ delta }) => {
 
 // ── Hover state ───────────────────────────────────────────────────────────────
 const hoveredNodeId = ref<string | null>(null)
+
+const selectedPositionedNode = computed(() =>
+  graphStore.selectedNodeId
+    ? (positionedNodes.value.find((n) => n.id === graphStore.selectedNodeId) ?? null)
+    : null,
+)
+
+const pinnedPanelTips = computed(() => {
+  const n = selectedPositionedNode.value
+  if (!n) return []
+  const prereq = n.connections.filter((c) => c.edge_type === 'Prerequisite').length
+  const context = n.connections.filter((c) => c.edge_type === 'Context').length
+  const tips: string[] = []
+  if (prereq > 0) tips.push(`Check ${prereq} prerequisite link${prereq > 1 ? 's' : ''} first.`)
+  if (context > 0) tips.push(`Use ${context} context connection${context > 1 ? 's' : ''} for examples.`)
+  if (!n.learned) tips.push('Mark learned once recall is stable.')
+  return tips.slice(0, 2)
+})
 
 // ── Node helpers ──────────────────────────────────────────────────────────────
 function nodeRadius(node: PositionedNode): number {
@@ -343,10 +383,12 @@ const edges = computed(() => {
 
 // ── Distance-faded label opacity ──────────────────────────────────────────────
 function nodeLabelOpacity(node: PositionedNode): number {
+  // make opacity recompute only on sampled camera updates
+  void labelTick.value
   if (hoveredNodeId.value === node.id || graphStore.selectedNodeId === node.id) return 1
-  const dx = cameraPos.value.x - node.x
-  const dy = cameraPos.value.y - node.y
-  const dz = cameraPos.value.z - node.z
+  const dx = cameraPos.x - node.x
+  const dy = cameraPos.y - node.y
+  const dz = cameraPos.z - node.z
   const dist = Math.sqrt(dx*dx + dy*dy + dz*dz)
   if (dist <= 12) return 1
   if (dist >= 30) return 0
@@ -435,7 +477,7 @@ watch(() => graphStore.activeLayerId, () => {
     />
     <TresSphereGeometry
       v-else
-      :args="[nodeRadius(node), 32, 32]"
+      :args="[nodeRadius(node), 18, 14]"
     />
     <TresMeshStandardMaterial
       :color="nodeColor(node)"
@@ -459,6 +501,25 @@ watch(() => graphStore.activeLayerId, () => {
     </div>
   </Html>
 
+  <Html
+    v-if="graphStore.pinnedNodePanel && selectedPositionedNode"
+    :position="[selectedPositionedNode.x, selectedPositionedNode.y + nodeRadius(selectedPositionedNode) + 2.4, selectedPositionedNode.z]"
+    center
+    :distance-factor="10"
+    :sprite="true"
+    occlude
+    transform
+  >
+    <div class="world-node-card">
+      <div class="world-node-title">{{ selectedPositionedNode.title }}</div>
+      <div class="world-node-meta">{{ selectedPositionedNode.node_type }} · {{ selectedPositionedNode.learned ? 'learned' : 'active' }}</div>
+      <div v-if="selectedPositionedNode.content_data" class="world-node-content">{{ selectedPositionedNode.content_data }}</div>
+      <ul v-if="pinnedPanelTips.length" class="world-node-tips">
+        <li v-for="tip in pinnedPanelTips" :key="tip">{{ tip }}</li>
+      </ul>
+    </div>
+  </Html>
+
 </template>
 
 <style scoped>
@@ -476,5 +537,48 @@ watch(() => graphStore.activeLayerId, () => {
   background: rgba(8, 11, 20, 0.6);
   padding: 2px 7px;
   border-radius: 4px;
+}
+
+.world-node-card {
+  width: 220px;
+  background: rgba(10, 14, 24, 0.94);
+  border: 1px solid rgba(91, 143, 255, 0.35);
+  border-radius: 10px;
+  padding: 10px;
+  color: #e8eaf0;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.world-node-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.world-node-meta {
+  font-size: 10px;
+  color: #7a8099;
+  text-transform: capitalize;
+  margin-bottom: 6px;
+}
+
+.world-node-content {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #c8cad6;
+  margin-bottom: 6px;
+  max-height: 72px;
+  overflow: hidden;
+}
+
+.world-node-tips {
+  margin: 0;
+  padding-left: 14px;
+  font-size: 10px;
+  color: #5ba8ff;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 </style>

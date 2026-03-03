@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { X, BookOpen, Tag, ArrowRight, CheckCircle2 } from 'lucide-vue-next'
+import { X, BookOpen, Tag, ArrowRight, CheckCircle2, Pin, Crosshair } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 const graphStore = useGraphStore()
+const settings = useSettings()
 
 const node = computed(() => graphStore.selectedNode)
+const isCentered = computed(() => graphStore.centeredNodePanel)
+const isPinned = computed(() => graphStore.pinnedNodePanel)
 
 // Edge type → human readable
 function edgeLabel(type: string): string {
@@ -31,6 +34,34 @@ function connectedNodeTitle(targetId: string): string {
   return graphStore.nodes.find(n => n.id === targetId)?.title ?? targetId.slice(0, 8)
 }
 
+const connectionSummary = computed(() => {
+  if (!node.value) return { context: 0, prerequisite: 0, semantic: 0, custom: 0 }
+  return node.value.connections.reduce(
+    (acc, conn) => {
+      if (conn.edge_type === 'Context') acc.context += 1
+      else if (conn.edge_type === 'Prerequisite') acc.prerequisite += 1
+      else if (conn.edge_type === 'Semantic') acc.semantic += 1
+      else acc.custom += 1
+      return acc
+    },
+    { context: 0, prerequisite: 0, semantic: 0, custom: 0 },
+  )
+})
+
+const nodeTips = computed(() => {
+  if (!node.value) return []
+  const tips: string[] = []
+  if (connectionSummary.value.prerequisite > 0)
+    tips.push('Review prerequisite links first to reduce confusion.')
+  if (connectionSummary.value.context > 0)
+    tips.push('Traverse context links to reinforce real usage patterns.')
+  if (node.value.tags.length > 0)
+    tips.push(`Use tags (${node.value.tags.slice(0, 2).join(', ')}) to group related review sessions.`)
+  if (!node.value.learned)
+    tips.push('Mark this node learned after recalling it without hints.')
+  return tips.slice(0, 3)
+})
+
 async function onMarkLearned() {
   if (!node.value) return
   await graphStore.markLearned(node.value.id, !node.value.learned)
@@ -40,17 +71,36 @@ function onClose() {
   graphStore.selectNode(null)
 }
 
+function toggleCentered() {
+  graphStore.toggleCenteredNodePanel()
+}
+
+function togglePinned() {
+  graphStore.togglePinnedNodePanel()
+}
+
 </script>
 
 <template>
   <Transition name="panel">
-    <div v-if="node" class="detail-panel" @click.stop>
+    <div v-if="node" :class="['detail-panel', isCentered ? 'is-centered' : 'is-side']" @click.stop>
       <!-- Header -->
       <div class="panel-header">
-        <div class="panel-title">{{ node.title }}</div>
-        <button class="close-btn" @click="onClose" aria-label="Close">
-          <X :size="14" />
-        </button>
+        <div class="title-wrap">
+          <div class="panel-title">{{ node.title }}</div>
+          <div class="panel-subtitle">{{ node.node_type }} · {{ node.learned ? 'learned' : 'in progress' }}</div>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" :class="{ active: isCentered }" @click="toggleCentered" :aria-label="`Toggle centered panel (${settings.keys.openNode.toUpperCase()})`">
+            <Crosshair :size="13" />
+          </button>
+          <button class="icon-btn" :class="{ active: isPinned }" @click="togglePinned" :aria-label="`Toggle pin (${settings.keys.pinNode.toUpperCase()})`">
+            <Pin :size="13" />
+          </button>
+          <button class="close-btn" @click="onClose" aria-label="Close">
+            <X :size="14" />
+          </button>
+        </div>
       </div>
 
       <div class="panel-divider" />
@@ -96,12 +146,39 @@ function onClose() {
             </li>
           </ul>
         </div>
+
+        <div class="facts-section">
+          <div class="section-label">
+            <BookOpen :size="12" />
+            <span>Facts</span>
+          </div>
+          <div class="facts-grid">
+            <div class="fact-cell"><span>Weight</span><strong>{{ node.weight.toFixed(2) }}</strong></div>
+            <div class="fact-cell"><span>Created</span><strong>{{ new Date(node.created_at).toLocaleDateString() }}</strong></div>
+            <div class="fact-cell"><span>Context</span><strong>{{ connectionSummary.context }}</strong></div>
+            <div class="fact-cell"><span>Prereq</span><strong>{{ connectionSummary.prerequisite }}</strong></div>
+          </div>
+        </div>
+
+        <div v-if="nodeTips.length" class="tips-section">
+          <div class="section-label">
+            <ArrowRight :size="12" />
+            <span>Tips</span>
+          </div>
+          <ul class="tips-list">
+            <li v-for="tip in nodeTips" :key="tip">{{ tip }}</li>
+          </ul>
+        </div>
       </div>
 
       <div class="panel-divider" />
 
       <!-- Footer action -->
       <div class="panel-footer">
+        <button class="pin-btn" :class="{ active: isPinned }" @click="togglePinned">
+          <Pin :size="13" />
+          <span>{{ isPinned ? 'Unpin from 3D' : 'Pin in 3D world' }} ({{ settings.keys.pinNode.toUpperCase() }})</span>
+        </button>
         <button
           :class="['learn-btn', node.learned ? 'learned' : 'unlearned']"
           @click="onMarkLearned"
@@ -117,10 +194,7 @@ function onClose() {
 <style scoped>
 .detail-panel {
   position: fixed;
-  top: 50%;
-  right: 20px;
-  transform: translateY(-50%);
-  width: 260px;
+  width: 320px;
   max-height: 70vh;
   overflow-y: auto;
   background: rgba(12, 16, 28, 0.82);
@@ -131,8 +205,43 @@ function onClose() {
   color: #e8eaf0;
   font-family: system-ui, sans-serif;
   font-size: 13px;
-  z-index: 100;
+  z-index: 420;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(91, 143, 255, 0.55) rgba(255, 255, 255, 0.06);
+}
+
+.detail-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.detail-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.detail-panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(91, 143, 255, 0.7), rgba(91, 143, 255, 0.4));
+  border-radius: 12px;
+  border: 2px solid rgba(12, 16, 28, 0.8);
+}
+
+.detail-panel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(91, 143, 255, 0.85), rgba(91, 143, 255, 0.55));
+}
+
+.detail-panel.is-side {
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+}
+
+.detail-panel.is-centered {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 380px;
+  max-width: calc(100vw - 24px);
 }
 
 .panel-header {
@@ -149,6 +258,45 @@ function onClose() {
   line-height: 1.3;
   color: #ffffff;
   flex: 1;
+}
+
+.title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.panel-subtitle {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #7a8099;
+  text-transform: capitalize;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 5px;
+  color: #7a8099;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-btn:hover,
+.icon-btn.active {
+  background: rgba(91, 143, 255, 0.2);
+  color: #5b8fff;
 }
 
 .close-btn {
@@ -266,6 +414,28 @@ function onClose() {
 
 .panel-footer {
   padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pin-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(91, 143, 255, 0.35);
+  background: rgba(91, 143, 255, 0.1);
+  color: #5b8fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pin-btn.active {
+  background: rgba(91, 143, 255, 0.2);
 }
 
 .learn-btn {
@@ -303,6 +473,45 @@ function onClose() {
   background: rgba(120, 130, 170, 0.18);
 }
 
+.facts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.fact-cell {
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fact-cell span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #7a8099;
+}
+
+.fact-cell strong {
+  font-size: 12px;
+  color: #e8eaf0;
+  font-weight: 600;
+}
+
+.tips-list {
+  margin: 0;
+  padding-left: 16px;
+  color: #c8cad6;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+}
+
 /* Transition */
 .panel-enter-active,
 .panel-leave-active {
@@ -312,6 +521,6 @@ function onClose() {
 .panel-enter-from,
 .panel-leave-to {
   opacity: 0;
-  transform: translateY(-50%) translateX(12px);
+  transform: translateY(-46%);
 }
 </style>

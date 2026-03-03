@@ -6,6 +6,8 @@ export interface Keybindings {
   jumpBack:   string
   search:     string
   settings:   string
+  openNode:   string
+  pinNode:    string
   flyForward: string
   flyBack:    string
   flyLeft:    string
@@ -20,6 +22,8 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
   jumpBack:   'q',
   search:     '/',
   settings:   't',
+  openNode:   'e',
+  pinNode:    'p',
   flyForward: 'w',
   flyBack:    's',
   flyLeft:    'a',

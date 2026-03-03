@@ -8,6 +8,8 @@ export const useGraphStore = defineStore('graph', () => {
   const activeLayerId = ref<string | null>(null)
   const nodes = ref<Node[]>([])
   const selectedNodeId = ref<string | null>(null)
+  const centeredNodePanel = ref(false)
+  const pinnedNodePanel = ref(false)
   const focusVersion = ref(0)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -18,11 +20,25 @@ export const useGraphStore = defineStore('graph', () => {
 
   function selectNode(id: string | null) {
     selectedNodeId.value = id
+    if (!id) {
+      centeredNodePanel.value = false
+      pinnedNodePanel.value = false
+    }
   }
 
   function requestFocus(id: string) {
     selectedNodeId.value = id
     focusVersion.value++
+  }
+
+  function toggleCenteredNodePanel() {
+    if (!selectedNodeId.value) return
+    centeredNodePanel.value = !centeredNodePanel.value
+  }
+
+  function togglePinnedNodePanel() {
+    if (!selectedNodeId.value) return
+    pinnedNodePanel.value = !pinnedNodePanel.value
   }
 
   async function loadLayers() {
@@ -78,6 +94,8 @@ export const useGraphStore = defineStore('graph', () => {
     activeLayerId,
     nodes,
     selectedNodeId,
+    centeredNodePanel,
+    pinnedNodePanel,
     selectedNode,
     isLoading,
     error,
@@ -86,6 +104,8 @@ export const useGraphStore = defineStore('graph', () => {
     markLearned,
     updateNodePosition,
     selectNode,
+    toggleCenteredNodePanel,
+    togglePinnedNodePanel,
     focusVersion,
     requestFocus,
     initialize,

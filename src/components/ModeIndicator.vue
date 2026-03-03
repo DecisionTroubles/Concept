@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { Navigation, Wind, GitBranch } from 'lucide-vue-next'
 
 const { mode } = useEditorMode()
@@ -15,7 +15,7 @@ const { mode } = useEditorMode()
     <div class="mode-hint">
       <span v-if="mode === 'normal'">F=fly · G=graph · ff=search</span>
       <span v-else-if="mode === 'fly'">WASD/QE · Esc to exit</span>
-      <span v-else-if="mode === 'graph'">Tab · 1–9 · Esc to exit</span>
+      <span v-else-if="mode === 'graph'">Tab · 1-9 · E=center · P=pin</span>
     </div>
   </div>
 </template>

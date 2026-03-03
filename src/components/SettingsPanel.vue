@@ -19,6 +19,8 @@ const GLOBAL_ACTIONS: Array<{ key: ActionKey; label: string }> = [
   { key: 'jumpBack',  label: 'Jump back' },
   { key: 'search',    label: 'Search nodes' },
   { key: 'settings',  label: 'Settings panel' },
+  { key: 'openNode',  label: 'Center node panel' },
+  { key: 'pinNode',   label: 'Pin node in 3D' },
 ]
 
 const FLY_ACTIONS: Array<{ key: ActionKey; label: string }> = [
