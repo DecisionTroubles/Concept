@@ -4,6 +4,7 @@ import { EffectComposerPmndrs, BloomPmndrs, VignettePmndrs } from '@tresjs/post-
 import GraphScene from '@/components/scene/GraphScene.vue'
 import NodeDetailPanel from '@/components/NodeDetailPanel.vue'
 import LayerPanel from '@/components/LayerPanel.vue'
+import BufferOverlay from '@/components/BufferOverlay.vue'
 
 const graphStore = useGraphStore()
 const editorMode = useEditorMode()
@@ -40,4 +41,5 @@ onMounted(() => graphStore.initialize())
     :center-y="editorMode.compassCenter.value?.y ?? 0"
     :active-index="editorMode.compassIndex.value"
   />
+  <BufferOverlay />
 </template>

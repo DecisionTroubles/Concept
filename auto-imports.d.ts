@@ -103,6 +103,9 @@ declare global {
   // @ts-ignore
   export type { Keybindings } from './src/composables/useSettings'
   import('./src/composables/useSettings')
+  // @ts-ignore
+  export type { BufferId } from './src/stores/graph'
+  import('./src/stores/graph')
 }
 
 // for vue template auto import

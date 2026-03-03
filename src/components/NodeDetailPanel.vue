@@ -7,7 +7,7 @@ const settings = useSettings()
 
 const node = computed(() => graphStore.selectedNode)
 const isCentered = computed(() => graphStore.centeredNodePanel)
-const isPinned = computed(() => graphStore.pinnedNodePanel)
+const isPinned = computed(() => graphStore.isNodePinned(node.value?.id))
 
 // Edge type → human readable
 function edgeLabel(type: string): string {
@@ -48,6 +48,12 @@ const connectionSummary = computed(() => {
   )
 })
 
+const noteTypeName = computed(() => {
+  const id = node.value?.note_type_id
+  if (!id) return 'Unassigned'
+  return graphStore.noteTypes.find((n) => n.id === id)?.name ?? 'Unknown'
+})
+
 const nodeTips = computed(() => {
   if (!node.value) return []
   const tips: string[] = []
@@ -76,7 +82,15 @@ function toggleCentered() {
 }
 
 function togglePinned() {
-  graphStore.togglePinnedNodePanel()
+  if (!node.value) return
+  graphStore.togglePinNode(node.value.id)
+}
+
+async function onNoteTypeChange(e: Event) {
+  if (!node.value) return
+  const target = e.target as HTMLSelectElement
+  const next = target.value || null
+  await graphStore.setNodeNoteType(node.value.id, next)
 }
 
 </script>
@@ -158,6 +172,14 @@ function togglePinned() {
             <div class="fact-cell"><span>Context</span><strong>{{ connectionSummary.context }}</strong></div>
             <div class="fact-cell"><span>Prereq</span><strong>{{ connectionSummary.prerequisite }}</strong></div>
           </div>
+          <div class="note-type-row">
+            <span class="note-type-label">Note type</span>
+            <select class="note-type-select" :value="node.note_type_id ?? ''" @change="onNoteTypeChange">
+              <option value="">Unassigned</option>
+              <option v-for="nt in graphStore.noteTypes" :key="nt.id" :value="nt.id">{{ nt.name }}</option>
+            </select>
+            <span class="note-type-current">{{ noteTypeName }}</span>
+          </div>
         </div>
 
         <div v-if="nodeTips.length" class="tips-section">
@@ -177,7 +199,7 @@ function togglePinned() {
       <div class="panel-footer">
         <button class="pin-btn" :class="{ active: isPinned }" @click="togglePinned">
           <Pin :size="13" />
-          <span>{{ isPinned ? 'Unpin from 3D' : 'Pin in 3D world' }} ({{ settings.keys.pinNode.toUpperCase() }})</span>
+          <span>{{ isPinned ? 'Unpin node' : 'Pin node' }} ({{ settings.keys.pinNode.toUpperCase() }})</span>
         </button>
         <button
           :class="['learn-btn', node.learned ? 'learned' : 'unlearned']"
@@ -194,8 +216,8 @@ function togglePinned() {
 <style scoped>
 .detail-panel {
   position: fixed;
-  width: 320px;
-  max-height: 70vh;
+  width: 360px;
+  max-height: 78vh;
   overflow-y: auto;
   background: rgba(12, 16, 28, 0.82);
   backdrop-filter: blur(16px);
@@ -207,27 +229,6 @@ function togglePinned() {
   font-size: 13px;
   z-index: 420;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(91, 143, 255, 0.55) rgba(255, 255, 255, 0.06);
-}
-
-.detail-panel::-webkit-scrollbar {
-  width: 10px;
-}
-
-.detail-panel::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-}
-
-.detail-panel::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(91, 143, 255, 0.7), rgba(91, 143, 255, 0.4));
-  border-radius: 12px;
-  border: 2px solid rgba(12, 16, 28, 0.8);
-}
-
-.detail-panel::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(91, 143, 255, 0.85), rgba(91, 143, 255, 0.55));
 }
 
 .detail-panel.is-side {
@@ -240,8 +241,8 @@ function togglePinned() {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 380px;
-  max-width: calc(100vw - 24px);
+  width: 520px;
+  max-width: calc(100vw - 28px);
 }
 
 .panel-header {
@@ -326,10 +327,10 @@ function togglePinned() {
 }
 
 .panel-body {
-  padding: 12px 16px;
+  padding: 14px 18px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .section-label {
@@ -373,6 +374,9 @@ function togglePinned() {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .connection-item {
@@ -413,10 +417,14 @@ function togglePinned() {
 .badge-grey   { background: rgba(90, 100, 140, 0.18); color: #6a7a9a; }
 
 .panel-footer {
-  padding: 12px 16px;
+  padding: 12px 18px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(12, 16, 28, 0) 0%, rgba(12, 16, 28, 0.95) 28%);
+  backdrop-filter: blur(8px);
 }
 
 .pin-btn {
@@ -510,6 +518,33 @@ function togglePinned() {
   flex-direction: column;
   gap: 5px;
   font-size: 12px;
+}
+
+.note-type-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-type-label {
+  font-size: 11px;
+  color: #7a8099;
+  min-width: 58px;
+}
+
+.note-type-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e8eaf0;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.note-type-current {
+  font-size: 11px;
+  color: #5b8fff;
 }
 
 /* Transition */

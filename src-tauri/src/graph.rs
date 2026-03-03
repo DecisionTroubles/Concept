@@ -1,4 +1,5 @@
 use rusqlite::{params, Connection};
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -39,6 +40,8 @@ pub struct Node {
     pub title: String,
     pub layer_id: String,
     pub node_type: String,
+    pub note_type_id: Option<String>,
+    pub note_fields: BTreeMap<String, String>,
     pub content_type: String,
     pub content_data: Option<String>,
     pub tags: Vec<String>,
@@ -57,9 +60,20 @@ pub struct CreateNodeInput {
     pub title: String,
     pub layer_id: String,
     pub node_type: String,
+    pub note_type_id: Option<String>,
+    pub note_fields: Option<BTreeMap<String, String>>,
     pub content_data: Option<String>,
     pub tags: Vec<String>,
     pub weight: f64,
+}
+
+#[taurpc::ipc_type]
+pub struct NoteType {
+    pub id: String,
+    pub name: String,
+    pub fields: Vec<String>,
+    pub is_default: bool,
+    pub created_at: String,
 }
 
 #[taurpc::ipc_type]
@@ -152,6 +166,8 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
         title: String,
         layer_id: String,
         node_type: String,
+        note_type_id: Option<String>,
+        note_fields_json: String,
         content_type: String,
         content_data: Option<String>,
         tags_json: String,
@@ -164,7 +180,7 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
     }
 
     let mut stmt = conn.prepare(
-        "SELECT id, title, layer_id, node_type, content_type, content_data,
+        "SELECT id, title, layer_id, node_type, note_type_id, note_fields, content_type, content_data,
                 tags, learned, weight, pos_x, pos_y, pos_z, created_at
          FROM nodes WHERE layer_id = ?1",
     )?;
@@ -176,15 +192,17 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
                 title: row.get(1)?,
                 layer_id: row.get(2)?,
                 node_type: row.get(3)?,
-                content_type: row.get(4)?,
-                content_data: row.get(5)?,
-                tags_json: row.get(6)?,
-                learned: row.get::<_, i32>(7)? != 0,
-                weight: row.get(8)?,
-                pos_x: row.get(9)?,
-                pos_y: row.get(10)?,
-                pos_z: row.get(11)?,
-                created_at: row.get(12)?,
+                note_type_id: row.get(4)?,
+                note_fields_json: row.get(5)?,
+                content_type: row.get(6)?,
+                content_data: row.get(7)?,
+                tags_json: row.get(8)?,
+                learned: row.get::<_, i32>(9)? != 0,
+                weight: row.get(10)?,
+                pos_x: row.get(11)?,
+                pos_y: row.get(12)?,
+                pos_z: row.get(13)?,
+                created_at: row.get(14)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -193,12 +211,16 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
     for row in rows {
         let tags: Vec<String> =
             serde_json::from_str(&row.tags_json).unwrap_or_default();
+        let note_fields: BTreeMap<String, String> =
+            serde_json::from_str(&row.note_fields_json).unwrap_or_default();
         let connections = query_edges_for_node(conn, &row.id)?;
         nodes.push(Node {
             id: row.id,
             title: row.title,
             layer_id: row.layer_id,
             node_type: row.node_type,
+            note_type_id: row.note_type_id,
+            note_fields,
             content_type: row.content_type,
             content_data: row.content_data,
             tags,
@@ -215,37 +237,56 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
 }
 
 pub fn insert_node(conn: &Connection, input: CreateNodeInput) -> Result<Node, AppError> {
+    let CreateNodeInput {
+        title,
+        layer_id,
+        node_type,
+        note_type_id,
+        note_fields,
+        content_data,
+        tags,
+        weight,
+    } = input;
+
     let id = Uuid::new_v4().to_string();
     let created_at = now_ts();
     let tags_json =
-        serde_json::to_string(&input.tags).unwrap_or_else(|_| "[]".to_string());
+        serde_json::to_string(&tags).unwrap_or_else(|_| "[]".to_string());
+    let note_fields = note_fields.unwrap_or_default();
+    let note_fields_json = serde_json::to_string(&note_fields)
+        .unwrap_or_else(|_| "{}".to_string());
+    let note_type_id = note_type_id.or_else(|| default_note_type_id(conn).ok().flatten());
 
     conn.execute(
         "INSERT INTO nodes
-             (id, title, layer_id, node_type, content_type, content_data, tags, learned, weight, created_at)
-         VALUES (?1, ?2, ?3, ?4, 'text', ?5, ?6, 0, ?7, ?8)",
+             (id, title, layer_id, node_type, note_type_id, note_fields, content_type, content_data, tags, learned, weight, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'text', ?7, ?8, 0, ?9, ?10)",
         params![
             id,
-            input.title,
-            input.layer_id,
-            input.node_type,
-            input.content_data,
+            title,
+            layer_id,
+            node_type,
+            note_type_id,
+            note_fields_json,
+            content_data,
             tags_json,
-            input.weight,
+            weight,
             created_at
         ],
     )?;
 
     Ok(Node {
         id,
-        title: input.title,
-        layer_id: input.layer_id,
-        node_type: input.node_type,
+        title,
+        layer_id,
+        node_type,
+        note_type_id,
+        note_fields,
         content_type: "text".to_string(),
-        content_data: input.content_data,
-        tags: input.tags,
+        content_data,
+        tags,
         learned: false,
-        weight: input.weight,
+        weight,
         pos_x: None,
         pos_y: None,
         pos_z: None,
@@ -288,6 +329,8 @@ fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
         title: String,
         layer_id: String,
         node_type: String,
+        note_type_id: Option<String>,
+        note_fields_json: String,
         content_type: String,
         content_data: Option<String>,
         tags_json: String,
@@ -301,7 +344,7 @@ fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
 
     let data = conn
         .query_row(
-            "SELECT title, layer_id, node_type, content_type, content_data,
+            "SELECT title, layer_id, node_type, note_type_id, note_fields, content_type, content_data,
                     tags, learned, weight, pos_x, pos_y, pos_z, created_at
              FROM nodes WHERE id = ?1",
             [id],
@@ -310,15 +353,17 @@ fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
                     title: row.get(0)?,
                     layer_id: row.get(1)?,
                     node_type: row.get(2)?,
-                    content_type: row.get(3)?,
-                    content_data: row.get(4)?,
-                    tags_json: row.get(5)?,
-                    learned: row.get::<_, i32>(6)? != 0,
-                    weight: row.get(7)?,
-                    pos_x: row.get(8)?,
-                    pos_y: row.get(9)?,
-                    pos_z: row.get(10)?,
-                    created_at: row.get(11)?,
+                    note_type_id: row.get(3)?,
+                    note_fields_json: row.get(4)?,
+                    content_type: row.get(5)?,
+                    content_data: row.get(6)?,
+                    tags_json: row.get(7)?,
+                    learned: row.get::<_, i32>(8)? != 0,
+                    weight: row.get(9)?,
+                    pos_x: row.get(10)?,
+                    pos_y: row.get(11)?,
+                    pos_z: row.get(12)?,
+                    created_at: row.get(13)?,
                 })
             },
         )
@@ -330,6 +375,8 @@ fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
         })?;
 
     let tags: Vec<String> = serde_json::from_str(&data.tags_json).unwrap_or_default();
+    let note_fields: BTreeMap<String, String> =
+        serde_json::from_str(&data.note_fields_json).unwrap_or_default();
     let connections = query_edges_for_node(conn, id)?;
 
     Ok(Node {
@@ -337,6 +384,8 @@ fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
         title: data.title,
         layer_id: data.layer_id,
         node_type: data.node_type,
+        note_type_id: data.note_type_id,
+        note_fields,
         content_type: data.content_type,
         content_data: data.content_data,
         tags,
@@ -391,6 +440,7 @@ pub fn remove_edge(conn: &Connection, id: &str) -> Result<(), AppError> {
 // ---------------------------------------------------------------------------
 
 pub fn seed_sample_data(conn: &Connection) -> Result<(), AppError> {
+    ensure_default_note_types(conn)?;
     // One-time migration: remove the old hardcoded "Japanese N5 Grammar" layer
     // (and its nodes/edges via CASCADE) that existed before the domain-pack system.
     // Safe to call every launch — after the first run there is nothing to delete.
@@ -408,6 +458,91 @@ pub fn seed_sample_data(conn: &Connection) -> Result<(), AppError> {
 /// Wipe all graph data and re-seed from the bundled domain pack.
 /// Use during development when seed data changes between runs.
 pub fn reset_and_reseed(conn: &Connection) -> Result<(), AppError> {
-    conn.execute_batch("DELETE FROM edges; DELETE FROM nodes; DELETE FROM layers;")?;
+    conn.execute_batch("DELETE FROM edges; DELETE FROM nodes; DELETE FROM layers; DELETE FROM note_types;")?;
     seed_sample_data(conn)
+}
+
+pub fn query_note_types(conn: &Connection) -> Result<Vec<NoteType>, AppError> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, fields, is_default, created_at
+         FROM note_types
+         ORDER BY is_default DESC, name ASC",
+    )?;
+    let rows = stmt
+        .query_map([], |row| {
+            let fields_json: String = row.get(2)?;
+            let fields: Vec<String> = serde_json::from_str(&fields_json).unwrap_or_default();
+            Ok(NoteType {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                fields,
+                is_default: row.get::<_, i32>(3)? != 0,
+                created_at: row.get(4)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+pub fn insert_note_type(
+    conn: &Connection,
+    name: &str,
+    fields: Vec<String>,
+    is_default: bool,
+) -> Result<NoteType, AppError> {
+    let id = Uuid::new_v4().to_string();
+    let created_at = now_ts();
+    let fields_json = serde_json::to_string(&fields).unwrap_or_else(|_| "[]".to_string());
+    let is_default_i = if is_default { 1 } else { 0 };
+    if is_default {
+        conn.execute("UPDATE note_types SET is_default = 0", [])?;
+    }
+    conn.execute(
+        "INSERT INTO note_types (id, name, fields, is_default, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![id, name, fields_json, is_default_i, created_at],
+    )?;
+    Ok(NoteType {
+        id,
+        name: name.to_string(),
+        fields,
+        is_default,
+        created_at,
+    })
+}
+
+pub fn set_node_note_type(conn: &Connection, node_id: &str, note_type_id: Option<String>) -> Result<Node, AppError> {
+    let changed = conn.execute(
+        "UPDATE nodes SET note_type_id = ?1 WHERE id = ?2",
+        params![note_type_id, node_id],
+    )?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("Node {} not found", node_id)));
+    }
+    query_single_node(conn, node_id)
+}
+
+fn default_note_type_id(conn: &Connection) -> Result<Option<String>, AppError> {
+    let res = conn.query_row(
+        "SELECT id FROM note_types WHERE is_default = 1 LIMIT 1",
+        [],
+        |row| row.get::<_, String>(0),
+    );
+    match res {
+        Ok(id) => Ok(Some(id)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(AppError::Database(e)),
+    }
+}
+
+fn ensure_default_note_types(conn: &Connection) -> Result<(), AppError> {
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM note_types", [], |row| row.get(0))?;
+    if count > 0 {
+        return Ok(());
+    }
+
+    insert_note_type(conn, "Basic", vec!["Front".into(), "Back".into()], true)?;
+    insert_note_type(conn, "Cloze", vec!["Text".into(), "Extra".into()], false)?;
+    insert_note_type(conn, "Vocab", vec!["Word".into(), "Reading".into(), "Meaning".into(), "Example".into()], false)?;
+    Ok(())
 }

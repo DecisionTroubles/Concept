@@ -13,9 +13,9 @@ const { mode } = useEditorMode()
       <span class="mode-label">{{ mode.toUpperCase() }}</span>
     </div>
     <div class="mode-hint">
-      <span v-if="mode === 'normal'">F=fly · G=graph · ff=search</span>
+      <span v-if="mode === 'normal'">F=fly · G=graph · B=pinned · M=map</span>
       <span v-else-if="mode === 'fly'">WASD/QE · Esc to exit</span>
-      <span v-else-if="mode === 'graph'">Tab · 1-9 · E=center · P=pin</span>
+      <span v-else-if="mode === 'graph'">Tab · 1-9 · E=center · P=pin · B/M buffers</span>
     </div>
   </div>
 </template>

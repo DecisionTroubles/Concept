@@ -9,7 +9,7 @@ use rusqlite::Connection;
 use tauri::Manager;
 use tokio::sync::Mutex;
 
-use graph::{CreateNodeInput, Edge, Layer, Node};
+use graph::{CreateNodeInput, Edge, Layer, Node, NoteType};
 
 // ---------------------------------------------------------------------------
 // DB state — initialized once in setup, shared across all resolver calls.
@@ -39,6 +39,9 @@ trait GraphApi {
     async fn create_node(input: CreateNodeInput) -> Result<Node, String>;
     async fn mark_learned(id: String, learned: bool) -> Result<Node, String>;
     async fn update_node_position(id: String, x: f64, y: f64, z: f64) -> Result<(), String>;
+    async fn get_note_types() -> Result<Vec<NoteType>, String>;
+    async fn create_note_type(name: String, fields: Vec<String>, is_default: bool) -> Result<NoteType, String>;
+    async fn set_node_note_type(node_id: String, note_type_id: Option<String>) -> Result<Node, String>;
 
     // Edges
     async fn create_edge(
@@ -90,6 +93,21 @@ impl GraphApi for ApiImpl {
     async fn update_node_position(self, id: String, x: f64, y: f64, z: f64) -> Result<(), String> {
         let conn = db().lock().await;
         graph::set_node_position(&conn, &id, x, y, z).map_err(|e| e.to_string())
+    }
+
+    async fn get_note_types(self) -> Result<Vec<NoteType>, String> {
+        let conn = db().lock().await;
+        graph::query_note_types(&conn).map_err(|e| e.to_string())
+    }
+
+    async fn create_note_type(self, name: String, fields: Vec<String>, is_default: bool) -> Result<NoteType, String> {
+        let conn = db().lock().await;
+        graph::insert_note_type(&conn, &name, fields, is_default).map_err(|e| e.to_string())
+    }
+
+    async fn set_node_note_type(self, node_id: String, note_type_id: Option<String>) -> Result<Node, String> {
+        let conn = db().lock().await;
+        graph::set_node_note_type(&conn, &node_id, note_type_id).map_err(|e| e.to_string())
     }
 
     async fn create_edge(

@@ -4,7 +4,7 @@ import { createTauRPCProxy as createProxy, type InferCommandOutput } from 'taurp
 type TAURI_CHANNEL<T> = (response: T) => void
 
 
-export type CreateNodeInput = { title: string; layer_id: string; node_type: string; content_data: string | null; tags: string[]; weight: number }
+export type CreateNodeInput = { title: string; layer_id: string; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }> | null; content_data: string | null; tags: string[]; weight: number }
 
 export type Edge = { id: string; source_id: string; target_id: string; edge_type: string; weight: number; created_at: string }
 
@@ -12,22 +12,27 @@ export type EdgeRef = { id: string; target_id: string; edge_type: string; weight
 
 export type Layer = { id: string; name: string; display_order: number; created_at: string }
 
-export type Node = { id: string; title: string; layer_id: string; node_type: string; content_type: string; content_data: string | null; tags: string[]; learned: boolean; weight: number; pos_x: number | null; pos_y: number | null; pos_z: number | null; 
+export type Node = { id: string; title: string; layer_id: string; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }>; content_type: string; content_data: string | null; tags: string[]; learned: boolean; weight: number; pos_x: number | null; pos_y: number | null; pos_z: number | null; 
 /**
  * Outgoing edges — loaded in the same call, no second IPC round-trip needed.
  */
 connections: EdgeRef[]; created_at: string }
 
-const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"delete_edge":["id"],"get_layers":[],"get_nodes":["layer_id"],"mark_learned":["id","learned"],"reset_data":[],"seed_sample_data":[],"update_node_position":["id","x","y","z"]}' }
+export type NoteType = { id: string; name: string; fields: string[]; is_default: boolean; created_at: string }
+
+const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["name","fields","is_default"],"delete_edge":["id"],"get_layers":[],"get_nodes":["layer_id"],"get_note_types":[],"mark_learned":["id","learned"],"reset_data":[],"seed_sample_data":[],"set_node_note_type":["node_id","note_type_id"],"update_node_position":["id","x","y","z"]}' }
 export type Router = { "": {create_edge: (sourceId: string, targetId: string, edgeType: string) => Promise<Edge>, 
 create_layer: (name: string, displayOrder: number) => Promise<Layer>, 
 create_node: (input: CreateNodeInput) => Promise<Node>, 
+create_note_type: (name: string, fields: string[], isDefault: boolean) => Promise<NoteType>, 
 delete_edge: (id: string) => Promise<null>, 
 get_layers: () => Promise<Layer[]>, 
 get_nodes: (layerId: string) => Promise<Node[]>, 
+get_note_types: () => Promise<NoteType[]>, 
 mark_learned: (id: string, learned: boolean) => Promise<Node>, 
 reset_data: () => Promise<null>, 
 seed_sample_data: () => Promise<null>, 
+set_node_note_type: (nodeId: string, noteTypeId: string | null) => Promise<Node>, 
 update_node_position: (id: string, x: number, y: number, z: number) => Promise<null>} };
 
 

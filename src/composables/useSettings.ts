@@ -8,6 +8,8 @@ export interface Keybindings {
   settings:   string
   openNode:   string
   pinNode:    string
+  pinnedBuffer: string
+  mapBuffer:    string
   flyForward: string
   flyBack:    string
   flyLeft:    string
@@ -24,6 +26,8 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
   settings:   't',
   openNode:   'e',
   pinNode:    'p',
+  pinnedBuffer: 'b',
+  mapBuffer:    'm',
   flyForward: 'w',
   flyBack:    's',
   flyLeft:    'a',

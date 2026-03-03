@@ -20,7 +20,9 @@ const GLOBAL_ACTIONS: Array<{ key: ActionKey; label: string }> = [
   { key: 'search',    label: 'Search nodes' },
   { key: 'settings',  label: 'Settings panel' },
   { key: 'openNode',  label: 'Center node panel' },
-  { key: 'pinNode',   label: 'Pin node in 3D' },
+  { key: 'pinNode',   label: 'Toggle pin node' },
+  { key: 'pinnedBuffer', label: 'Pinned buffer' },
+  { key: 'mapBuffer',    label: 'Map buffer' },
 ]
 
 const FLY_ACTIONS: Array<{ key: ActionKey; label: string }> = [

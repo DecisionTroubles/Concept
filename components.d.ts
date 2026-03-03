@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     Badge: typeof import('./src/components/ui/badge/Badge.vue')['default']
+    BufferOverlay: typeof import('./src/components/BufferOverlay.vue')['default']
     Button: typeof import('./src/components/ui/button/Button.vue')['default']
     CompassHUD: typeof import('./src/components/CompassHUD.vue')['default']
     GraphScene: typeof import('./src/components/scene/GraphScene.vue')['default']

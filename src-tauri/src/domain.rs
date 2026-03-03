@@ -112,6 +112,8 @@ pub fn seed_pack(conn: &Connection, json: &str) -> Result<(), AppError> {
                 title: node_def.title.clone(),
                 layer_id,
                 node_type: node_def.node_type.clone(),
+                note_type_id: None,
+                note_fields: None,
                 content_data: node_def.content_data.clone(),
                 tags: node_def.tags.clone(),
                 weight: node_def.weight,

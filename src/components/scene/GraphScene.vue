@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { Html, Line2, OrbitControls } from '@tresjs/cientos'
 import { useTres } from '@tresjs/core'
 import { useRafFn } from '@vueuse/core'
@@ -11,17 +11,17 @@ const graphStore = useGraphStore()
 const controlsRef  = shallowRef()
 const coreLightRef = shallowRef<THREE.PointLight | null>(null)
 
-// TresJS context — used for fog setup.
+// TresJS context вЂ” used for fog setup.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const tres = useTres() as any
 
-// ── Editor mode ───────────────────────────────────────────────────────────────
+// в”Ђв”Ђ Editor mode в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const editorMode = useEditorMode()
 
-// ── Settings (configurable keybindings) ───────────────────────────────────────
+// в”Ђв”Ђ Settings (configurable keybindings) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const settings = useSettings()
 
-// ── Fly key tracking (only active in fly mode) ────────────────────────────────
+// в”Ђв”Ђ Fly key tracking (only active in fly mode) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const activeKeys = new Set<string>()
 
 // Sync mode when node deselected from outside (X button, layer switch, etc.)
@@ -56,10 +56,29 @@ onMounted(() => {
     const tag = (e.target as HTMLElement)?.tagName
     const isInput = tag === 'INPUT' || tag === 'TEXTAREA'
                   || (e.target as HTMLElement)?.isContentEditable
+    const key = e.key.toLowerCase()
+
+    if (!isInput && key === settings.keys.pinnedBuffer) {
+      e.preventDefault()
+      graphStore.toggleBuffer('pinned')
+      return
+    }
+    if (!isInput && key === settings.keys.mapBuffer) {
+      e.preventDefault()
+      graphStore.toggleBuffer('map')
+      return
+    }
+    if (!isInput && e.key === 'Escape' && graphStore.activeBuffer !== 'none') {
+      e.preventDefault()
+      graphStore.closeBuffer()
+      return
+    }
+
+    if (graphStore.activeBuffer !== 'none') return
 
     // Fly key tracking
     if (editorMode.mode.value === 'fly') {
-      const k = e.key.toLowerCase()
+      const k = key
       const flyMoveKeys = [
         settings.keys.flyForward, settings.keys.flyBack,
         settings.keys.flyLeft,    settings.keys.flyRight,
@@ -69,18 +88,18 @@ onMounted(() => {
     }
 
     if (e.key === 'Escape') { e.preventDefault(); editorMode.escapeFromCurrentMode(); return }
-    if (!isInput && e.key.toLowerCase() === settings.keys.flyMode) { editorMode.enterFly(); return }
-    if (!isInput && e.key.toLowerCase() === settings.keys.graphMode && graphStore.selectedNodeId) {
+    if (!isInput && key === settings.keys.flyMode) { editorMode.enterFly(); return }
+    if (!isInput && key === settings.keys.graphMode && graphStore.selectedNodeId) {
       editorMode.enterGraph(); return
     }
-    if (!isInput && graphStore.selectedNodeId && e.key.toLowerCase() === settings.keys.openNode) {
+    if (!isInput && graphStore.selectedNodeId && key === settings.keys.openNode) {
       e.preventDefault()
       graphStore.toggleCenteredNodePanel()
       return
     }
-    if (!isInput && graphStore.selectedNodeId && e.key.toLowerCase() === settings.keys.pinNode) {
+    if (!isInput && graphStore.selectedNodeId && key === settings.keys.pinNode) {
       e.preventDefault()
-      graphStore.togglePinnedNodePanel()
+      graphStore.togglePinNode(graphStore.selectedNodeId)
       return
     }
 
@@ -108,7 +127,7 @@ onMounted(() => {
     }
 
     // jump back (works in any non-fly mode)
-    if (!isInput && e.key.toLowerCase() === settings.keys.jumpBack && editorMode.mode.value !== 'fly') {
+    if (!isInput && key === settings.keys.jumpBack && editorMode.mode.value !== 'fly') {
       e.preventDefault()
       const id = editorMode.jumpBack()
       if (id) {
@@ -126,7 +145,7 @@ onMounted(() => {
     activeKeys.delete(e.key.toLowerCase())
   })
 
-  // Scene fog — gives the graph depth and a sense of infinite space.
+  // Scene fog вЂ” gives the graph depth and a sense of infinite space.
   try {
     const scene: THREE.Scene | undefined = tres?.scene?.value ?? tres?.scene
     if (scene instanceof THREE.Scene) {
@@ -135,7 +154,7 @@ onMounted(() => {
   } catch { /* skip if context not yet ready */ }
 })
 
-// ── Force layout ──────────────────────────────────────────────────────────────
+// в”Ђв”Ђ Force layout в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const { positionedNodes } = useForceLayout(
   computed(() => graphStore.nodes),
   (settled) => {
@@ -145,7 +164,7 @@ const { positionedNodes } = useForceLayout(
   },
 )
 
-// ── Camera focus animation ────────────────────────────────────────────────────
+// в”Ђв”Ђ Camera focus animation в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const focusTarget = shallowRef<THREE.Vector3 | null>(null)
 
 const _fwd            = new THREE.Vector3()
@@ -174,7 +193,7 @@ useRafFn(({ delta }) => {
   const cam   = controls.object as THREE.PerspectiveCamera
   const speed = 14 * (delta / 1000)
 
-  // Fly mode movement — only when in fly mode and keys are held
+  // Fly mode movement вЂ” only when in fly mode and keys are held
   if (editorMode.mode.value === 'fly' && activeKeys.size > 0) {
     cam.getWorldDirection(_fwd)
     _fwd.y = 0
@@ -232,7 +251,7 @@ useRafFn(({ delta }) => {
       const nodeMap = new Map(positionedNodes.value.map(n => [n.id, n]))
       // Deduplicate by target_id (same neighbor can appear via both an outgoing
       // and an incoming edge after the bidirectional query), then filter to
-      // nodes present in this layer, so indices are always sequential 1, 2, 3…
+      // nodes present in this layer, so indices are always sequential 1, 2, 3вЂ¦
       const seen = new Set<string>()
       const validConns = sel.connections
         .filter(conn => {
@@ -259,30 +278,13 @@ useRafFn(({ delta }) => {
     editorMode.setNeighborOrder([])
     editorMode.setCompassState([], null)
   }
+
 })
 
-// ── Hover state ───────────────────────────────────────────────────────────────
+// в”Ђв”Ђ Hover state в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const hoveredNodeId = ref<string | null>(null)
 
-const selectedPositionedNode = computed(() =>
-  graphStore.selectedNodeId
-    ? (positionedNodes.value.find((n) => n.id === graphStore.selectedNodeId) ?? null)
-    : null,
-)
-
-const pinnedPanelTips = computed(() => {
-  const n = selectedPositionedNode.value
-  if (!n) return []
-  const prereq = n.connections.filter((c) => c.edge_type === 'Prerequisite').length
-  const context = n.connections.filter((c) => c.edge_type === 'Context').length
-  const tips: string[] = []
-  if (prereq > 0) tips.push(`Check ${prereq} prerequisite link${prereq > 1 ? 's' : ''} first.`)
-  if (context > 0) tips.push(`Use ${context} context connection${context > 1 ? 's' : ''} for examples.`)
-  if (!n.learned) tips.push('Mark learned once recall is stable.')
-  return tips.slice(0, 2)
-})
-
-// ── Node helpers ──────────────────────────────────────────────────────────────
+// в”Ђв”Ђ Node helpers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function nodeRadius(node: PositionedNode): number {
   return Math.min(1.4, Math.max(0.55, 0.65 + (node.weight ?? 1) * 0.2))
 }
@@ -308,14 +310,18 @@ const TYPE_EMISSIVE: Record<string, string> = {
 }
 
 function nodeColor(node: PositionedNode): string {
+  if (graphStore.selectedNodeId === node.id && graphStore.isNodePinned(node.id)) return '#ffcf66'
   if (graphStore.selectedNodeId === node.id) return '#ffffff'
+  if (graphStore.isNodePinned(node.id)) return '#ff9f1a'
   if (neighborIds.value.has(node.id)) return '#5ba8ff'
   if (node.learned) return '#3dd68c'
   return TYPE_COLORS[node.node_type] ?? '#5870a0'
 }
 
 function nodeEmissive(node: PositionedNode): string {
+  if (graphStore.selectedNodeId === node.id && graphStore.isNodePinned(node.id)) return '#7a4a00'
   if (graphStore.selectedNodeId === node.id) return '#5555cc'
+  if (graphStore.isNodePinned(node.id)) return '#6a3f00'
   if (neighborIds.value.has(node.id)) return '#1a4aee'
   if (node.learned) return '#1a6644'
   return TYPE_EMISSIVE[node.node_type] ?? '#0f1556'
@@ -323,6 +329,7 @@ function nodeEmissive(node: PositionedNode): string {
 
 function nodeEmissiveIntensity(node: PositionedNode): number {
   if (graphStore.selectedNodeId === node.id) return 1.5
+  if (graphStore.isNodePinned(node.id)) return 1.0
   if (neighborIds.value.has(node.id))
     return 0.45 + 0.4 * Math.sin(Date.now() / 400)
   if (node.learned) return 0.8
@@ -333,7 +340,7 @@ function nodeScale(node: PositionedNode): number {
   return hoveredNodeId.value === node.id ? 1.25 : 1.0
 }
 
-// ── Edge helpers ──────────────────────────────────────────────────────────────
+// в”Ђв”Ђ Edge helpers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function edgeColor(edgeType: string): string {
   switch (edgeType) {
     case 'Prerequisite': return '#5b8fff'
@@ -352,7 +359,7 @@ function edgeLineWidth(edgeType: string): number {
   }
 }
 
-// ── Edge list for cientos Line2 component ────────────────────────────────────
+// в”Ђв”Ђ Edge list for cientos Line2 component в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const edges = computed(() => {
   const nodeMap = new Map<string, PositionedNode>(positionedNodes.value.map((n) => [n.id, n]))
   const result: {
@@ -381,7 +388,7 @@ const edges = computed(() => {
   return result
 })
 
-// ── Distance-faded label opacity ──────────────────────────────────────────────
+// в”Ђв”Ђ Distance-faded label opacity в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function nodeLabelOpacity(node: PositionedNode): number {
   // make opacity recompute only on sampled camera updates
   void labelTick.value
@@ -395,7 +402,7 @@ function nodeLabelOpacity(node: PositionedNode): number {
   return 1 - (dist - 12) / 18
 }
 
-// ── Event handlers ────────────────────────────────────────────────────────────
+// в”Ђв”Ђ Event handlers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function onNodeClick(node: PositionedNode, event: { stopPropagation?: () => void }) {
   event.stopPropagation?.()
   graphStore.selectNode(node.id)
@@ -413,7 +420,7 @@ function onNodePointerLeave(node: PositionedNode, event: { stopPropagation?: () 
   if (hoveredNodeId.value === node.id) hoveredNodeId.value = null
 }
 
-// Watch for layer changes — reset focus
+// Watch for layer changes вЂ” reset focus
 watch(() => graphStore.activeLayerId, () => {
   focusTarget.value  = null
   hoveredNodeId.value = null
@@ -425,7 +432,7 @@ watch(() => graphStore.activeLayerId, () => {
   <TresPerspectiveCamera :position="[0, 8, 28]" :fov="60" />
   <OrbitControls ref="controlsRef" enable-damping :damping-factor="0.05" />
 
-  <!-- ── Lighting ─────────────────────────────────────────────────────────── -->
+  <!-- в”Ђв”Ђ Lighting в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ -->
   <TresHemisphereLight sky-color="#2a3a66" ground-color="#08080f" :intensity="0.7" />
   <TresDirectionalLight :position="[12, 20, 8]" color="#ccd8ff" :intensity="1.8" />
   <TresPointLight
@@ -440,7 +447,7 @@ watch(() => graphStore.activeLayerId, () => {
   <TresPointLight :position="[-14, -7, 12]"  color="#ff3366" :intensity="28" :distance="40" :decay="2" />
   <TresPointLight :position="[14, -5, -10]"  color="#33aaff" :intensity="18" :distance="35" :decay="2" />
 
-  <!-- ── Edges ────────────────────────────────────────────────────────────── -->
+  <!-- в”Ђв”Ђ Edges в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ -->
   <Line2
     v-for="edge in edges"
     :key="edge.id"
@@ -449,7 +456,7 @@ watch(() => graphStore.activeLayerId, () => {
     :line-width="edge.width"
   />
 
-  <!-- ── Nodes ────────────────────────────────────────────────────────────── -->
+  <!-- в”Ђв”Ђ Nodes в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ -->
   <TresMesh
     v-for="node in positionedNodes"
     :key="node.id"
@@ -488,7 +495,7 @@ watch(() => graphStore.activeLayerId, () => {
     />
   </TresMesh>
 
-  <!-- ── Node labels (all nodes, distance-faded) ───────────────────────────── -->
+  <!-- в”Ђв”Ђ Node labels (all nodes, distance-faded) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ -->
   <Html
     v-for="node in positionedNodes"
     :key="`label-${node.id}`"
@@ -502,22 +509,13 @@ watch(() => graphStore.activeLayerId, () => {
   </Html>
 
   <Html
-    v-if="graphStore.pinnedNodePanel && selectedPositionedNode"
-    :position="[selectedPositionedNode.x, selectedPositionedNode.y + nodeRadius(selectedPositionedNode) + 2.4, selectedPositionedNode.z]"
+    v-for="node in positionedNodes.filter((n) => graphStore.isNodePinned(n.id))"
+    :key="`pin-tag-${node.id}`"
+    :position="[node.x, node.y + nodeRadius(node) + 1.3, node.z]"
     center
-    :distance-factor="10"
     :sprite="true"
-    occlude
-    transform
   >
-    <div class="world-node-card">
-      <div class="world-node-title">{{ selectedPositionedNode.title }}</div>
-      <div class="world-node-meta">{{ selectedPositionedNode.node_type }} · {{ selectedPositionedNode.learned ? 'learned' : 'active' }}</div>
-      <div v-if="selectedPositionedNode.content_data" class="world-node-content">{{ selectedPositionedNode.content_data }}</div>
-      <ul v-if="pinnedPanelTips.length" class="world-node-tips">
-        <li v-for="tip in pinnedPanelTips" :key="tip">{{ tip }}</li>
-      </ul>
-    </div>
+    <div class="pin-tag">Pinned</div>
   </Html>
 
 </template>
@@ -539,46 +537,19 @@ watch(() => graphStore.activeLayerId, () => {
   border-radius: 4px;
 }
 
-.world-node-card {
-  width: 220px;
-  background: rgba(10, 14, 24, 0.94);
-  border: 1px solid rgba(91, 143, 255, 0.35);
-  border-radius: 10px;
-  padding: 10px;
-  color: #e8eaf0;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+.pin-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #16a34a;
+  background: rgba(10, 16, 12, 0.92);
+  border: 1px solid rgba(22, 163, 74, 0.5);
+  border-radius: 999px;
+  padding: 2px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   pointer-events: none;
 }
-
-.world-node-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.world-node-meta {
-  font-size: 10px;
-  color: #7a8099;
-  text-transform: capitalize;
-  margin-bottom: 6px;
-}
-
-.world-node-content {
-  font-size: 11px;
-  line-height: 1.4;
-  color: #c8cad6;
-  margin-bottom: 6px;
-  max-height: 72px;
-  overflow: hidden;
-}
-
-.world-node-tips {
-  margin: 0;
-  padding-left: 14px;
-  font-size: 10px;
-  color: #5ba8ff;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
 </style>
+
+
