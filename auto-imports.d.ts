@@ -84,6 +84,7 @@ declare global {
   const useStore: typeof import('@/store').useStore
   const useTauRPC: typeof import('./src/composables/useTauRPC').useTauRPC
   const useTemplateRef: typeof import('vue').useTemplateRef
+  const useTheme: typeof import('./src/composables/useTheme').useTheme
   const watch: typeof import('vue').watch
   const watchEffect: typeof import('vue').watchEffect
   const watchPostEffect: typeof import('vue').watchPostEffect
@@ -191,6 +192,7 @@ declare module 'vue' {
     readonly useStore: UnwrapRef<typeof import('@/store')['useStore']>
     readonly useTauRPC: UnwrapRef<typeof import('./src/composables/useTauRPC')['useTauRPC']>
     readonly useTemplateRef: UnwrapRef<typeof import('vue')['useTemplateRef']>
+    readonly useTheme: UnwrapRef<typeof import('./src/composables/useTheme')['useTheme']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
     readonly watchEffect: UnwrapRef<typeof import('vue')['watchEffect']>
     readonly watchPostEffect: UnwrapRef<typeof import('vue')['watchPostEffect']>

@@ -256,8 +256,8 @@ function nodeTypeBadgeStyle(nodeType: string): { background: string; color: stri
 }
 
 .modal-panel {
-  background: rgba(10, 13, 24, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--app-overlay-bg);
+  border: 1px solid var(--app-overlay-border);
   border-radius: 14px;
   width: 100%;
   max-width: 600px;
@@ -286,7 +286,7 @@ function nodeTypeBadgeStyle(nodeType: string): { background: string; color: stri
   background: none;
   border: none;
   outline: none;
-  color: #e8eaf0;
+  color: var(--app-text-primary);
   font-size: 15px;
   font-family: system-ui, sans-serif;
   caret-color: #5b8fff;
@@ -313,9 +313,9 @@ function nodeTypeBadgeStyle(nodeType: string): { background: string; color: stri
 }
 
 .vim-mode-badge.insert {
-  background: rgba(91, 143, 255, 0.2);
-  color: #5b8fff;
-  border: 1px solid rgba(91, 143, 255, 0.35);
+  background: color-mix(in srgb, var(--app-accent) 20%, transparent);
+  color: var(--app-accent);
+  border: 1px solid color-mix(in srgb, var(--app-accent) 35%, transparent);
 }
 
 .search-kbd {
@@ -359,7 +359,7 @@ function nodeTypeBadgeStyle(nodeType: string): { background: string; color: stri
 }
 
 .result-row.active {
-  background: rgba(91, 143, 255, 0.12);
+  background: color-mix(in srgb, var(--app-accent) 14%, transparent);
 }
 
 .result-left {
@@ -384,9 +384,9 @@ function nodeTypeBadgeStyle(nodeType: string): { background: string; color: stri
   font-size: 10px;
   padding: 1px 7px;
   border-radius: 10px;
-  background: rgba(91, 143, 255, 0.12);
-  color: #5b8fff;
-  border: 1px solid rgba(91, 143, 255, 0.2);
+  background: color-mix(in srgb, var(--app-accent) 14%, transparent);
+  color: var(--app-accent);
+  border: 1px solid color-mix(in srgb, var(--app-accent) 28%, transparent);
   white-space: nowrap;
   flex-shrink: 0;
 }

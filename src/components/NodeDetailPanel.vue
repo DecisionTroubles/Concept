@@ -219,12 +219,12 @@ async function onNoteTypeChange(e: Event) {
   width: 360px;
   max-height: 78vh;
   overflow-y: auto;
-  background: rgba(12, 16, 28, 0.82);
+  background: color-mix(in srgb, var(--app-overlay-bg) 90%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--app-overlay-border);
   border-radius: 12px;
-  color: #e8eaf0;
+  color: var(--app-text-primary);
   font-family: system-ui, sans-serif;
   font-size: 13px;
   z-index: 420;
@@ -257,7 +257,7 @@ async function onNoteTypeChange(e: Event) {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
-  color: #ffffff;
+  color: var(--app-text-primary);
   flex: 1;
 }
 
@@ -269,7 +269,7 @@ async function onNoteTypeChange(e: Event) {
 .panel-subtitle {
   margin-top: 3px;
   font-size: 11px;
-  color: #7a8099;
+  color: var(--app-text-secondary);
   text-transform: capitalize;
 }
 
@@ -296,8 +296,8 @@ async function onNoteTypeChange(e: Event) {
 
 .icon-btn:hover,
 .icon-btn.active {
-  background: rgba(91, 143, 255, 0.2);
-  color: #5b8fff;
+  background: color-mix(in srgb, var(--app-accent) 20%, transparent);
+  color: var(--app-accent);
 }
 
 .close-btn {
@@ -341,7 +341,7 @@ async function onNoteTypeChange(e: Event) {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #7a8099;
+  color: var(--app-text-secondary);
   margin-bottom: 6px;
 }
 
@@ -362,9 +362,9 @@ async function onNoteTypeChange(e: Event) {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 20px;
-  background: rgba(91, 143, 255, 0.15);
-  color: #5b8fff;
-  border: 1px solid rgba(91, 143, 255, 0.25);
+  background: color-mix(in srgb, var(--app-accent) 16%, transparent);
+  color: var(--app-accent);
+  border: 1px solid color-mix(in srgb, var(--app-accent) 28%, transparent);
 }
 
 .connections-list {
@@ -411,7 +411,7 @@ async function onNoteTypeChange(e: Event) {
   flex-shrink: 0;
 }
 
-.badge-blue   { background: rgba(91, 143, 255, 0.18); color: #5b8fff; }
+.badge-blue   { background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-accent); }
 .badge-muted  { background: rgba(120, 130, 170, 0.18); color: #8090b0; }
 .badge-amber  { background: rgba(245, 158, 11, 0.18); color: #f59e0b; }
 .badge-grey   { background: rgba(90, 100, 140, 0.18); color: #6a7a9a; }
@@ -435,15 +435,15 @@ async function onNoteTypeChange(e: Event) {
   gap: 7px;
   padding: 8px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(91, 143, 255, 0.35);
-  background: rgba(91, 143, 255, 0.1);
-  color: #5b8fff;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--app-accent) 12%, transparent);
+  color: var(--app-accent);
   font-size: 12px;
   cursor: pointer;
 }
 
 .pin-btn.active {
-  background: rgba(91, 143, 255, 0.2);
+  background: color-mix(in srgb, var(--app-accent) 20%, transparent);
 }
 
 .learn-btn {
@@ -501,7 +501,7 @@ async function onNoteTypeChange(e: Event) {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #7a8099;
+  color: var(--app-text-secondary);
 }
 
 .fact-cell strong {
@@ -529,7 +529,7 @@ async function onNoteTypeChange(e: Event) {
 
 .note-type-label {
   font-size: 11px;
-  color: #7a8099;
+  color: var(--app-text-secondary);
   min-width: 58px;
 }
 
@@ -544,7 +544,7 @@ async function onNoteTypeChange(e: Event) {
 
 .note-type-current {
   font-size: 11px;
-  color: #5b8fff;
+  color: var(--app-accent);
 }
 
 /* Transition */

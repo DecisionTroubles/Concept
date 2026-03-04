@@ -13,7 +13,7 @@
 }
 
 html {
-  @apply text-[14px] text-gray-200 bg-gray-800;
+  @apply text-[14px];
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -21,11 +21,15 @@ html {
   -webkit-text-size-adjust: 100%;
   overflow: hidden;
   height: 100%;
+  color: var(--app-text-primary);
+  background: var(--app-canvas-bg);
 }
 
 body {
   overflow: hidden;
   height: 100%;
+  color: var(--app-text-primary);
+  background: var(--app-canvas-bg);
 }
 
 * {
@@ -134,6 +138,13 @@ input, textarea {
 }
 
 :root {
+  --app-canvas-bg: #080b14;
+  --app-overlay-bg: rgba(10, 13, 24, 0.96);
+  --app-overlay-border: rgba(255, 255, 255, 0.1);
+  --app-text-primary: #e8eaf0;
+  --app-text-secondary: #7a8099;
+  --app-accent: #5b8fff;
+
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);

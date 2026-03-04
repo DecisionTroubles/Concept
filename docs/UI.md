@@ -162,6 +162,12 @@ Nodes are not all the same shape. Their geometry encodes their **type/context**:
 - Shows user's current camera focus position
 - Learned nodes shown in green
 
+### Quick Map Buffer (implemented)
+- Full-buffer 2D viewport into the graph world (not auto-fit of all nodes)
+- Pan: `W/A/S/D` or mouse drag
+- Zoom: wheel + mapped zoom hotkeys, reset with `0`
+- Click node to focus it in 3D scene
+
 ---
 
 ## Camera & Navigation

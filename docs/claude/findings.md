@@ -1,22 +1,28 @@
 # Findings — 3D Memory Graph Platform
 
-## Project Structure (as of 2026-02-26)
-- Tauri v2 + Vue 3 template (from Uninen/tauri-vue-template)
-- pnpm as package manager, Vite v7
-- TailwindCSS v4, Pinia, Vue 3.5 already installed
-- Rust backend: stub only (greet command)
-- No 3D library installed yet
-- No database layer yet
+## Project Structure (as of 2026-03-04)
+- Tauri v2 + Vue 3 + TypeScript desktop app with implemented Rust backend + SQLite
+- pnpm package manager, Vite v7, TailwindCSS v4, Pinia
+- 3D stack installed and integrated: `three`, `@tresjs/core`, `@tresjs/cientos`, `@tresjs/post-processing`
+- Force-layout in frontend via `d3-force-3d`
+- Domain-pack seed pipeline active (`domains/japanese/pack.json`)
+- UI overlays implemented: search, settings, node detail, layer panel, compass, buffers
+- Frontend plugin kernel implemented (module overrides + theme registry)
 
 ## Key Source Files
 | File | Purpose |
 |------|---------|
-| `src/App.vue` | Frontend root — currently template boilerplate |
-| `src/store.ts` | Pinia store — currently template |
-| `src-tauri/src/lib.rs` | Rust command handlers — currently stub |
-| `src-tauri/Cargo.toml` | Rust deps — needs rusqlite, serde |
+| `src/App.vue` | Frontend root composed from kernel module slots |
+| `src/stores/graph.ts` | Graph data/state orchestration |
+| `src-tauri/src/lib.rs` | Rust command handlers + app bootstrap |
+| `src-tauri/src/graph.rs` | Graph CRUD/query logic |
+| `src-tauri/src/domain.rs` | Domain-pack import/seed logic |
+| `src/core/kernel.ts` | Frontend plugin kernel |
+| `src/composables/useTheme.ts` | Runtime theme registry/state application |
+| `src/plugins/userPlugins.ts` | User override registration point |
 | `docs/DESIGN.md` | Authoritative architecture spec |
-| `docs/CLAUDE.md` | AI context file (to be created) |
+| `docs/CLAUDE.md` | AI context file |
+| `docs/OVERRIDES.md` | Override/plugin/theme guide |
 
 ## Architecture Notes
 - Strict frontend/backend separation enforced by design: all graph logic in Rust
@@ -169,8 +175,14 @@ let router = Router::new()
 struct Node { ... }
 ```
 
+## Frontend Extensibility Notes
+- Module overrides are slot-based via kernel (`ModuleSlot`), not direct imports in app root
+- Themes are plugin-provided presets (`ThemePreset`) and are user-selectable in Settings
+- Default plugin + user plugin chain provides deterministic override order
+- `docs/OVERRIDES.md` documents the expected customization workflow
+
 ## Open Questions
-- [ ] Force-directed layout: compute in Rust (backend) or JS (frontend Worker)?
-- [ ] Three.js vs `three-forcegraph` wrapper — worth the abstraction?
-- [ ] Graph map format: one SQLite file per map, or all maps in one DB?
-- [ ] Japanese starter data: source? (JMdict, Tatoeba, custom)
+- [ ] Force-directed layout ownership: keep in frontend or move to Rust/worker for larger graphs?
+- [ ] Quick-map UX: label strategy + viewport interactions for very dense worlds
+- [ ] Graph map packaging strategy: one SQLite file per map vs multi-map DB
+- [ ] Japanese starter data expansion source strategy (JMdict/Tatoeba/custom curation)

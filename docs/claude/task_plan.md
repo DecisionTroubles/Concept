@@ -3,38 +3,39 @@
 ## Project Summary
 A Tauri v2 + Vue 3 + Three.js + Rust + SQLite desktop app for context-driven knowledge graph learning. Nodes represent learning items; edges encode context relationships. The 3D graph is the primary UI metaphor.
 
-## Status: ARCHITECTURE PHASE
+## Status: IMPLEMENTATION PHASE
 
 ---
 
-## Phase 0 — Architecture & Documentation ✅ IN PROGRESS
+## Phase 0 — Architecture & Documentation ✅ COMPLETE
 - [x] Write DESIGN.md with concrete tech decisions
 - [x] Create docs/claude/ planning directory
-- [ ] Write docs/CLAUDE.md (AI context file)
-- [ ] Finalize node/edge schema in findings.md
+- [x] Write docs/CLAUDE.md (AI context file)
+- [x] Finalize node/edge schema in findings.md
+- [x] Add override/customization guide (`docs/OVERRIDES.md`)
 
 ## Phase 1 — Rust Backend Foundation
-- [ ] Set up SQLite with rusqlite in Cargo.toml
-- [ ] Define Node, Edge, Layer structs with serde
-- [ ] Implement graph CRUD Tauri commands
+- [x] Set up SQLite with rusqlite in Cargo.toml
+- [x] Define Node, Edge, Layer structs with serde
+- [x] Implement graph CRUD Tauri commands
 - [ ] Basic spaced repetition (SM-2) logic
 - [ ] Unit tests for graph + SR logic
 
 ## Phase 2 — Three.js Graph Renderer
-- [ ] Add three.js to frontend deps
-- [ ] Basic 3D scene: camera, lights, orbit controls
-- [ ] Render nodes as spheres, edges as lines
-- [ ] Force-directed layout in 3D (basic spring simulation)
-- [ ] Node click → info panel
+- [x] Add three.js to frontend deps
+- [x] Basic 3D scene: camera, lights, orbit controls
+- [x] Render typed nodes + edges
+- [x] Force-directed layout in 3D
+- [x] Node click → info panel
 
 ## Phase 3 — Layer System
-- [ ] Layer switching UI
+- [x] Layer switching UI
 - [ ] Cross-layer edge rendering
 - [ ] Depth navigation (drill into sub-layer)
 
 ## Phase 4 — Adaptive Learning UI
-- [ ] Node state visualization (unseen / in-progress / learned / due)
-- [ ] Recommendation highlights (glow/pulse for next nodes)
+- [x] Node state visualization (selected / pinned / learned / neighbor)
+- [x] Recommendation-style highlights (neighbor emphasis + compass)
 - [ ] Review session flow
 
 ## Phase 5 — Data & Import
@@ -43,9 +44,14 @@ A Tauri v2 + Vue 3 + Three.js + Rust + SQLite desktop app for context-driven kno
 - [ ] Anki import/export
 
 ## Phase 6 — Polish
-- [ ] Themes / CSS override support
+- [x] Themes / CSS override support (preset registry + runtime switch)
 - [ ] Performance: LOD for large graphs
-- [ ] Settings panel
+- [x] Settings panel (center modal, hotkeys + themes tabs)
+- [x] Buffer overlays (pinned cards/list + quick map)
+
+## Cross-cutting
+- [x] Plugin kernel for frontend module overrides
+- [x] Example plugin entrypoint + user plugin registry
 
 ---
 

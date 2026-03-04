@@ -121,7 +121,9 @@ struct EdgeRef {
 
 - Domain packs: a graph map is a self-contained SQLite DB that can be distributed/imported.
 - Anki import/export: nodes map to Anki cards; edges are metadata.
-- Plugin API (future): custom layout algorithms, domain-specific edge logic.
+- Frontend plugin kernel (implemented): module slot overrides + theme preset registration.
+  - See `src/core/kernel.ts` and `docs/OVERRIDES.md`.
+- Plugin API (future, backend): custom layout algorithms, domain-specific edge logic in Rust.
 - Optional cloud sync (future): export/import graph snapshots as JSON.
 
 ---

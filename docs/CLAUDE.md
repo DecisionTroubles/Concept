@@ -22,6 +22,7 @@ See `docs/DESIGN.md` for the full architecture specification, data models, tech 
 - **Storage**: SQLite via rusqlite
 - **IPC**: Tauri typed invoke/events
 - **Package manager**: pnpm
+- **Frontend extensibility**: plugin kernel (module slot overrides + theme registry)
 
 ---
 
@@ -42,5 +43,8 @@ Detailed planning, research findings, and session logs are in `docs/claude/`:
 - `docs/claude/task_plan.md` — phases, progress tracking, key decisions
 - `docs/claude/findings.md` — research, schema sketches, open questions
 - `docs/claude/progress.md` — session log, what was done and what is next
+
+Customization/override guide:
+- `docs/OVERRIDES.md` — how to override UI modules, add themes, and register plugins
 
 When working on this project, consult these files for context on decisions already made and questions still open.

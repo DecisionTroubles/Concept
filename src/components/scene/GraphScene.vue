@@ -103,7 +103,7 @@ onMounted(() => {
       return
     }
 
-    if (editorMode.mode.value === 'graph' && !isInput) {
+    if (editorMode.mode.value !== 'fly' && !isInput) {
       const rawControls = controlsRef.value
       const controls = rawControls?.instance ?? rawControls
       const cam = controls?.object as THREE.PerspectiveCamera | undefined
@@ -152,7 +152,9 @@ onMounted(() => {
           return
         }
       }
+    }
 
+    if (editorMode.mode.value === 'graph' && !isInput) {
       if (e.key === 'Tab') {
         e.preventDefault()
         const id = e.shiftKey ? editorMode.tabPrev() : editorMode.tabNext()
@@ -458,6 +460,16 @@ const edges = computed(() => {
 })
 
 // в”Ђв”Ђ Distance-faded label opacity в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+const PRIORITY_LABEL_TOKENS = ['logic', 'core', 'root', 'hub', 'center', 'central']
+
+function isPriorityLabelNode(node: PositionedNode): boolean {
+  if (graphStore.isNodePinned(node.id)) return true
+  if ((node.weight ?? 1) >= 1.35) return true
+  if (node.connections.length >= 4) return true
+  const title = node.title.toLowerCase()
+  return PRIORITY_LABEL_TOKENS.some((token) => title.includes(token))
+}
+
 function nodeLabelOpacity(node: PositionedNode): number {
   // make opacity recompute only on sampled camera updates
   void labelTick.value
@@ -466,9 +478,14 @@ function nodeLabelOpacity(node: PositionedNode): number {
   const dy = cameraPos.y - node.y
   const dz = cameraPos.z - node.z
   const dist = Math.sqrt(dx*dx + dy*dy + dz*dz)
-  if (dist <= 12) return 1
-  if (dist >= 30) return 0
-  return 1 - (dist - 12) / 18
+  if (isPriorityLabelNode(node)) {
+    if (dist <= 22) return 1
+    if (dist >= 96) return 0.5
+    return 1 - (dist - 22) / 148
+  }
+  if (dist <= 16) return 1
+  if (dist >= 72) return 0.22
+  return 1 - (dist - 16) / 72
 }
 
 // в”Ђв”Ђ Event handlers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
@@ -571,6 +588,7 @@ watch(() => graphStore.activeLayerId, () => {
     :position="[node.x, node.y + nodeRadius(node) + 0.7, node.z]"
     center
     :sprite="true"
+    :z-index-range="[40, 0]"
   >
     <div class="node-label" :style="{ opacity: nodeLabelOpacity(node), transition: 'opacity 0.3s' }">
       {{ node.title }}
@@ -594,18 +612,21 @@ watch(() => graphStore.activeLayerId, () => {
 <style scoped>
 .node-label {
   color: #e8eaf0;
-  font-family: system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-family: 'Inter', 'Segoe UI Variable', 'Noto Sans JP', 'Segoe UI', sans-serif;
+  font-size: clamp(12px, 0.72vw, 15px);
+  font-weight: 600;
+  letter-spacing: 0.03em;
   white-space: nowrap;
   pointer-events: none;
   text-shadow:
     0 0 6px rgba(0, 0, 0, 0.95),
     0 0 14px rgba(0, 0, 0, 0.8);
-  background: rgba(8, 11, 20, 0.6);
-  padding: 2px 7px;
-  border-radius: 4px;
+  background: rgba(8, 11, 20, 0.78);
+  border: 1px solid rgba(232, 234, 240, 0.14);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(2px);
+  padding: 3px 9px;
+  border-radius: 6px;
 }
 
 .pin-tag {
@@ -622,5 +643,3 @@ watch(() => graphStore.activeLayerId, () => {
   pointer-events: none;
 }
 </style>
-
-
