@@ -26,16 +26,16 @@ let lastNodeId: string | null = null
 let neighborOrder: string[] = []
 
 export function useEditorMode() {
-  const graphStore = useGraphStore()
-
   function enterFly()   { mode.value = 'fly' }
   function enterNormal() { mode.value = 'normal' }
   function enterGraph() {
+    const graphStore = useGraphStore()
     if (graphStore.selectedNodeId) { mode.value = 'graph'; compassIndex.value = 0 }
   }
   function escapeFromCurrentMode() {
     if (mode.value === 'fly') { mode.value = 'normal' }
     else if (mode.value === 'graph') {
+      const graphStore = useGraphStore()
       graphStore.selectNode(null); mode.value = 'normal'; compassIndex.value = 0
     }
   }
@@ -56,17 +56,15 @@ export function useEditorMode() {
     return jumpList.pop() ?? null
   }
   function tabNext(): string | null {
-    const node = graphStore.selectedNode
-    if (!node?.connections.length) return null
-    compassIndex.value = (compassIndex.value + 1) % node.connections.length
-    return node.connections[compassIndex.value].target_id
+    if (!neighborOrder.length) return null
+    compassIndex.value = (compassIndex.value + 1) % neighborOrder.length
+    return neighborOrder[compassIndex.value] ?? null
   }
   function tabPrev(): string | null {
-    const node = graphStore.selectedNode
-    if (!node?.connections.length) return null
-    const len = node.connections.length
+    if (!neighborOrder.length) return null
+    const len = neighborOrder.length
     compassIndex.value = (compassIndex.value - 1 + len) % len
-    return node.connections[compassIndex.value].target_id
+    return neighborOrder[compassIndex.value] ?? null
   }
   function jumpToNeighbor(n: number): string | null {
     return neighborOrder[n - 1] ?? null

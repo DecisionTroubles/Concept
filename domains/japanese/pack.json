@@ -10,6 +10,33 @@
     "metadata": {
       "description": "Single-layer N5 core map with contextual grouping.",
       "language": "ja",
+      "inter_group_spacing": 26,
+      "context_groups": {
+        "particles": {
+          "label": "Particles",
+          "style": { "color": "#ff2f64", "emissive": "#ff2f64", "emissive_intensity": 1.45 },
+          "layout": { "cohesion": 1.18, "intra_spacing": 5.5 }
+        },
+        "verbforms": {
+          "label": "Verb Forms",
+          "style": { "color": "#31d6ff", "emissive": "#31d6ff", "emissive_intensity": 1.42 },
+          "layout": { "cohesion": 1.1, "intra_spacing": 6.1 }
+        },
+        "daily": {
+          "label": "Daily Phrases",
+          "style": { "color": "#37ff8f", "emissive": "#37ff8f", "emissive_intensity": 1.44 },
+          "layout": { "cohesion": 1.08, "intra_spacing": 6.3 }
+        },
+        "bridge": {
+          "label": "Bridge Concepts",
+          "style": { "color": "#ffd84a", "emissive": "#ffd84a", "emissive_intensity": 1.48 },
+          "layout": { "cohesion": 0.95, "intra_spacing": 7.2 }
+        }
+      },
+      "group_relations": {
+        "intra": { "color": "#7e8fb3", "width": 1.7, "opacity": 0.9 },
+        "bridge": { "color": "#f9bd5c", "width": 2.15, "opacity": 0.98, "dash_size": 0.24, "gap_size": 0.14 }
+      },
       "visual_defaults": {
         "node": {
           "color": "#6b7ca4",
@@ -143,12 +170,12 @@
     { "id": "n-ni", "title": "ni", "node_type": "particle", "content_data": "Destination/time marker.", "tags": ["n5", "particle", "group:particles"], "weight": 1.15, "layer_membership": ["core-map"], "metadata": {} },
     { "id": "n-de", "title": "de", "node_type": "particle", "content_data": "Location of action marker.", "tags": ["n5", "particle", "group:particles"], "weight": 1.1, "layer_membership": ["core-map"], "metadata": {} },
 
-    { "id": "n-masu", "title": "masu-form", "node_type": "grammar", "content_data": "Polite verb form.", "tags": ["n5", "grammar", "group:verbforms"], "weight": 1.4, "layer_membership": ["core-map"], "metadata": {} },
-    { "id": "n-te", "title": "te-form", "node_type": "grammar", "content_data": "Connector/request form.", "tags": ["n5", "grammar", "group:verbforms"], "weight": 1.3, "layer_membership": ["core-map"], "metadata": {} },
+    { "id": "n-masu", "title": "masu-form", "node_type": "grammar", "content_data": "Polite verb form.", "tags": ["n5", "grammar", "group:verbforms", "group:bridge"], "weight": 1.4, "layer_membership": ["core-map"], "metadata": {} },
+    { "id": "n-te", "title": "te-form", "node_type": "grammar", "content_data": "Connector/request form.", "tags": ["n5", "grammar", "group:verbforms", "group:bridge"], "weight": 1.3, "layer_membership": ["core-map"], "metadata": {} },
     { "id": "n-nai", "title": "nai-form", "node_type": "grammar", "content_data": "Plain negative form.", "tags": ["n5", "grammar", "group:verbforms"], "weight": 1.15, "layer_membership": ["core-map"], "metadata": {} },
     { "id": "n-ta", "title": "ta-form", "node_type": "grammar", "content_data": "Plain past form.", "tags": ["n5", "grammar", "group:verbforms"], "weight": 1.1, "layer_membership": ["core-map"], "metadata": {} },
 
-    { "id": "n-konnichiwa", "title": "konnichiwa", "node_type": "vocab", "content_data": "Daytime greeting.", "tags": ["n5", "expression", "group:daily"], "weight": 1.1, "layer_membership": ["core-map"], "metadata": {} },
+    { "id": "n-konnichiwa", "title": "konnichiwa", "node_type": "vocab", "content_data": "Daytime greeting.", "tags": ["n5", "expression", "group:daily", "group:bridge"], "weight": 1.1, "layer_membership": ["core-map"], "metadata": {} },
     { "id": "n-ohayou", "title": "ohayou", "node_type": "vocab", "content_data": "Morning greeting.", "tags": ["n5", "expression", "group:daily"], "weight": 1.05, "layer_membership": ["core-map"], "metadata": {} },
     { "id": "n-konbanwa", "title": "konbanwa", "node_type": "vocab", "content_data": "Evening greeting.", "tags": ["n5", "expression", "group:daily"], "weight": 1.05, "layer_membership": ["core-map"], "metadata": {} },
     { "id": "n-arigatou", "title": "arigatou", "node_type": "vocab", "content_data": "Thanks.", "tags": ["n5", "expression", "group:daily"], "weight": 1.0, "layer_membership": ["core-map"], "metadata": {} },

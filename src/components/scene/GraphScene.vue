@@ -6,10 +6,12 @@ import * as THREE from 'three'
 import { computed, onMounted, shallowRef, watch, ref } from 'vue'
 import { useForceLayout, type PositionedNode } from '@/composables/useForceLayout'
 import { COMPASS_RING_R, type CompassDot } from '@/composables/useEditorMode'
+import { useTheme } from '@/composables/useTheme'
 
 const graphStore = useGraphStore()
 const controlsRef = shallowRef()
 const coreLightRef = shallowRef<THREE.PointLight | null>(null)
+const themeState = useTheme()
 
 // TresJS context вЂ” used for fog setup.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -231,16 +233,6 @@ onMounted(() => {
   }
 })
 
-// в”Ђв”Ђ Force layout в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-const { positionedNodes } = useForceLayout(
-  computed(() => graphStore.nodes),
-  settled => {
-    for (const node of settled) {
-      graphStore.updateNodePosition(node.id, node.x, node.y, node.z)
-    }
-  }
-)
-
 // в”Ђв”Ђ Camera focus animation в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const focusTarget = shallowRef<THREE.Vector3 | null>(null)
 
@@ -333,11 +325,22 @@ useRafFn(({ delta }) => {
       const validConns = sel.connections
         .filter(conn => {
           if (!nodeMap.has(conn.target_id) || seen.has(conn.target_id)) return false
+          if (
+            graphStore.connectionLayers.length > 0 &&
+            (
+              graphStore.activeConnectionLayerIds.length === 0 ||
+              conn.connection_layer_ids.length === 0 ||
+              !conn.connection_layer_ids.some(id => graphStore.activeConnectionLayerIds.includes(id))
+            )
+          ) {
+            return false
+          }
           seen.add(conn.target_id)
           return true
         })
-        .slice(0, 9)
-      const provisional = validConns.map((conn, i) => {
+      editorMode.setNeighborOrder(validConns.map(conn => conn.target_id))
+
+      const provisional = validConns.slice(0, 9).map((conn, i) => {
         const nb = nodeMap.get(conn.target_id)!
         _ndcVec.set(nb.x, nb.y, nb.z).project(cam)
         const nx = ((_ndcVec.x + 1) / 2) * window.innerWidth
@@ -366,7 +369,6 @@ useRafFn(({ delta }) => {
           index: item.i + 1,
         }
       })
-      editorMode.setNeighborOrder(dots.map(d => d.id))
       editorMode.setCompassState(dots, center)
     }
   } else {
@@ -379,6 +381,15 @@ useRafFn(({ delta }) => {
 const hoveredNodeId = ref<string | null>(null)
 
 type JsonObject = Record<string, unknown>
+type GroupStyleConfig = { color: string; emissive: string; emissiveIntensity: number }
+type GroupLayoutConfig = { cohesion: number; intraSpacing: number }
+type GroupRelationStyleConfig = {
+  color: string
+  width: number
+  opacity: number
+  dashSize: number
+  gapSize: number
+}
 
 function parseJsonObject(raw: string | null | undefined): JsonObject {
   if (!raw) return {}
@@ -405,17 +416,149 @@ function boolOr(obj: JsonObject, key: string, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback
 }
 
+const worldRoot = computed(() => parseJsonObject(graphStore.worldConfig?.config_json))
+
+const worldMetadata = computed<JsonObject>(() => {
+  const metadata = worldRoot.value.metadata
+  return metadata && typeof metadata === 'object' ? (metadata as JsonObject) : {}
+})
+
+const contextGroups = computed(() => {
+  const raw = worldMetadata.value.context_groups
+  const fallbackPalette = [
+    '#ff4d6d',
+    '#22c55e',
+    '#38bdf8',
+    '#f59e0b',
+    '#a78bfa',
+    '#14b8a6',
+    '#fb7185',
+    '#84cc16',
+  ]
+  const out = new Map<string, { style: GroupStyleConfig; layout: GroupLayoutConfig }>()
+
+  if (!raw || typeof raw !== 'object') return out
+  const entries = Object.entries(raw as JsonObject)
+  for (let i = 0; i < entries.length; i++) {
+    const [groupId, def] = entries[i]
+    if (!def || typeof def !== 'object') continue
+    const obj = def as JsonObject
+    const styleRaw = obj.style && typeof obj.style === 'object' ? (obj.style as JsonObject) : {}
+    const layoutRaw = obj.layout && typeof obj.layout === 'object' ? (obj.layout as JsonObject) : {}
+    const color = strOr(styleRaw, 'color', fallbackPalette[i % fallbackPalette.length])
+    const emissive = strOr(
+      styleRaw,
+      'emissive',
+      new THREE.Color(color).clone().multiplyScalar(0.36).getStyle(),
+    )
+    out.set(groupId, {
+      style: {
+        color,
+        emissive,
+        emissiveIntensity: numOr(styleRaw, 'emissive_intensity', 1.06),
+      },
+      layout: {
+        cohesion: numOr(layoutRaw, 'cohesion', 1),
+        intraSpacing: numOr(layoutRaw, 'intra_spacing', 6.2),
+      },
+    })
+  }
+  return out
+})
+
+const groupRelationStyles = computed(() => {
+  const raw = worldMetadata.value.group_relations
+  const empty: { intra: GroupRelationStyleConfig | null; bridge: GroupRelationStyleConfig | null } = {
+    intra: null,
+    bridge: null,
+  }
+  if (!raw || typeof raw !== 'object') return empty
+
+  const parseStyle = (input: unknown, defaults: GroupRelationStyleConfig): GroupRelationStyleConfig | null => {
+    if (!input || typeof input !== 'object') return null
+    const src = input as JsonObject
+    return {
+      color: strOr(src, 'color', defaults.color),
+      width: numOr(src, 'width', defaults.width),
+      opacity: numOr(src, 'opacity', defaults.opacity),
+      dashSize: numOr(src, 'dash_size', defaults.dashSize),
+      gapSize: numOr(src, 'gap_size', defaults.gapSize),
+    }
+  }
+
+  const obj = raw as JsonObject
+  return {
+    intra: parseStyle(obj.intra, {
+      color: '#7482a5',
+      width: 1.7,
+      opacity: 0.95,
+      dashSize: 0,
+      gapSize: 0,
+    }),
+    bridge: parseStyle(obj.bridge, {
+      color: '#ffb347',
+      width: 2.15,
+      opacity: 0.98,
+      dashSize: 0.24,
+      gapSize: 0.14,
+    }),
+  }
+})
+
+function groupsFromTags(tags: string[]): string[] {
+  const out: string[] = []
+  for (const tag of tags) {
+    const lower = tag.toLowerCase()
+    if (lower.startsWith('group:')) out.push(tag.slice(6))
+    else if (lower.startsWith('cluster:')) out.push(tag.slice(8))
+  }
+  return Array.from(new Set(out))
+}
+
+const nodeGroupsById = computed(() => {
+  const map = new Map<string, string[]>()
+  for (const node of graphStore.nodes) {
+    map.set(node.id, groupsFromTags(node.tags))
+  }
+  return map
+})
+
+const layoutClusterOptions = computed(() => {
+  const membershipsByNodeId: Record<string, string[]> = {}
+  const groupCohesionById: Record<string, number> = {}
+  const groupIntraSpacingById: Record<string, number> = {}
+
+  for (const node of graphStore.nodes) {
+    const ids = nodeGroupsById.value.get(node.id) ?? []
+    if (ids.length) membershipsByNodeId[node.id] = ids
+  }
+
+  for (const [groupId, def] of contextGroups.value.entries()) {
+    groupCohesionById[groupId] = def.layout.cohesion
+    groupIntraSpacingById[groupId] = def.layout.intraSpacing
+  }
+
+  const hasGroups = Object.keys(membershipsByNodeId).length > 0
+  if (!hasGroups) return undefined
+  return {
+    cluster: {
+      membershipsByNodeId,
+      groupCohesionById,
+      groupIntraSpacingById,
+      interGroupSpacing: numOr(worldMetadata.value, 'inter_group_spacing', 24),
+    },
+  }
+})
+
 const worldVisual = computed(() => {
-  const cfg = parseJsonObject(graphStore.worldConfig?.config_json)
-  const metadata = cfg.metadata && typeof cfg.metadata === 'object' ? (cfg.metadata as JsonObject) : {}
+  const metadata = worldMetadata.value
   return metadata.visual_defaults && typeof metadata.visual_defaults === 'object'
     ? (metadata.visual_defaults as JsonObject)
     : {}
 })
 
 const nodeTypeStyles = computed(() => {
-  const cfg = parseJsonObject(graphStore.worldConfig?.config_json)
-  const metadata = cfg.metadata && typeof cfg.metadata === 'object' ? (cfg.metadata as JsonObject) : {}
+  const metadata = worldMetadata.value
   return metadata.node_type_styles && typeof metadata.node_type_styles === 'object'
     ? (metadata.node_type_styles as JsonObject)
     : {}
@@ -449,84 +592,147 @@ const connectionLayerById = computed(() => {
   return map
 })
 
+// в”Ђв”Ђ Force layout (cluster-aware when groups are present) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+const { positionedNodes } = useForceLayout(
+  computed(() => graphStore.nodes),
+  computed(() => layoutClusterOptions.value),
+  settled => {
+    for (const node of settled) {
+      graphStore.updateNodePosition(node.id, node.x, node.y, node.z)
+    }
+  }
+)
+
 // в”Ђв”Ђ Node helpers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function nodeRadius(node: PositionedNode): number {
   return Math.min(1.4, Math.max(0.55, 0.65 + (node.weight ?? 1) * 0.2))
 }
 
-// Per-type base colors (saturated, readable against dark bg)
-const TYPE_COLORS: Record<string, string> = {
-  grammar: '#5b7fe0',
-  kanji: '#d4872a',
-  vocab: '#3bbf70',
-  particle: '#c24060',
-  concept: '#9060cc',
-  root: '#7888aa',
+const TYPE_COLORS = computed<Record<string, string>>(() => {
+  const vars = themeState.activeTheme.value?.vars ?? {}
+  return {
+    grammar: vars['--app-node-grammar'] ?? '#6aa8ff',
+    kanji: vars['--app-node-kanji'] ?? '#ffb347',
+    vocab: vars['--app-node-vocab'] ?? '#39e58f',
+    particle: vars['--app-node-particle'] ?? '#ff7096',
+    concept: vars['--app-node-concept'] ?? '#9f83ff',
+    root: vars['--app-node-root'] ?? '#8fd8ff',
+  }
+})
+
+const TYPE_EMISSIVE = computed<Record<string, string>>(() => {
+  const colors = TYPE_COLORS.value
+  return {
+    grammar: new THREE.Color(colors.grammar).multiplyScalar(0.42).getStyle(),
+    kanji: new THREE.Color(colors.kanji).multiplyScalar(0.38).getStyle(),
+    vocab: new THREE.Color(colors.vocab).multiplyScalar(0.38).getStyle(),
+    particle: new THREE.Color(colors.particle).multiplyScalar(0.38).getStyle(),
+    concept: new THREE.Color(colors.concept).multiplyScalar(0.38).getStyle(),
+    root: new THREE.Color(colors.root).multiplyScalar(0.36).getStyle(),
+  }
+})
+
+function nodeGroupIds(node: PositionedNode): string[] {
+  return nodeGroupsById.value.get(node.id) ?? []
 }
 
-// Per-type emissive glow
-const TYPE_EMISSIVE: Record<string, string> = {
-  grammar: '#1a2580',
-  kanji: '#3d2000',
-  vocab: '#0f3d20',
-  particle: '#3d0f1a',
-  concept: '#250a50',
-  root: '#1a2030',
+function nodePrimaryGroup(node: PositionedNode): string | null {
+  const groups = nodeGroupIds(node)
+  if (groups.length === 0) return null
+  for (const g of groups) {
+    if (contextGroups.value.has(g)) return g
+  }
+  return groups[0] ?? null
 }
+
+function nodeSharesGroup(a: PositionedNode, b: PositionedNode): boolean {
+  const ag = nodeGroupIds(a)
+  const bg = nodeGroupIds(b)
+  if (ag.length === 0 || bg.length === 0) return false
+  const set = new Set(ag)
+  return bg.some(g => set.has(g))
+}
+
+function nodeBaseByGroup(node: PositionedNode): GroupStyleConfig | null {
+  const primary = nodePrimaryGroup(node)
+  if (!primary) return null
+  return contextGroups.value.get(primary)?.style ?? null
+}
+
+const focusedGroupSet = computed<Set<string>>(() => {
+  const baseId = hoveredNodeId.value ?? graphStore.selectedNodeId
+  if (!baseId) return new Set()
+  const groups = nodeGroupsById.value.get(baseId) ?? []
+  return new Set(groups)
+})
 
 function resolvedNodeBase(node: PositionedNode): { color: string; emissive: string; emissiveIntensity: number } {
-  const defaultNode =
-    worldVisual.value.node && typeof worldVisual.value.node === 'object' ? (worldVisual.value.node as JsonObject) : {}
+  const defaultNode = worldVisual.value.node && typeof worldVisual.value.node === 'object' ? (worldVisual.value.node as JsonObject) : {}
   const typeNodeRaw = nodeTypeStyles.value[node.node_type]
   const typeNode = typeNodeRaw && typeof typeNodeRaw === 'object' ? (typeNodeRaw as JsonObject) : {}
   const layerNode = activeNodeLayerStyle.value
+  const groupBase = nodeBaseByGroup(node)
 
-  const color = strOr(
-    layerNode,
-    'color',
-    strOr(typeNode, 'color', strOr(defaultNode, 'color', TYPE_COLORS[node.node_type] ?? '#5870a0'))
-  )
-  const emissive = strOr(
-    layerNode,
-    'emissive',
-    strOr(typeNode, 'emissive', strOr(defaultNode, 'emissive', TYPE_EMISSIVE[node.node_type] ?? '#0f1556'))
-  )
+  const themeColor = TYPE_COLORS.value[node.node_type] ?? '#6aa8ff'
+  const themeEmissive = TYPE_EMISSIVE.value[node.node_type] ?? '#2b5ec9'
+
+  // Group style is first-class and should win for grouped nodes.
+  // Layer style applies only when node has no group style.
+  const color = groupBase?.color ?? strOr(layerNode, 'color', themeColor)
+  const emissive = groupBase?.emissive ?? strOr(layerNode, 'emissive', themeEmissive)
   const emissiveIntensity = numOr(
     layerNode,
     'emissive_intensity',
-    numOr(typeNode, 'emissive_intensity', numOr(defaultNode, 'emissive_intensity', 0.7))
+    groupBase?.emissiveIntensity ?? numOr(typeNode, 'emissive_intensity', numOr(defaultNode, 'emissive_intensity', 1.05))
   )
 
   return { color, emissive, emissiveIntensity }
 }
 
 function nodeColor(node: PositionedNode): string {
+  const base = resolvedNodeBase(node)
   if (graphStore.selectedNodeId === node.id && graphStore.isNodePinned(node.id)) return '#ffcf66'
   if (graphStore.selectedNodeId === node.id) return '#ffffff'
   if (graphStore.isNodePinned(node.id)) return '#ff9f1a'
-  if (neighborIds.value.has(node.id)) return '#5ba8ff'
+  if (neighborIds.value.has(node.id)) {
+    return new THREE.Color(base.color).lerp(new THREE.Color('#8fd4ff'), 0.55).getStyle()
+  }
   if (node.learned) return '#3dd68c'
-  return resolvedNodeBase(node).color
+  if (focusedGroupSet.value.size > 0) {
+    const inFocusGroup = nodeGroupIds(node).some(g => focusedGroupSet.value.has(g))
+    if (!inFocusGroup) return new THREE.Color(base.color).multiplyScalar(0.8).getStyle()
+    return new THREE.Color(base.color).lerp(new THREE.Color('#ffffff'), 0.12).getStyle()
+  }
+  return base.color
 }
 
 function nodeEmissive(node: PositionedNode): string {
+  const base = resolvedNodeBase(node)
   if (graphStore.selectedNodeId === node.id && graphStore.isNodePinned(node.id)) return '#7a4a00'
-  if (graphStore.selectedNodeId === node.id) return '#5555cc'
+  if (graphStore.selectedNodeId === node.id) return '#7f8fff'
   if (graphStore.isNodePinned(node.id)) return '#6a3f00'
   if (neighborIds.value.has(node.id)) return '#1a4aee'
   if (node.learned) return '#1a6644'
-  return resolvedNodeBase(node).emissive
+  return base.emissive
 }
 
 function nodeEmissiveIntensity(node: PositionedNode): number {
-  if (graphStore.selectedNodeId === node.id) return 1.5
+  const base = resolvedNodeBase(node)
+  if (graphStore.selectedNodeId === node.id) return 2.15
   if (graphStore.isNodePinned(node.id)) return 1.0
-  if (neighborIds.value.has(node.id)) return 0.45 + 0.4 * Math.sin(Date.now() / 400)
+  if (neighborIds.value.has(node.id)) return 1.1
   if (node.learned) return 0.8
-  return resolvedNodeBase(node).emissiveIntensity
+  if (focusedGroupSet.value.size > 0) {
+    const inFocusGroup = nodeGroupIds(node).some(g => focusedGroupSet.value.has(g))
+    return inFocusGroup ? base.emissiveIntensity : base.emissiveIntensity * 0.65
+  }
+  return base.emissiveIntensity
 }
 
 function nodeScale(node: PositionedNode): number {
+  if (focusedGroupSet.value.size > 0 && nodeGroupIds(node).some(g => focusedGroupSet.value.has(g))) {
+    return hoveredNodeId.value === node.id ? 1.3 : 1.09
+  }
   return hoveredNodeId.value === node.id ? 1.25 : 1.0
 }
 
@@ -556,9 +762,17 @@ function edgeLineWidth(edgeType: string): number {
   }
 }
 
+function isBridgeEdge(source: PositionedNode, target: PositionedNode): boolean {
+  const sourceGroups = nodeGroupIds(source)
+  const targetGroups = nodeGroupIds(target)
+  if (sourceGroups.length === 0 || targetGroups.length === 0) return false
+  return !nodeSharesGroup(source, target)
+}
+
 function resolvedEdgeStyle(
   conn: { edge_type: string; relation_id: string | null; connection_layer_ids: string[] },
-  activeConnectionLayerSet: Set<string>
+  activeConnectionLayerSet: Set<string>,
+  isBridge: boolean
 ): {
   color: string
   width: number
@@ -579,23 +793,25 @@ function resolvedEdgeStyle(
     .filter((v): v is { order: number; style: JsonObject } => Boolean(v))
     .sort((a, b) => b.order - a.order)
   const topLayerStyle = candidates[0]?.style ?? {}
+  const groupStyle = isBridge ? groupRelationStyles.value.bridge : groupRelationStyles.value.intra
+  const groupStyleObj = (groupStyle ?? {}) as JsonObject
 
   return {
     color: strOr(
       topLayerStyle,
       'color',
-      strOr(relationStyle, 'color', strOr(defaultEdge, 'color', edgeColor(conn.edge_type)))
+      strOr(groupStyleObj, 'color', strOr(relationStyle, 'color', strOr(defaultEdge, 'color', edgeColor(conn.edge_type))))
     ),
     width: numOr(
       topLayerStyle,
       'width',
-      numOr(relationStyle, 'width', numOr(defaultEdge, 'width', edgeLineWidth(conn.edge_type)))
+      numOr(groupStyleObj, 'width', numOr(relationStyle, 'width', numOr(defaultEdge, 'width', edgeLineWidth(conn.edge_type))))
     ),
-    opacity: numOr(topLayerStyle, 'opacity', numOr(relationStyle, 'opacity', numOr(defaultEdge, 'opacity', 0.9))),
+    opacity: numOr(topLayerStyle, 'opacity', numOr(groupStyleObj, 'opacity', numOr(relationStyle, 'opacity', numOr(defaultEdge, 'opacity', 0.9)))),
     dashed:
-      numOr(topLayerStyle, 'dash_size', numOr(relationStyle, 'dash_size', numOr(defaultEdge, 'dash_size', 0))) > 0,
-    dashSize: numOr(topLayerStyle, 'dash_size', numOr(relationStyle, 'dash_size', numOr(defaultEdge, 'dash_size', 0))),
-    gapSize: numOr(topLayerStyle, 'gap_size', numOr(relationStyle, 'gap_size', numOr(defaultEdge, 'gap_size', 0))),
+      numOr(topLayerStyle, 'dash_size', numOr(groupStyleObj, 'dash_size', numOr(relationStyle, 'dash_size', numOr(defaultEdge, 'dash_size', 0)))) > 0,
+    dashSize: numOr(topLayerStyle, 'dash_size', numOr(groupStyleObj, 'dash_size', numOr(relationStyle, 'dash_size', numOr(defaultEdge, 'dash_size', 0)))),
+    gapSize: numOr(topLayerStyle, 'gap_size', numOr(groupStyleObj, 'gap_size', numOr(relationStyle, 'gap_size', numOr(defaultEdge, 'gap_size', 0)))),
     animatedFlow: boolOr(
       topLayerStyle,
       'animated_flow',
@@ -659,7 +875,7 @@ const edges = computed(() => {
 
       const target = nodeMap.get(conn.target_id)
       if (!target) continue
-      const style = resolvedEdgeStyle(conn, activeConnectionLayerSet)
+      const style = resolvedEdgeStyle(conn, activeConnectionLayerSet, isBridgeEdge(node, target))
 
       const a = node.id < conn.target_id ? node.id : conn.target_id
       const b = node.id < conn.target_id ? conn.target_id : node.id
@@ -866,6 +1082,22 @@ watch(
       :emissive-intensity="nodeEmissiveIntensity(node)"
       :roughness="0.35"
       :metalness="0.4"
+    />
+  </TresMesh>
+
+  <!-- Soft group halo per node (distance-readable, low clutter) -->
+  <TresMesh
+    v-for="node in positionedNodes"
+    :key="`halo-${node.id}`"
+    :position="[node.x, node.y, node.z]"
+    :scale="nodeScale(node) * 1.05"
+  >
+    <TresSphereGeometry :args="[nodeRadius(node) * 1.8, 14, 10]" />
+    <TresMeshBasicMaterial
+      :color="nodeColor(node)"
+      :opacity="focusedGroupSet.size > 0 && !nodeGroupIds(node).some(g => focusedGroupSet.has(g)) ? 0.08 : 0.16"
+      transparent
+      :depth-write="false"
     />
   </TresMesh>
 

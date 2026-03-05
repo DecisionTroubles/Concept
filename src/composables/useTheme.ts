@@ -38,11 +38,16 @@ function initializeTheme() {
 }
 
 function setTheme(id: string) {
+  if (activeThemeId.value === id) return
   const theme = availableThemes.value.find((t) => t.id === id)
   if (!theme) return
   activeThemeId.value = id
   applyThemeVars(theme)
-  localStorage.setItem(STORAGE_KEY, id)
+  try {
+    localStorage.setItem(STORAGE_KEY, id)
+  } catch {
+    // ignore storage failures
+  }
 }
 
 const activeTheme = computed(() =>
@@ -62,4 +67,3 @@ export function useTheme() {
     setTheme,
   }
 }
-

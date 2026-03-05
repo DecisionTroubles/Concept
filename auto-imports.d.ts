@@ -99,7 +99,7 @@ declare global {
   export type { EditorMode, CompassDot } from './src/composables/useEditorMode'
   import('./src/composables/useEditorMode')
   // @ts-ignore
-  export type { PositionedNode } from './src/composables/useForceLayout'
+  export type { PositionedNode, ClusterLayoutOptions, ForceLayoutOptions } from './src/composables/useForceLayout'
   import('./src/composables/useForceLayout')
   // @ts-ignore
   export type { Keybindings } from './src/composables/useSettings'

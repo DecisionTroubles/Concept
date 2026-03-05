@@ -156,6 +156,12 @@ textarea {
   --app-text-primary: #e8eaf0;
   --app-text-secondary: #7a8099;
   --app-accent: #5b8fff;
+  --app-node-grammar: #6aa8ff;
+  --app-node-kanji: #ffb347;
+  --app-node-vocab: #39e58f;
+  --app-node-particle: #ff7096;
+  --app-node-concept: #9f83ff;
+  --app-node-root: #8fd8ff;
 
   --radius: 0.625rem;
   --background: oklch(1 0 0);

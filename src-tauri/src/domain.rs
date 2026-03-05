@@ -368,6 +368,13 @@ fn seed_v2(conn: &Connection, pack: DomainPackV2) -> Result<(), AppError> {
                 params![inserted.id, first_connection_layer, now_ts()],
             )?;
         } else {
+            // `insert_edge_with_relation` assigns the default first connection layer.
+            // For domain-pack edges with explicit memberships, that default must be
+            // replaced; otherwise edges leak into layer 1 and filtering appears broken.
+            conn.execute(
+                "DELETE FROM edge_connection_layers WHERE edge_id = ?1",
+                [&inserted.id],
+            )?;
             for connection_layer_cfg_id in &edge.connection_layer_membership {
                 let connection_layer_db_id = connection_layer_id_map
                     .get(connection_layer_cfg_id)
