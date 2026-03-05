@@ -632,9 +632,7 @@ pub fn seed_sample_data(conn: &Connection) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Wipe all graph data and re-seed from the bundled domain pack.
-/// Use during development when seed data changes between runs.
-pub fn reset_and_reseed(conn: &Connection) -> Result<(), AppError> {
+pub fn reset_data(conn: &Connection, reseed: bool) -> Result<(), AppError> {
     conn.execute_batch(
         "DELETE FROM edge_connection_layers;
          DELETE FROM connection_layers;
@@ -646,7 +644,10 @@ pub fn reset_and_reseed(conn: &Connection) -> Result<(), AppError> {
          DELETE FROM worlds;
          DELETE FROM note_types;",
     )?;
-    seed_sample_data(conn)
+    if reseed {
+        seed_sample_data(conn)?;
+    }
+    Ok(())
 }
 
 fn reconcile_duplicate_layers(conn: &Connection) -> Result<(), AppError> {

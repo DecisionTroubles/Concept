@@ -4,6 +4,7 @@ import type { ConnectionLayer, Layer, Node, NoteType, RelationKind, WorldConfig 
 import { useTauRPC } from '@/composables/useTauRPC'
 
 export type BufferId = 'none' | 'pinned' | 'map'
+const CONNECTION_LAYER_SELECTION_KEY = 'concept:connection-layer-selection'
 
 export const useGraphStore = defineStore('graph', () => {
   const layers = ref<Layer[]>([])
@@ -15,6 +16,7 @@ export const useGraphStore = defineStore('graph', () => {
   const relationKinds = ref<RelationKind[]>([])
   const connectionLayers = ref<ConnectionLayer[]>([])
   const activeConnectionLayerIds = ref<string[]>([])
+  const connectionLayerSelectionInitialized = ref(false)
   const centeredNodePanel = ref(false)
   const pinnedNodeIds = ref<string[]>([])
   const activeBuffer = ref<BufferId>('none')
@@ -117,21 +119,60 @@ export const useGraphStore = defineStore('graph', () => {
   async function loadConnectionLayers() {
     try {
       connectionLayers.value = await useTauRPC().get_connection_layers()
-      if (activeConnectionLayerIds.value.length === 0) {
-        activeConnectionLayerIds.value = connectionLayers.value.map(l => l.id)
+      const valid = new Set(connectionLayers.value.map(l => l.id))
+
+      if (!connectionLayerSelectionInitialized.value) {
+        connectionLayerSelectionInitialized.value = true
+        const saved = loadConnectionLayerSelection()
+        if (saved) {
+          activeConnectionLayerIds.value = saved.filter(id => valid.has(id))
+          if (activeConnectionLayerIds.value.length === 0 && connectionLayers.value[0]) {
+            activeConnectionLayerIds.value = [connectionLayers.value[0].id]
+          }
+        } else {
+          // First boot default: only the first connection layer is visible.
+          activeConnectionLayerIds.value = connectionLayers.value[0] ? [connectionLayers.value[0].id] : []
+        }
       } else {
-        const valid = new Set(connectionLayers.value.map(l => l.id))
+        // Preserve explicit user choices, including empty selection.
         activeConnectionLayerIds.value = activeConnectionLayerIds.value.filter(id => valid.has(id))
       }
+
+      saveConnectionLayerSelection(activeConnectionLayerIds.value)
     } catch (e) {
       error.value = String(e)
     }
   }
 
   function toggleConnectionLayer(id: string) {
-    const idx = activeConnectionLayerIds.value.indexOf(id)
-    if (idx === -1) activeConnectionLayerIds.value.push(id)
-    else activeConnectionLayerIds.value.splice(idx, 1)
+    const ids = activeConnectionLayerIds.value
+    const idx = ids.indexOf(id)
+    if (idx === -1) {
+      activeConnectionLayerIds.value = [...ids, id]
+    } else {
+      activeConnectionLayerIds.value = ids.filter(x => x !== id)
+    }
+    saveConnectionLayerSelection(activeConnectionLayerIds.value)
+  }
+
+  function loadConnectionLayerSelection(): string[] | null {
+    try {
+      const raw = localStorage.getItem(CONNECTION_LAYER_SELECTION_KEY)
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return null
+      return parsed.filter((x): x is string => typeof x === 'string')
+    } catch {
+      return null
+    }
+  }
+
+  function saveConnectionLayerSelection(ids: string[]) {
+    try {
+      localStorage.setItem(CONNECTION_LAYER_SELECTION_KEY, JSON.stringify(ids))
+    } catch {
+      // ignore localStorage failures
+    }
   }
 
   async function loadNodes(layerId: string) {
@@ -189,7 +230,7 @@ export const useGraphStore = defineStore('graph', () => {
   async function resetGraphData() {
     isLoading.value = true
     try {
-      await useTauRPC().reset_data()
+      await useTauRPC().reset_data(true)
       selectedNodeId.value = null
       centeredNodePanel.value = false
       pinnedNodeIds.value = []

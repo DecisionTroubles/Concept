@@ -26,7 +26,7 @@ export type RelationKind = { id: string; world_id: string; label: string; direct
 
 export type WorldConfig = { id: string; name: string; config_json: string; created_at: string }
 
-const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["name","fields","is_default"],"delete_edge":["id"],"get_connection_layers":[],"get_layers":[],"get_nodes":["layer_id"],"get_note_types":[],"get_relation_kinds":[],"get_world_config":[],"mark_learned":["id","learned"],"reset_data":[],"seed_sample_data":[],"set_node_note_type":["node_id","note_type_id"],"update_node_position":["id","x","y","z"]}' }
+const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["name","fields","is_default"],"delete_edge":["id"],"get_connection_layers":[],"get_layers":[],"get_nodes":["layer_id"],"get_note_types":[],"get_relation_kinds":[],"get_world_config":[],"mark_learned":["id","learned"],"reset_data":["reseed"],"seed_sample_data":[],"set_node_note_type":["node_id","note_type_id"],"update_node_position":["id","x","y","z"]}' }
 export type Router = { "": {create_edge: (sourceId: string, targetId: string, edgeType: string) => Promise<Edge>, 
 create_layer: (name: string, displayOrder: number) => Promise<Layer>, 
 create_node: (input: CreateNodeInput) => Promise<Node>, 
@@ -39,7 +39,7 @@ get_note_types: () => Promise<NoteType[]>,
 get_relation_kinds: () => Promise<RelationKind[]>, 
 get_world_config: () => Promise<WorldConfig | null>, 
 mark_learned: (id: string, learned: boolean) => Promise<Node>, 
-reset_data: () => Promise<null>, 
+reset_data: (reseed: boolean | null) => Promise<null>, 
 seed_sample_data: () => Promise<null>, 
 set_node_note_type: (nodeId: string, noteTypeId: string | null) => Promise<Node>, 
 update_node_position: (id: string, x: number, y: number, z: number) => Promise<null>} };

@@ -87,9 +87,17 @@ export function useForceLayout(
 
         const nodeIdSet = new Set(newNodes.map((n) => n.id))
         const simLinks: { source: string; target: string }[] = []
+        const seenPairs = new Set<string>()
         for (const node of newNodes) {
           for (const conn of node.connections) {
             if (nodeIdSet.has(conn.target_id)) {
+              // Keep one physical spring per node pair for performance/stability.
+              // Visual layer can still render multiple semantic relations separately.
+              const a = node.id < conn.target_id ? node.id : conn.target_id
+              const b = node.id < conn.target_id ? conn.target_id : node.id
+              const pairKey = `${a}::${b}`
+              if (seenPairs.has(pairKey)) continue
+              seenPairs.add(pairKey)
               simLinks.push({ source: node.id, target: conn.target_id })
             }
           }

@@ -66,7 +66,7 @@ trait GraphApi {
 
     // Dev / seed
     async fn seed_sample_data() -> Result<(), String>;
-    async fn reset_data() -> Result<(), String>;
+    async fn reset_data(reseed: Option<bool>) -> Result<(), String>;
 }
 
 // ---------------------------------------------------------------------------
@@ -167,9 +167,9 @@ impl GraphApi for ApiImpl {
         graph::seed_sample_data(&conn).map_err(|e| e.to_string())
     }
 
-    async fn reset_data(self) -> Result<(), String> {
+    async fn reset_data(self, reseed: Option<bool>) -> Result<(), String> {
         let conn = db().lock().await;
-        graph::reset_and_reseed(&conn).map_err(|e| e.to_string())
+        graph::reset_data(&conn, reseed.unwrap_or(true)).map_err(|e| e.to_string())
     }
 }
 

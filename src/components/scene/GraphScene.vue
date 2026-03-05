@@ -259,13 +259,11 @@ let pulseT = 0
 // Camera position snapshot for distance-faded labels (sampled, not every frame)
 const cameraPos = new THREE.Vector3()
 const labelTick = ref(0)
-const edgeAnimTick = ref(0)
 let labelSampleMs = 0
 
 const _ndcVec = new THREE.Vector3()
 
 useRafFn(({ delta }) => {
-  edgeAnimTick.value += delta
   const raw = controlsRef.value
   const controls = raw?.instance ?? raw
   if (!controls?.object) return
@@ -558,7 +556,10 @@ function edgeLineWidth(edgeType: string): number {
   }
 }
 
-function resolvedEdgeStyle(conn: { edge_type: string; relation_id: string | null; connection_layer_ids: string[] }): {
+function resolvedEdgeStyle(
+  conn: { edge_type: string; relation_id: string | null; connection_layer_ids: string[] },
+  activeConnectionLayerSet: Set<string>
+): {
   color: string
   width: number
   opacity: number
@@ -573,6 +574,7 @@ function resolvedEdgeStyle(conn: { edge_type: string; relation_id: string | null
   const relationStyle = conn.relation_id ? (relationStyleById.value.get(conn.relation_id) ?? {}) : {}
 
   const candidates = conn.connection_layer_ids
+    .filter(id => activeConnectionLayerSet.has(id))
     .map(id => connectionLayerById.value.get(id))
     .filter((v): v is { order: number; style: JsonObject } => Boolean(v))
     .sort((a, b) => b.order - a.order)
@@ -611,10 +613,11 @@ function resolvedEdgeStyle(conn: { edge_type: string; relation_id: string | null
 const edges = computed(() => {
   const nodeMap = new Map<string, PositionedNode>(positionedNodes.value.map(n => [n.id, n]))
   const activeConnectionLayerSet = new Set(graphStore.activeConnectionLayerIds)
-  const hasConnectionFilter = activeConnectionLayerSet.size > 0
+  const hasConnectionLayers = graphStore.connectionLayers.length > 0
+  const selectedCount = activeConnectionLayerSet.size
   const result: {
     id: string
-    points: [[number, number, number], [number, number, number]]
+    points: [number, number, number][]
     color: string
     width: number
     opacity: number
@@ -624,6 +627,19 @@ const edges = computed(() => {
     dashScale: number
   }[] = []
   const seenEdgeIds = new Set<string>()
+  const edgeRows: {
+    id: string
+    source: PositionedNode
+    target: PositionedNode
+    color: string
+    width: number
+    opacity: number
+    dashed: boolean
+    dashSize: number
+    gapSize: number
+    dashScale: number
+    pairKey: string
+  }[] = []
 
   for (const node of positionedNodes.value) {
     for (const conn of node.connections) {
@@ -631,35 +647,100 @@ const edges = computed(() => {
       seenEdgeIds.add(conn.id)
 
       if (
-        hasConnectionFilter &&
-        conn.connection_layer_ids.length > 0 &&
-        !conn.connection_layer_ids.some(id => activeConnectionLayerSet.has(id))
+        hasConnectionLayers &&
+        (
+          selectedCount === 0 ||
+          conn.connection_layer_ids.length === 0 ||
+          !conn.connection_layer_ids.some(id => activeConnectionLayerSet.has(id))
+        )
       ) {
         continue
       }
 
       const target = nodeMap.get(conn.target_id)
       if (!target) continue
-      const style = resolvedEdgeStyle(conn)
-      void edgeAnimTick.value
-      const pulse = style.animatedFlow
-        ? 0.65 + 0.35 * Math.sin((edgeAnimTick.value / 1000) * style.flowSpeed * 3 + conn.id.length)
-        : 1
+      const style = resolvedEdgeStyle(conn, activeConnectionLayerSet)
 
-      result.push({
+      const a = node.id < conn.target_id ? node.id : conn.target_id
+      const b = node.id < conn.target_id ? conn.target_id : node.id
+      edgeRows.push({
         id: conn.id,
-        points: [
-          [node.x, node.y, node.z],
-          [target.x, target.y, target.z],
-        ],
+        source: node,
+        target,
         color: style.color,
         width: style.width,
-        opacity: Math.max(0.12, Math.min(1, style.opacity * pulse)),
+        opacity: Math.max(0.12, Math.min(1, style.opacity)),
         dashed: style.dashed,
         dashSize: style.dashSize > 0 ? style.dashSize : 0.22,
         gapSize: style.gapSize > 0 ? style.gapSize : 0.14,
         dashScale: style.flowSpeed > 0 ? style.flowSpeed : 1,
+        pairKey: `${a}::${b}`,
       })
+    }
+  }
+
+  const bundles = new Map<string, typeof edgeRows>()
+  for (const row of edgeRows) {
+    const bucket = bundles.get(row.pairKey)
+    if (bucket) bucket.push(row)
+    else bundles.set(row.pairKey, [row])
+  }
+
+  const up = new THREE.Vector3(0, 1, 0)
+  const xAxis = new THREE.Vector3(1, 0, 0)
+  const dir = new THREE.Vector3()
+  const normal = new THREE.Vector3()
+  const mid = new THREE.Vector3()
+
+  for (const bundle of bundles.values()) {
+    const count = bundle.length
+    for (let i = 0; i < count; i++) {
+      const row = bundle[i]
+      const lane = i - (count - 1) / 2
+      const offsetStrength = 0.38
+      const src = row.source
+      const tgt = row.target
+
+      if (count > 1 && lane !== 0) {
+        dir.set(tgt.x - src.x, tgt.y - src.y, tgt.z - src.z)
+        if (dir.lengthSq() < 1e-6) continue
+        dir.normalize()
+        normal.crossVectors(dir, up)
+        if (normal.lengthSq() < 1e-6) normal.crossVectors(dir, xAxis)
+        normal.normalize().multiplyScalar(offsetStrength * lane)
+        mid.set((src.x + tgt.x) / 2, (src.y + tgt.y) / 2, (src.z + tgt.z) / 2).add(normal)
+
+        result.push({
+          id: row.id,
+          points: [
+            [src.x, src.y, src.z],
+            [mid.x, mid.y, mid.z],
+            [tgt.x, tgt.y, tgt.z],
+          ],
+          color: row.color,
+          width: row.width,
+          opacity: row.opacity,
+          dashed: row.dashed,
+          dashSize: row.dashSize,
+          gapSize: row.gapSize,
+          dashScale: row.dashScale,
+        })
+      } else {
+        result.push({
+          id: row.id,
+          points: [
+            [src.x, src.y, src.z],
+            [tgt.x, tgt.y, tgt.z],
+          ],
+          color: row.color,
+          width: row.width,
+          opacity: row.opacity,
+          dashed: row.dashed,
+          dashSize: row.dashSize,
+          gapSize: row.gapSize,
+          dashScale: row.dashScale,
+        })
+      }
     }
   }
 
@@ -686,13 +767,13 @@ function nodeLabelOpacity(node: PositionedNode): number {
   const dz = cameraPos.z - node.z
   const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
   if (isPriorityLabelNode(node)) {
-    if (dist <= 22) return 1
-    if (dist >= 96) return 0.5
-    return 1 - (dist - 22) / 148
+    if (dist <= 20) return 1
+    if (dist >= 78) return 0
+    return 1 - (dist - 20) / 58
   }
-  if (dist <= 16) return 1
-  if (dist >= 72) return 0.22
-  return 1 - (dist - 16) / 72
+  if (dist <= 14) return 1
+  if (dist >= 42) return 0
+  return 1 - (dist - 14) / 28
 }
 
 // в”Ђв”Ђ Event handlers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
@@ -797,7 +878,11 @@ watch(
     :sprite="true"
     :z-index-range="[40, 0]"
   >
-    <div class="node-label" :style="{ opacity: nodeLabelOpacity(node), transition: 'opacity 0.3s' }">
+    <div
+      v-if="nodeLabelOpacity(node) > 0.01"
+      class="node-label"
+      :style="{ opacity: nodeLabelOpacity(node) }"
+    >
       {{ node.title }}
     </div>
   </Html>

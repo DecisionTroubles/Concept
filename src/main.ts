@@ -6,7 +6,7 @@ import './assets/main.css'
 import { bootstrapPlugins } from '@/plugins/bootstrap'
 import { useTheme } from '@/composables/useTheme'
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'development' && import.meta.env.VITE_ENABLE_DEVTOOLS === '1') {
   try {
     devtools.connect('http://localhost', 8098)
   } catch {
