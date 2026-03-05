@@ -70,7 +70,7 @@ const quickMap = computed(() => {
     wz: n.pos_z ?? Math.sin((i / Math.max(1, items.length)) * Math.PI * 2) * fallbackR,
   }))
 
-  const nodeIds = new Set(items.map((n) => n.id))
+  const nodeIds = new Set(items.map(n => n.id))
   const edgeKeySet = new Set<string>()
   const edges: MapEdge[] = []
   const degreeMap = new Map<string, number>()
@@ -98,7 +98,7 @@ const quickMap = computed(() => {
     return { sx, sy }
   }
 
-  const drawNodes: MapDrawNode[] = worldNodes.map((n) => {
+  const drawNodes: MapDrawNode[] = worldNodes.map(n => {
     const isHover = hoveredMapNodeId.value === n.id
     const degree = degreeMap.get(n.id) ?? 0
     const p = project(n.wx, n.wz)
@@ -120,9 +120,9 @@ const quickMap = computed(() => {
     }
   })
 
-  const drawNodeById = new Map(drawNodes.map((n) => [n.id, n]))
+  const drawNodeById = new Map(drawNodes.map(n => [n.id, n]))
   const drawEdges: MapDrawEdge[] = edges
-    .map((e) => {
+    .map(e => {
       const a = drawNodeById.get(e.source)
       const b = drawNodeById.get(e.target)
       if (!a || !b) return null
@@ -147,11 +147,11 @@ const quickMap = computed(() => {
   return { nodes: drawNodes, edges: drawEdges }
 })
 
-const hoveredMapNode = computed(() => quickMap.value.nodes.find((n) => n.id === hoveredMapNodeId.value) ?? null)
+const hoveredMapNode = computed(() => quickMap.value.nodes.find(n => n.id === hoveredMapNodeId.value) ?? null)
 const mapStats = computed(() => ({
   nodes: quickMap.value.nodes.length,
   edges: quickMap.value.edges.length,
-  pinned: quickMap.value.nodes.filter((n) => n.pinned).length,
+  pinned: quickMap.value.nodes.filter(n => n.pinned).length,
 }))
 
 function focusNode(id: string) {
@@ -185,7 +185,7 @@ function onMapWheel(e: WheelEvent) {
 }
 
 function recenterOnSelection() {
-  const sel = graphStore.nodes.find((n) => n.id === graphStore.selectedNodeId)
+  const sel = graphStore.nodes.find(n => n.id === graphStore.selectedNodeId)
   if (sel && sel.pos_x !== null && sel.pos_z !== null) {
     mapCenterX.value = sel.pos_x
     mapCenterZ.value = sel.pos_z
@@ -214,7 +214,7 @@ function onMapPointerUp() {
   mapDragging.value = false
 }
 
-watch(isMapBuffer, (open) => {
+watch(isMapBuffer, open => {
   if (open) recenterOnSelection()
 })
 
@@ -284,7 +284,7 @@ useEventListener(
       }
     }
   },
-  { capture: true },
+  { capture: true }
 )
 </script>
 
@@ -307,11 +307,25 @@ useEventListener(
 
           <div v-if="isPinnedBuffer" class="buffer-body">
             <div class="buffer-title">Pinned Nodes</div>
-            <div v-if="graphStore.pinnedNodes.length === 0" class="empty">No pinned nodes yet. Select node and press {{ settings.keys.pinNode.toUpperCase() }}.</div>
+            <div v-if="graphStore.pinnedNodes.length === 0" class="empty">
+              No pinned nodes yet. Select node and press {{ settings.keys.pinNode.toUpperCase() }}.
+            </div>
             <div v-else>
               <div class="pin-toolbar">
-                <button class="pin-mode-btn" :class="{ active: pinnedViewMode === 'cards' }" @click="pinnedViewMode = 'cards'">Cards</button>
-                <button class="pin-mode-btn" :class="{ active: pinnedViewMode === 'list' }" @click="pinnedViewMode = 'list'">List</button>
+                <button
+                  class="pin-mode-btn"
+                  :class="{ active: pinnedViewMode === 'cards' }"
+                  @click="pinnedViewMode = 'cards'"
+                >
+                  Cards
+                </button>
+                <button
+                  class="pin-mode-btn"
+                  :class="{ active: pinnedViewMode === 'list' }"
+                  @click="pinnedViewMode = 'list'"
+                >
+                  List
+                </button>
               </div>
               <div v-if="pinnedViewMode === 'list'" class="pin-list">
                 <div v-for="node in graphStore.pinnedNodes" :key="node.id" class="pin-row">
@@ -320,12 +334,24 @@ useEventListener(
                 </div>
               </div>
               <div v-else class="pin-cards">
-                <article v-for="node in graphStore.pinnedNodes" :key="`card-${node.id}`" class="pin-card" @click="focusNode(node.id)">
+                <article
+                  v-for="node in graphStore.pinnedNodes"
+                  :key="`card-${node.id}`"
+                  class="pin-card"
+                  @click="focusNode(node.id)"
+                >
                   <div class="pin-card-head">
                     <div class="pin-card-title">{{ node.title }}</div>
                     <button class="pin-remove" @click.stop="graphStore.unpinNode(node.id)">Unpin</button>
                   </div>
-                  <div class="pin-card-type">{{ node.node_type }} · {{ node.note_type_id ? (graphStore.noteTypes.find((n) => n.id === node.note_type_id)?.name ?? 'Note') : 'Note' }}</div>
+                  <div class="pin-card-type">
+                    {{ node.node_type }} ·
+                    {{
+                      node.note_type_id
+                        ? (graphStore.noteTypes.find(n => n.id === node.note_type_id)?.name ?? 'Note')
+                        : 'Note'
+                    }}
+                  </div>
                   <p class="pin-card-content">{{ node.content_data || 'No content' }}</p>
                   <div class="pin-card-tags">
                     <span v-for="tag in node.tags.slice(0, 3)" :key="`${node.id}-${tag}`">{{ tag }}</span>
@@ -337,7 +363,13 @@ useEventListener(
 
           <div v-else-if="isMapBuffer" class="buffer-body">
             <div class="buffer-title">Quick Map</div>
-            <div class="map-wrap" @pointerdown="onMapPointerDown" @pointermove="onMapPointerMove" @pointerup="onMapPointerUp" @pointerleave="onMapPointerUp">
+            <div
+              class="map-wrap"
+              @pointerdown="onMapPointerDown"
+              @pointermove="onMapPointerMove"
+              @pointerup="onMapPointerUp"
+              @pointerleave="onMapPointerUp"
+            >
               <svg class="map" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" @wheel.prevent="onMapWheel">
                 <rect class="map-plane" x="0" y="0" width="100" height="100" />
                 <line
@@ -368,7 +400,7 @@ useEventListener(
                   <circle class="map-node-ring" :cx="n.sx" :cy="n.sy" :r="n.r + 0.55" />
                 </g>
                 <text
-                  v-for="n in quickMap.nodes.filter((x) => x.label && x.inView)"
+                  v-for="n in quickMap.nodes.filter(x => x.label && x.inView)"
                   :key="`label-${n.id}`"
                   :x="Math.min(96, n.sx + n.r + 0.9)"
                   :y="Math.max(4, n.sy - (n.r + 0.5))"
@@ -383,8 +415,15 @@ useEventListener(
               </div>
             </div>
             <div class="map-hint-row">
-              <div class="map-hint">WASD or drag mouse to pan · Mouse wheel or {{ settings.keys.graphZoomIn.toUpperCase() }}/{{ settings.keys.graphZoomOut.toUpperCase() }} to zoom · 0 reset</div>
-              <div class="map-stats">{{ mapStats.nodes }} nodes · {{ mapStats.edges }} links · {{ mapStats.pinned }} pinned</div>
+              <div class="map-hint">
+                WASD or drag mouse to pan · Mouse wheel or {{ settings.keys.graphZoomIn.toUpperCase() }}/{{
+                  settings.keys.graphZoomOut.toUpperCase()
+                }}
+                to zoom · 0 reset
+              </div>
+              <div class="map-stats">
+                {{ mapStats.nodes }} nodes · {{ mapStats.edges }} links · {{ mapStats.pinned }} pinned
+              </div>
             </div>
           </div>
         </div>
@@ -397,9 +436,9 @@ useEventListener(
 .buffer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 520;
-  background: color-mix(in srgb, var(--app-canvas-bg) 72%, black 28%);
-  backdrop-filter: blur(8px);
+  z-index: var(--z-buffer-modal);
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -606,7 +645,11 @@ useEventListener(
   background:
     radial-gradient(circle at 20% 18%, color-mix(in srgb, var(--app-accent) 25%, transparent), transparent 38%),
     radial-gradient(circle at 78% 74%, rgba(61, 214, 140, 0.1), transparent 46%),
-    linear-gradient(165deg, color-mix(in srgb, var(--app-overlay-bg) 88%, #0a0f20), color-mix(in srgb, var(--app-canvas-bg) 86%, #04090f));
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--app-overlay-bg) 88%, #0a0f20),
+      color-mix(in srgb, var(--app-canvas-bg) 86%, #04090f)
+    );
   border: 1px solid var(--app-overlay-border);
   border-radius: 12px;
 }
@@ -640,7 +683,9 @@ useEventListener(
 
 .map-node {
   cursor: pointer;
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    opacity 0.12s ease;
   transform-origin: center;
 }
 

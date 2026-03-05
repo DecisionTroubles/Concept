@@ -8,41 +8,67 @@ const themeState = useTheme()
 type ActionKey = keyof typeof settings.keys
 
 const EXCLUDED_KEYS = new Set([
-  'Escape', 'Shift', 'Control', 'Alt', 'Meta',
-  'CapsLock', 'NumLock', 'ScrollLock', 'Tab',
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete',
-  'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
+  'Escape',
+  'Shift',
+  'Control',
+  'Alt',
+  'Meta',
+  'CapsLock',
+  'NumLock',
+  'ScrollLock',
+  'Tab',
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'Home',
+  'End',
+  'PageUp',
+  'PageDown',
+  'Insert',
+  'Delete',
+  'F1',
+  'F2',
+  'F3',
+  'F4',
+  'F5',
+  'F6',
+  'F7',
+  'F8',
+  'F9',
+  'F10',
+  'F11',
+  'F12',
 ])
 
 const GLOBAL_ACTIONS: Array<{ key: ActionKey; label: string }> = [
-  { key: 'flyMode',   label: 'Enter fly mode' },
+  { key: 'flyMode', label: 'Enter fly mode' },
   { key: 'graphMode', label: 'Enter graph mode' },
-  { key: 'jumpBack',  label: 'Jump back' },
-  { key: 'search',    label: 'Search nodes' },
-  { key: 'settings',  label: 'Settings panel' },
-  { key: 'openNode',  label: 'Center node panel' },
-  { key: 'pinNode',   label: 'Toggle pin node' },
+  { key: 'jumpBack', label: 'Jump back' },
+  { key: 'search', label: 'Search nodes' },
+  { key: 'settings', label: 'Settings panel' },
+  { key: 'openNode', label: 'Center node panel' },
+  { key: 'pinNode', label: 'Toggle pin node' },
   { key: 'pinnedBuffer', label: 'Pinned buffer' },
-  { key: 'mapBuffer',    label: 'Map buffer' },
+  { key: 'mapBuffer', label: 'Map buffer' },
 ]
 
 const FLY_ACTIONS: Array<{ key: ActionKey; label: string }> = [
   { key: 'flyForward', label: 'Forward' },
-  { key: 'flyBack',    label: 'Back' },
-  { key: 'flyLeft',    label: 'Strafe left' },
-  { key: 'flyRight',   label: 'Strafe right' },
-  { key: 'flyUp',      label: 'Ascend' },
-  { key: 'flyDown',    label: 'Descend' },
+  { key: 'flyBack', label: 'Back' },
+  { key: 'flyLeft', label: 'Strafe left' },
+  { key: 'flyRight', label: 'Strafe right' },
+  { key: 'flyUp', label: 'Ascend' },
+  { key: 'flyDown', label: 'Descend' },
 ]
 
 const GRAPH_ACTIONS: Array<{ key: ActionKey; label: string }> = [
-  { key: 'graphOrbitLeft',  label: 'Orbit left' },
+  { key: 'graphOrbitLeft', label: 'Orbit left' },
   { key: 'graphOrbitRight', label: 'Orbit right' },
-  { key: 'graphTiltUp',     label: 'Tilt up' },
-  { key: 'graphTiltDown',   label: 'Tilt down' },
-  { key: 'graphZoomIn',     label: 'Zoom in' },
-  { key: 'graphZoomOut',    label: 'Zoom out' },
+  { key: 'graphTiltUp', label: 'Tilt up' },
+  { key: 'graphTiltDown', label: 'Tilt down' },
+  { key: 'graphZoomIn', label: 'Zoom in' },
+  { key: 'graphZoomOut', label: 'Zoom out' },
 ]
 
 const isOpen = ref(false)
@@ -75,52 +101,72 @@ function actionAliases(action: ActionKey): string[] {
   return []
 }
 
-useEventListener(document, 'keydown', (e: KeyboardEvent) => {
-  const tag = (e.target as HTMLElement)?.tagName
-  const isInput = tag === 'INPUT' || tag === 'TEXTAREA'
-                || (e.target as HTMLElement)?.isContentEditable
+useEventListener(
+  document,
+  'keydown',
+  (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement)?.tagName
+    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
 
-  // Open via keyboard when panel is closed
-  if (!isOpen.value && !isInput && e.key.toLowerCase() === settings.keys.settings) {
-    e.preventDefault()
-    e.stopImmediatePropagation()
-    isOpen.value = true
-    return
-  }
-
-  if (!isOpen.value) return
-
-  // Panel is open — block all other listeners from seeing this event
-  e.stopImmediatePropagation()
-
-  // Capturing a new key binding
-  if (listeningAction.value) {
-    e.preventDefault()
-    if (e.key === 'Escape') {
-      listeningAction.value = null
+    // Open via keyboard when panel is closed
+    if (!isOpen.value && !isInput && e.key.toLowerCase() === settings.keys.settings) {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      isOpen.value = true
       return
     }
-    if (!EXCLUDED_KEYS.has(e.key)) {
-      settings.rebind(listeningAction.value, e.key)
-      listeningAction.value = null
-    }
-    return
-  }
 
-  // Panel open, not listening — handle close triggers
-  if (e.key === 'Escape' || e.key.toLowerCase() === settings.keys.settings) {
-    e.preventDefault()
-    isOpen.value = false
-  }
-}, { capture: true })
+    if (!isOpen.value) return
+
+    // Panel is open — block all other listeners from seeing this event
+    e.stopImmediatePropagation()
+
+    // Capturing a new key binding
+    if (listeningAction.value) {
+      e.preventDefault()
+      if (e.key === 'Escape') {
+        listeningAction.value = null
+        return
+      }
+      if (!EXCLUDED_KEYS.has(e.key)) {
+        settings.rebind(listeningAction.value, e.key)
+        listeningAction.value = null
+      }
+      return
+    }
+
+    // Panel open, not listening — handle close triggers
+    if (e.key === 'Escape' || e.key.toLowerCase() === settings.keys.settings) {
+      e.preventDefault()
+      isOpen.value = false
+    }
+  },
+  { capture: true }
+)
 </script>
 
 <template>
   <!-- Gear icon (always visible) -->
-  <button class="gear-btn" :class="{ active: isOpen }" @click="toggle" :title="`Settings (${displayKey(settings.keys.settings)})`">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  <button
+    class="gear-btn"
+    :class="{ active: isOpen }"
+    @click="toggle"
+    :title="`Settings (${displayKey(settings.keys.settings)})`"
+  >
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+      />
     </svg>
   </button>
 
@@ -244,7 +290,7 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   position: fixed;
   top: 14px;
   right: 14px;
-  z-index: 250;
+  z-index: var(--z-settings-gear);
   width: 32px;
   height: 32px;
   display: flex;
@@ -255,7 +301,10 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   border: 1px solid var(--app-overlay-border);
   color: var(--app-text-secondary);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
   backdrop-filter: blur(8px);
 }
 
@@ -269,7 +318,7 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
 .settings-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 260;
+  z-index: var(--z-settings-modal);
   backdrop-filter: blur(6px);
   background: rgba(0, 0, 0, 0.42);
   display: flex;
@@ -334,7 +383,9 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   padding: 6px 10px;
   border-radius: 7px;
   font-family: system-ui, sans-serif;
-  transition: background 0.12s, border-color 0.12s;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
 }
 
 .reset-btn:hover {
@@ -351,7 +402,9 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   padding: 6px 10px;
   border-radius: 7px;
   font-family: ui-monospace, 'Cascadia Code', monospace;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .close-btn:hover {
@@ -379,7 +432,10 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   padding: 6px 10px;
   cursor: pointer;
   font-family: system-ui, sans-serif;
-  transition: color 0.12s, background 0.12s, border-color 0.12s;
+  transition:
+    color 0.12s,
+    background 0.12s,
+    border-color 0.12s;
 }
 
 .tab-btn:hover {
@@ -411,7 +467,10 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   border-radius: 12px;
   padding: 12px;
   cursor: pointer;
-  transition: border-color 0.12s, background 0.12s, transform 0.12s;
+  transition:
+    border-color 0.12s,
+    background 0.12s,
+    transform 0.12s;
 }
 
 .theme-card:hover {
@@ -528,7 +587,10 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
   cursor: pointer;
   min-width: 28px;
   text-align: center;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    border-color 0.1s,
+    color 0.1s;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -558,8 +620,13 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.65; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
 }
 
 @media (max-width: 1060px) {
@@ -616,7 +683,9 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
 }
 .settings-enter-active .settings-panel,
 .settings-leave-active .settings-panel {
-  transition: transform 0.16s ease, opacity 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    opacity 0.16s ease;
 }
 .settings-enter-from .settings-panel,
 .settings-leave-to .settings-panel {

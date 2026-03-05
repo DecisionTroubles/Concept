@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -8,7 +8,9 @@
 }
 
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial,
+    sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
   --font-mono: Cascadia Code, Consolas, Menlo, Ubuntu Mono, DejaVu Sans Mono, Courier New, monospace;
 }
 
@@ -95,7 +97,8 @@ input {
   @apply bg-gray-700 text-gray-200 px-3 py-2 rounded-md my-4 border border-gray-700 mx-2;
 }
 
-input, textarea {
+input,
+textarea {
   @apply select-auto;
 }
 
@@ -138,6 +141,15 @@ input, textarea {
 }
 
 :root {
+  --z-layer-panel: 100;
+  --z-compass-hud: 150;
+  --z-mode-indicator: 200;
+  --z-settings-gear: 250;
+  --z-settings-modal: 900;
+  --z-node-search: 300;
+  --z-node-detail: 420;
+  --z-buffer-modal: 910;
+
   --app-canvas-bg: #080b14;
   --app-overlay-bg: rgba(10, 13, 24, 0.96);
   --app-overlay-border: rgba(255, 255, 255, 0.1);

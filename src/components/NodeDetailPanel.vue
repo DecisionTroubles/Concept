@@ -12,20 +12,28 @@ const isPinned = computed(() => graphStore.isNodePinned(node.value?.id))
 // Edge type → human readable
 function edgeLabel(type: string): string {
   switch (type) {
-    case 'Prerequisite': return 'Prerequisite'
-    case 'Semantic':     return 'Related'
-    case 'UserDefined':  return 'Linked'
+    case 'Prerequisite':
+      return 'Prerequisite'
+    case 'Semantic':
+      return 'Related'
+    case 'UserDefined':
+      return 'Linked'
     case 'Context':
-    default:             return 'Context'
+    default:
+      return 'Context'
   }
 }
 
 function edgeBadgeClass(type: string): string {
   switch (type) {
-    case 'Prerequisite': return 'badge-blue'
-    case 'Semantic':     return 'badge-muted'
-    case 'UserDefined':  return 'badge-amber'
-    default:             return 'badge-grey'
+    case 'Prerequisite':
+      return 'badge-blue'
+    case 'Semantic':
+      return 'badge-muted'
+    case 'UserDefined':
+      return 'badge-amber'
+    default:
+      return 'badge-grey'
   }
 }
 
@@ -44,27 +52,24 @@ const connectionSummary = computed(() => {
       else acc.custom += 1
       return acc
     },
-    { context: 0, prerequisite: 0, semantic: 0, custom: 0 },
+    { context: 0, prerequisite: 0, semantic: 0, custom: 0 }
   )
 })
 
 const noteTypeName = computed(() => {
   const id = node.value?.note_type_id
   if (!id) return 'Unassigned'
-  return graphStore.noteTypes.find((n) => n.id === id)?.name ?? 'Unknown'
+  return graphStore.noteTypes.find(n => n.id === id)?.name ?? 'Unknown'
 })
 
 const nodeTips = computed(() => {
   if (!node.value) return []
   const tips: string[] = []
-  if (connectionSummary.value.prerequisite > 0)
-    tips.push('Review prerequisite links first to reduce confusion.')
-  if (connectionSummary.value.context > 0)
-    tips.push('Traverse context links to reinforce real usage patterns.')
+  if (connectionSummary.value.prerequisite > 0) tips.push('Review prerequisite links first to reduce confusion.')
+  if (connectionSummary.value.context > 0) tips.push('Traverse context links to reinforce real usage patterns.')
   if (node.value.tags.length > 0)
     tips.push(`Use tags (${node.value.tags.slice(0, 2).join(', ')}) to group related review sessions.`)
-  if (!node.value.learned)
-    tips.push('Mark this node learned after recalling it without hints.')
+  if (!node.value.learned) tips.push('Mark this node learned after recalling it without hints.')
   return tips.slice(0, 3)
 })
 
@@ -92,7 +97,6 @@ async function onNoteTypeChange(e: Event) {
   const next = target.value || null
   await graphStore.setNodeNoteType(node.value.id, next)
 }
-
 </script>
 
 <template>
@@ -105,10 +109,20 @@ async function onNoteTypeChange(e: Event) {
           <div class="panel-subtitle">{{ node.node_type }} · {{ node.learned ? 'learned' : 'in progress' }}</div>
         </div>
         <div class="header-actions">
-          <button class="icon-btn" :class="{ active: isCentered }" @click="toggleCentered" :aria-label="`Toggle centered panel (${settings.keys.openNode.toUpperCase()})`">
+          <button
+            class="icon-btn"
+            :class="{ active: isCentered }"
+            @click="toggleCentered"
+            :aria-label="`Toggle centered panel (${settings.keys.openNode.toUpperCase()})`"
+          >
             <Crosshair :size="13" />
           </button>
-          <button class="icon-btn" :class="{ active: isPinned }" @click="togglePinned" :aria-label="`Toggle pin (${settings.keys.pinNode.toUpperCase()})`">
+          <button
+            class="icon-btn"
+            :class="{ active: isPinned }"
+            @click="togglePinned"
+            :aria-label="`Toggle pin (${settings.keys.pinNode.toUpperCase()})`"
+          >
             <Pin :size="13" />
           </button>
           <button class="close-btn" @click="onClose" aria-label="Close">
@@ -167,10 +181,18 @@ async function onNoteTypeChange(e: Event) {
             <span>Facts</span>
           </div>
           <div class="facts-grid">
-            <div class="fact-cell"><span>Weight</span><strong>{{ node.weight.toFixed(2) }}</strong></div>
-            <div class="fact-cell"><span>Created</span><strong>{{ new Date(node.created_at).toLocaleDateString() }}</strong></div>
-            <div class="fact-cell"><span>Context</span><strong>{{ connectionSummary.context }}</strong></div>
-            <div class="fact-cell"><span>Prereq</span><strong>{{ connectionSummary.prerequisite }}</strong></div>
+            <div class="fact-cell">
+              <span>Weight</span><strong>{{ node.weight.toFixed(2) }}</strong>
+            </div>
+            <div class="fact-cell">
+              <span>Created</span><strong>{{ new Date(node.created_at).toLocaleDateString() }}</strong>
+            </div>
+            <div class="fact-cell">
+              <span>Context</span><strong>{{ connectionSummary.context }}</strong>
+            </div>
+            <div class="fact-cell">
+              <span>Prereq</span><strong>{{ connectionSummary.prerequisite }}</strong>
+            </div>
           </div>
           <div class="note-type-row">
             <span class="note-type-label">Note type</span>
@@ -201,10 +223,7 @@ async function onNoteTypeChange(e: Event) {
           <Pin :size="13" />
           <span>{{ isPinned ? 'Unpin node' : 'Pin node' }} ({{ settings.keys.pinNode.toUpperCase() }})</span>
         </button>
-        <button
-          :class="['learn-btn', node.learned ? 'learned' : 'unlearned']"
-          @click="onMarkLearned"
-        >
+        <button :class="['learn-btn', node.learned ? 'learned' : 'unlearned']" @click="onMarkLearned">
           <CheckCircle2 :size="14" />
           <span>{{ node.learned ? 'Mark as Unseen' : 'Mark as Learned' }}</span>
         </button>
@@ -227,7 +246,7 @@ async function onNoteTypeChange(e: Event) {
   color: var(--app-text-primary);
   font-family: system-ui, sans-serif;
   font-size: 13px;
-  z-index: 420;
+  z-index: var(--z-node-detail);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
@@ -291,7 +310,9 @@ async function onNoteTypeChange(e: Event) {
   border-radius: 5px;
   color: #7a8099;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .icon-btn:hover,
@@ -312,7 +333,9 @@ async function onNoteTypeChange(e: Event) {
   border-radius: 5px;
   color: #7a8099;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .close-btn:hover {
@@ -411,10 +434,22 @@ async function onNoteTypeChange(e: Event) {
   flex-shrink: 0;
 }
 
-.badge-blue   { background: color-mix(in srgb, var(--app-accent) 18%, transparent); color: var(--app-accent); }
-.badge-muted  { background: rgba(120, 130, 170, 0.18); color: #8090b0; }
-.badge-amber  { background: rgba(245, 158, 11, 0.18); color: #f59e0b; }
-.badge-grey   { background: rgba(90, 100, 140, 0.18); color: #6a7a9a; }
+.badge-blue {
+  background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+  color: var(--app-accent);
+}
+.badge-muted {
+  background: rgba(120, 130, 170, 0.18);
+  color: #8090b0;
+}
+.badge-amber {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+}
+.badge-grey {
+  background: rgba(90, 100, 140, 0.18);
+  color: #6a7a9a;
+}
 
 .panel-footer {
   padding: 12px 18px 14px;
@@ -458,7 +493,9 @@ async function onNoteTypeChange(e: Event) {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .learn-btn.unlearned {
@@ -550,7 +587,9 @@ async function onNoteTypeChange(e: Event) {
 /* Transition */
 .panel-enter-active,
 .panel-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .panel-enter-from,
