@@ -1,110 +1,336 @@
 {
-  "meta": {
+  "version": "2",
+  "world": {
     "id": "japanese-n5",
     "name": "Japanese N5",
-    "description": "Core N5 grammar particles and verb forms — the foundation of Japanese sentence structure.",
-    "author": "concept",
-    "version": "1.0.0",
-    "language": "ja"
+    "layout": {
+      "default_mode": "force3d",
+      "anchor_policy": "sticky"
+    },
+    "metadata": {
+      "description": "Core N5 grammar particles and verb forms.",
+      "language": "ja",
+      "visual_defaults": {
+        "node": {
+          "color": "#6b7ca4",
+          "emissive": "#111a40",
+          "emissive_intensity": 0.7
+        },
+        "edge": {
+          "color": "#4f5a77",
+          "width": 1.35
+        }
+      },
+      "node_type_styles": {
+        "grammar": {
+          "color": "#5b7fe0",
+          "emissive": "#1a2580",
+          "emissive_intensity": 0.8
+        },
+        "particle": {
+          "color": "#cc5375",
+          "emissive": "#3d0f1a",
+          "emissive_intensity": 0.75
+        }
+      }
+    }
   },
+  "relation_kinds": [
+    {
+      "id": "context",
+      "label": "Context",
+      "directed": false,
+      "default_weight": 1.0,
+      "metadata": {
+        "style": {
+          "color": "#67708d",
+          "width": 1.25
+        }
+      }
+    },
+    {
+      "id": "prerequisite",
+      "label": "Prerequisite",
+      "directed": true,
+      "default_weight": 1.0,
+      "metadata": {
+        "style": {
+          "color": "#5b8fff",
+          "width": 1.6
+        }
+      }
+    },
+    {
+      "id": "semantic",
+      "label": "Semantic",
+      "directed": false,
+      "default_weight": 1.0,
+      "metadata": {
+        "style": {
+          "color": "#8f95aa",
+          "width": 1.15
+        }
+      }
+    },
+    {
+      "id": "userdefined",
+      "label": "UserDefined",
+      "directed": false,
+      "default_weight": 1.0,
+      "metadata": {
+        "style": {
+          "color": "#f59e0b",
+          "width": 1.7
+        }
+      }
+    }
+  ],
   "layers": [
-    { "name": "Grammar",   "display_order": 0 },
-    { "name": "Particles", "display_order": 1 }
+    {
+      "id": "grammar",
+      "name": "Grammar",
+      "display_order": 0,
+      "node_filter": { "tags_any": ["grammar"] },
+      "edge_filter": { "relation_ids": ["prerequisite", "semantic", "context"] },
+      "metadata": {
+        "node_style": {
+          "color": "#5e86f0",
+          "emissive": "#1f2f86",
+          "emissive_intensity": 0.84
+        }
+      }
+    },
+    {
+      "id": "particles",
+      "name": "Particles",
+      "display_order": 1,
+      "node_filter": { "tags_any": ["particle"] },
+      "edge_filter": { "relation_ids": ["semantic", "context"] },
+      "metadata": {
+        "node_style": {
+          "color": "#d05678",
+          "emissive": "#4a1123",
+          "emissive_intensity": 0.8
+        }
+      }
+    }
+  ],
+  "connection_layers": [
+    {
+      "id": "core-links",
+      "name": "Core Links",
+      "display_order": 0,
+      "metadata": {
+        "edge_style": {
+          "color": "#7f8aaa",
+          "width": 1.2,
+          "opacity": 0.82
+        }
+      }
+    },
+    {
+      "id": "cross-layer-bridges",
+      "name": "Cross-layer Bridges",
+      "display_order": 1,
+      "metadata": {
+        "edge_style": {
+          "color": "#f0ba60",
+          "width": 1.95,
+          "opacity": 0.98,
+          "dash_size": 0.2,
+          "gap_size": 0.12,
+          "animated_flow": true,
+          "flow_speed": 1.35
+        }
+      }
+    }
   ],
   "nodes": [
     {
+      "id": "n-wa",
       "title": "は (wa)",
-      "layer": 1,
       "node_type": "particle",
       "content_data": "Topic marker — marks the sentence topic. Does not mark the grammatical subject.",
       "tags": ["n5", "particle", "topic"],
-      "weight": 1.5
+      "weight": 1.5,
+      "layer_membership": ["particles"],
+      "metadata": {}
     },
     {
+      "id": "n-ga",
       "title": "が (ga)",
-      "layer": 1,
       "node_type": "particle",
       "content_data": "Subject marker — marks the grammatical subject. Emphasises who does the action.",
       "tags": ["n5", "particle", "subject"],
-      "weight": 1.3
+      "weight": 1.3,
+      "layer_membership": ["particles"],
+      "metadata": {}
     },
     {
+      "id": "n-wo",
       "title": "を (wo)",
-      "layer": 1,
       "node_type": "particle",
       "content_data": "Object marker — marks the direct object of a verb.",
       "tags": ["n5", "particle", "object"],
-      "weight": 1.2
+      "weight": 1.2,
+      "layer_membership": ["particles"],
+      "metadata": {}
     },
     {
+      "id": "n-ni",
       "title": "に (ni)",
-      "layer": 1,
       "node_type": "particle",
       "content_data": "Direction/location/time marker — 'to', 'at', 'on', or 'for'.",
       "tags": ["n5", "particle", "direction"],
-      "weight": 1.2
+      "weight": 1.2,
+      "layer_membership": ["particles"],
+      "metadata": {}
     },
     {
+      "id": "n-de",
       "title": "で (de)",
-      "layer": 1,
       "node_type": "particle",
       "content_data": "Location of action / means — 'at' (where action happens) or 'by means of'.",
       "tags": ["n5", "particle", "location"],
-      "weight": 1.1
+      "weight": 1.1,
+      "layer_membership": ["particles"],
+      "metadata": {}
     },
     {
+      "id": "n-masu",
       "title": "ます-form",
-      "layer": 0,
       "node_type": "grammar",
       "content_data": "Polite present/future verb form. Used in formal speech and writing. e.g. 食べます (tabemasu).",
       "tags": ["n5", "grammar", "verb", "polite"],
-      "weight": 1.4
+      "weight": 1.4,
+      "layer_membership": ["grammar"],
+      "metadata": {}
     },
     {
+      "id": "n-te",
       "title": "て-form",
-      "layer": 0,
       "node_type": "grammar",
       "content_data": "Connects actions, forms requests (〜てください), permission (〜てもいい), and compound verbs. e.g. 食べて (tabete).",
       "tags": ["n5", "grammar", "verb", "conjunctive"],
-      "weight": 1.3
+      "weight": 1.3,
+      "layer_membership": ["grammar"],
+      "metadata": {}
     },
     {
+      "id": "n-nai",
       "title": "ない-form",
-      "layer": 0,
       "node_type": "grammar",
       "content_data": "Plain negative form. Negates verbs in casual speech. e.g. 食べない (tabenai).",
       "tags": ["n5", "grammar", "verb", "negative"],
-      "weight": 1.1
+      "weight": 1.1,
+      "layer_membership": ["grammar"],
+      "metadata": {}
     },
     {
+      "id": "n-desu",
       "title": "です (desu)",
-      "layer": 0,
       "node_type": "grammar",
       "content_data": "Polite copula — links subject to noun or adjective predicate. Equivalent of 'is/am/are'.",
       "tags": ["n5", "grammar", "copula", "polite"],
-      "weight": 1.3
+      "weight": 1.3,
+      "layer_membership": ["grammar"],
+      "metadata": {}
     },
     {
+      "id": "n-da",
       "title": "だ (da)",
-      "layer": 0,
       "node_type": "grammar",
       "content_data": "Plain copula — casual equivalent of です. Used in plain-form sentences.",
       "tags": ["n5", "grammar", "copula", "plain"],
-      "weight": 1.1
+      "weight": 1.1,
+      "layer_membership": ["grammar"],
+      "metadata": {}
     }
   ],
   "edges": [
-    { "from": 0, "to": 1, "type": "Context" },
-    { "from": 0, "to": 2, "type": "Context" },
-    { "from": 0, "to": 8, "type": "Context" },
-    { "from": 1, "to": 2, "type": "Semantic" },
-    { "from": 1, "to": 3, "type": "Semantic" },
-    { "from": 2, "to": 4, "type": "Semantic" },
-    { "from": 5, "to": 6, "type": "Prerequisite" },
-    { "from": 5, "to": 7, "type": "Prerequisite" },
-    { "from": 6, "to": 5, "type": "Context" },
-    { "from": 5, "to": 8, "type": "Semantic" },
-    { "from": 8, "to": 9, "type": "Context" },
-    { "from": 6, "to": 1, "type": "Context" }
+    {
+      "id": "e-001",
+      "source_id": "n-wa",
+      "target_id": "n-ga",
+      "relation_id": "context",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-002",
+      "source_id": "n-wa",
+      "target_id": "n-wo",
+      "relation_id": "context",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-003",
+      "source_id": "n-wa",
+      "target_id": "n-desu",
+      "relation_id": "context",
+      "connection_layer_membership": ["core-links", "cross-layer-bridges"]
+    },
+    {
+      "id": "e-004",
+      "source_id": "n-ga",
+      "target_id": "n-wo",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-005",
+      "source_id": "n-ga",
+      "target_id": "n-ni",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-006",
+      "source_id": "n-wo",
+      "target_id": "n-de",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-007",
+      "source_id": "n-masu",
+      "target_id": "n-te",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-008",
+      "source_id": "n-masu",
+      "target_id": "n-nai",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-009",
+      "source_id": "n-te",
+      "target_id": "n-masu",
+      "relation_id": "context",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-010",
+      "source_id": "n-masu",
+      "target_id": "n-desu",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-011",
+      "source_id": "n-desu",
+      "target_id": "n-da",
+      "relation_id": "context",
+      "connection_layer_membership": ["core-links"]
+    },
+    {
+      "id": "e-012",
+      "source_id": "n-te",
+      "target_id": "n-ga",
+      "relation_id": "context",
+      "connection_layer_membership": ["cross-layer-bridges"]
+    }
   ]
 }

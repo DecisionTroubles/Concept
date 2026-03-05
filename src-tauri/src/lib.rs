@@ -9,7 +9,9 @@ use rusqlite::Connection;
 use tauri::Manager;
 use tokio::sync::Mutex;
 
-use graph::{CreateNodeInput, Edge, Layer, Node, NoteType};
+use graph::{
+    ConnectionLayer, CreateNodeInput, Edge, Layer, Node, NoteType, RelationKind, WorldConfig,
+};
 
 // ---------------------------------------------------------------------------
 // DB state — initialized once in setup, shared across all resolver calls.
@@ -21,7 +23,8 @@ type DbState = Arc<Mutex<Connection>>;
 static DB: OnceLock<DbState> = OnceLock::new();
 
 fn db() -> &'static DbState {
-    DB.get().expect("DB not initialized — setup() has not run yet")
+    DB.get()
+        .expect("DB not initialized — setup() has not run yet")
 }
 
 // ---------------------------------------------------------------------------
@@ -32,6 +35,9 @@ fn db() -> &'static DbState {
 trait GraphApi {
     // Layers
     async fn get_layers() -> Result<Vec<Layer>, String>;
+    async fn get_world_config() -> Result<Option<WorldConfig>, String>;
+    async fn get_relation_kinds() -> Result<Vec<RelationKind>, String>;
+    async fn get_connection_layers() -> Result<Vec<ConnectionLayer>, String>;
     async fn create_layer(name: String, display_order: i32) -> Result<Layer, String>;
 
     // Nodes — edges embedded, no second IPC round-trip
@@ -40,8 +46,15 @@ trait GraphApi {
     async fn mark_learned(id: String, learned: bool) -> Result<Node, String>;
     async fn update_node_position(id: String, x: f64, y: f64, z: f64) -> Result<(), String>;
     async fn get_note_types() -> Result<Vec<NoteType>, String>;
-    async fn create_note_type(name: String, fields: Vec<String>, is_default: bool) -> Result<NoteType, String>;
-    async fn set_node_note_type(node_id: String, note_type_id: Option<String>) -> Result<Node, String>;
+    async fn create_note_type(
+        name: String,
+        fields: Vec<String>,
+        is_default: bool,
+    ) -> Result<NoteType, String>;
+    async fn set_node_note_type(
+        node_id: String,
+        note_type_id: Option<String>,
+    ) -> Result<Node, String>;
 
     // Edges
     async fn create_edge(
@@ -68,6 +81,21 @@ impl GraphApi for ApiImpl {
     async fn get_layers(self) -> Result<Vec<Layer>, String> {
         let conn = db().lock().await;
         graph::query_layers(&conn).map_err(|e| e.to_string())
+    }
+
+    async fn get_world_config(self) -> Result<Option<WorldConfig>, String> {
+        let conn = db().lock().await;
+        graph::query_world_config(&conn).map_err(|e| e.to_string())
+    }
+
+    async fn get_relation_kinds(self) -> Result<Vec<RelationKind>, String> {
+        let conn = db().lock().await;
+        graph::query_relation_kinds(&conn).map_err(|e| e.to_string())
+    }
+
+    async fn get_connection_layers(self) -> Result<Vec<ConnectionLayer>, String> {
+        let conn = db().lock().await;
+        graph::query_connection_layers(&conn).map_err(|e| e.to_string())
     }
 
     async fn create_layer(self, name: String, display_order: i32) -> Result<Layer, String> {
@@ -100,12 +128,21 @@ impl GraphApi for ApiImpl {
         graph::query_note_types(&conn).map_err(|e| e.to_string())
     }
 
-    async fn create_note_type(self, name: String, fields: Vec<String>, is_default: bool) -> Result<NoteType, String> {
+    async fn create_note_type(
+        self,
+        name: String,
+        fields: Vec<String>,
+        is_default: bool,
+    ) -> Result<NoteType, String> {
         let conn = db().lock().await;
         graph::insert_note_type(&conn, &name, fields, is_default).map_err(|e| e.to_string())
     }
 
-    async fn set_node_note_type(self, node_id: String, note_type_id: Option<String>) -> Result<Node, String> {
+    async fn set_node_note_type(
+        self,
+        node_id: String,
+        note_type_id: Option<String>,
+    ) -> Result<Node, String> {
         let conn = db().lock().await;
         graph::set_node_note_type(&conn, &node_id, note_type_id).map_err(|e| e.to_string())
     }
@@ -117,8 +154,7 @@ impl GraphApi for ApiImpl {
         edge_type: String,
     ) -> Result<Edge, String> {
         let conn = db().lock().await;
-        graph::insert_edge(&conn, &source_id, &target_id, &edge_type)
-            .map_err(|e| e.to_string())
+        graph::insert_edge(&conn, &source_id, &target_id, &edge_type).map_err(|e| e.to_string())
     }
 
     async fn delete_edge(self, id: String) -> Result<(), String> {

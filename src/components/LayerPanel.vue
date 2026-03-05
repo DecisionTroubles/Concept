@@ -1,15 +1,67 @@
 <script setup lang="ts">
 import { Layers, ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const graphStore = useGraphStore()
 const collapsed = ref(false)
+
+const visibleNodeLayers = computed(() => {
+  const seen = new Set<string>()
+  return graphStore.layers.filter(layer => {
+    const key = layer.name.trim().toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+})
+
+function parseJson(raw: string | null | undefined): Record<string, unknown> {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
+  } catch {
+    return {}
+  }
+}
+
+function nodeLayerColor(layer: { metadata: string }): string {
+  const md = parseJson(layer.metadata)
+  const style = md.node_style
+  if (style && typeof style === 'object' && typeof (style as Record<string, unknown>).color === 'string') {
+    return (style as Record<string, unknown>).color as string
+  }
+  return '#5b8fff'
+}
+
+function connectionLayerLineStyle(layer: { metadata: string }): Record<string, string> {
+  const md = parseJson(layer.metadata)
+  const style = md.edge_style && typeof md.edge_style === 'object' ? (md.edge_style as Record<string, unknown>) : {}
+  const color = typeof style.color === 'string' ? style.color : '#8fa2d6'
+  const width = typeof style.width === 'number' ? `${Math.max(1, Math.min(4, style.width))}px` : '2px'
+  const dashed = typeof style.dash_size === 'number' && style.dash_size > 0
+  const opacity = typeof style.opacity === 'number' ? String(Math.max(0.2, Math.min(1, style.opacity))) : '1'
+  return {
+    borderColor: color,
+    borderTopWidth: width,
+    borderTopStyle: dashed ? 'dashed' : 'solid',
+    opacity,
+  }
+}
+
+function isConnectionLayerActive(id: string): boolean {
+  return graphStore.activeConnectionLayerIds.includes(id)
+}
 </script>
 
 <template>
   <div :class="['layer-panel', collapsed ? 'collapsed' : '']">
     <!-- Collapse toggle -->
-    <button class="collapse-btn" @click="collapsed = !collapsed" :aria-label="collapsed ? 'Expand layers' : 'Collapse layers'">
+    <button
+      class="collapse-btn"
+      @click="collapsed = !collapsed"
+      :aria-label="collapsed ? 'Expand layers' : 'Collapse layers'"
+    >
       <ChevronLeft v-if="!collapsed" :size="13" />
       <ChevronRight v-else :size="13" />
     </button>
@@ -24,15 +76,30 @@ const collapsed = ref(false)
 
         <div class="divider" />
 
-        <!-- Layer list -->
+        <div class="section-title">Node Layers</div>
         <ul class="layer-list">
           <li
-            v-for="layer in graphStore.layers"
+            v-for="layer in visibleNodeLayers"
             :key="layer.id"
             :class="['layer-item', graphStore.activeLayerId === layer.id ? 'active' : '']"
             @click="graphStore.loadNodes(layer.id)"
           >
-            <span class="layer-dot" />
+            <span class="layer-dot" :style="{ background: nodeLayerColor(layer) }" />
+            <span class="layer-name">{{ layer.name }}</span>
+          </li>
+        </ul>
+
+        <div class="divider" />
+
+        <div class="section-title">Connection Layers</div>
+        <ul class="layer-list">
+          <li
+            v-for="layer in graphStore.connectionLayers"
+            :key="`connection-${layer.id}`"
+            :class="['layer-item', isConnectionLayerActive(layer.id) ? 'active' : '']"
+            @click="graphStore.toggleConnectionLayer(layer.id)"
+          >
+            <span class="layer-line" :style="connectionLayerLineStyle(layer)" />
             <span class="layer-name">{{ layer.name }}</span>
           </li>
         </ul>
@@ -84,7 +151,9 @@ const collapsed = ref(false)
   color: #7a8099;
   cursor: pointer;
   border-radius: 12px;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
   align-self: center;
 }
 
@@ -112,6 +181,15 @@ const collapsed = ref(false)
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.section-title {
+  margin: 8px 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #8a91ad;
 }
 
 .divider {
@@ -158,6 +236,14 @@ const collapsed = ref(false)
   flex-shrink: 0;
 }
 
+.layer-line {
+  width: 14px;
+  height: 0;
+  border-top: 2px solid #8fa2d6;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
 .layer-item.active .layer-dot {
   background: #5b8fff;
   box-shadow: 0 0 6px rgba(91, 143, 255, 0.7);
@@ -184,8 +270,13 @@ const collapsed = ref(false)
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.3; }
-  50%       { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Content transition */

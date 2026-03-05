@@ -23,6 +23,36 @@ pub struct Layer {
     pub id: String,
     pub name: String,
     pub display_order: i32,
+    pub filter_json: String,
+    pub metadata: String,
+    pub created_at: String,
+}
+
+#[taurpc::ipc_type]
+pub struct WorldConfig {
+    pub id: String,
+    pub name: String,
+    pub config_json: String,
+    pub created_at: String,
+}
+
+#[taurpc::ipc_type]
+pub struct RelationKind {
+    pub id: String,
+    pub world_id: String,
+    pub label: String,
+    pub directed: bool,
+    pub default_weight: f64,
+    pub metadata: String,
+    pub created_at: String,
+}
+
+#[taurpc::ipc_type]
+pub struct ConnectionLayer {
+    pub id: String,
+    pub name: String,
+    pub display_order: i32,
+    pub metadata: String,
     pub created_at: String,
 }
 
@@ -31,6 +61,8 @@ pub struct EdgeRef {
     pub id: String,
     pub target_id: String,
     pub edge_type: String,
+    pub relation_id: Option<String>,
+    pub connection_layer_ids: Vec<String>,
     pub weight: f64,
 }
 
@@ -82,6 +114,7 @@ pub struct Edge {
     pub source_id: String,
     pub target_id: String,
     pub edge_type: String,
+    pub relation_id: Option<String>,
     pub weight: f64,
     pub created_at: String,
 }
@@ -92,7 +125,7 @@ pub struct Edge {
 
 pub fn query_layers(conn: &Connection) -> Result<Vec<Layer>, AppError> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, display_order, created_at FROM layers ORDER BY display_order",
+        "SELECT id, name, display_order, filter_json, metadata, created_at FROM layers ORDER BY display_order",
     )?;
     let layers = stmt
         .query_map([], |row| {
@@ -100,28 +133,87 @@ pub fn query_layers(conn: &Connection) -> Result<Vec<Layer>, AppError> {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 display_order: row.get(2)?,
-                created_at: row.get(3)?,
+                filter_json: row.get(3)?,
+                metadata: row.get(4)?,
+                created_at: row.get(5)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(layers)
 }
 
-pub fn insert_layer(
-    conn: &Connection,
-    name: &str,
-    display_order: i32,
-) -> Result<Layer, AppError> {
+pub fn query_world_config(conn: &Connection) -> Result<Option<WorldConfig>, AppError> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, config_json, created_at FROM worlds ORDER BY created_at DESC LIMIT 1",
+    )?;
+    let mut rows = stmt.query([])?;
+    let Some(row) = rows.next()? else {
+        return Ok(None);
+    };
+    Ok(Some(WorldConfig {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        config_json: row.get(2)?,
+        created_at: row.get(3)?,
+    }))
+}
+
+pub fn query_relation_kinds(conn: &Connection) -> Result<Vec<RelationKind>, AppError> {
+    let mut stmt = conn.prepare(
+        "SELECT id, world_id, label, directed, default_weight, metadata, created_at
+         FROM relation_kinds
+         ORDER BY label ASC",
+    )?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(RelationKind {
+                id: row.get(0)?,
+                world_id: row.get(1)?,
+                label: row.get(2)?,
+                directed: row.get::<_, i32>(3)? != 0,
+                default_weight: row.get(4)?,
+                metadata: row.get(5)?,
+                created_at: row.get(6)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+pub fn query_connection_layers(conn: &Connection) -> Result<Vec<ConnectionLayer>, AppError> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, display_order, metadata, created_at
+         FROM connection_layers
+         ORDER BY display_order ASC, name ASC",
+    )?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(ConnectionLayer {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                display_order: row.get(2)?,
+                metadata: row.get(3)?,
+                created_at: row.get(4)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+pub fn insert_layer(conn: &Connection, name: &str, display_order: i32) -> Result<Layer, AppError> {
     let id = Uuid::new_v4().to_string();
     let created_at = now_ts();
     conn.execute(
-        "INSERT INTO layers (id, name, display_order, created_at) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO layers (id, name, display_order, filter_json, metadata, created_at)
+         VALUES (?1, ?2, ?3, '{}', '{}', ?4)",
         params![id, name, display_order, created_at],
     )?;
     Ok(Layer {
         id,
         name: name.to_string(),
         display_order,
+        filter_json: "{}".to_string(),
+        metadata: "{}".to_string(),
         created_at,
     })
 }
@@ -130,29 +222,65 @@ pub fn insert_layer(
 // Edge helpers
 // ---------------------------------------------------------------------------
 
-fn query_edges_for_node(
+fn query_edge_connection_layer_ids(
     conn: &Connection,
-    node_id: &str,
-) -> Result<Vec<EdgeRef>, AppError> {
+    edge_id: &str,
+) -> Result<Vec<String>, AppError> {
+    let mut stmt = conn.prepare(
+        "SELECT connection_layer_id
+         FROM edge_connection_layers
+         WHERE edge_id = ?1",
+    )?;
+    let ids = stmt
+        .query_map([edge_id], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(ids)
+}
+
+fn query_edges_for_node(conn: &Connection, node_id: &str) -> Result<Vec<EdgeRef>, AppError> {
     // Include both outgoing (source=node) and incoming (target=node) edges.
     // target_id is normalised to always mean "the other end of this edge".
     let mut stmt = conn.prepare(
         "SELECT id,
                 CASE WHEN source_id = ?1 THEN target_id ELSE source_id END AS neighbor_id,
-                edge_type, weight
+                edge_type,
+                relation_id,
+                weight
          FROM edges
          WHERE source_id = ?1 OR target_id = ?1",
     )?;
-    let edges = stmt
+    struct EdgeRow {
+        id: String,
+        target_id: String,
+        edge_type: String,
+        relation_id: Option<String>,
+        weight: f64,
+    }
+
+    let rows = stmt
         .query_map([node_id], |row| {
-            Ok(EdgeRef {
+            Ok(EdgeRow {
                 id: row.get(0)?,
                 target_id: row.get(1)?,
                 edge_type: row.get(2)?,
-                weight: row.get(3)?,
+                relation_id: row.get(3)?,
+                weight: row.get(4)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
+
+    let mut edges = Vec::with_capacity(rows.len());
+    for row in rows {
+        edges.push(EdgeRef {
+            id: row.id.clone(),
+            target_id: row.target_id,
+            edge_type: row.edge_type,
+            relation_id: row.relation_id,
+            connection_layer_ids: query_edge_connection_layer_ids(conn, &row.id)?,
+            weight: row.weight,
+        });
+    }
+
     Ok(edges)
 }
 
@@ -181,8 +309,14 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
 
     let mut stmt = conn.prepare(
         "SELECT id, title, layer_id, node_type, note_type_id, note_fields, content_type, content_data,
-                tags, learned, weight, pos_x, pos_y, pos_z, created_at
-         FROM nodes WHERE layer_id = ?1",
+                 tags, learned, weight, pos_x, pos_y, pos_z, created_at
+         FROM nodes n
+         WHERE n.layer_id = ?1
+            OR EXISTS (
+              SELECT 1
+              FROM node_layers nl
+              WHERE nl.node_id = n.id AND nl.layer_id = ?1
+            )",
     )?;
 
     let rows: Vec<NodeRow> = stmt
@@ -209,8 +343,7 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
 
     let mut nodes = Vec::new();
     for row in rows {
-        let tags: Vec<String> =
-            serde_json::from_str(&row.tags_json).unwrap_or_default();
+        let tags: Vec<String> = serde_json::from_str(&row.tags_json).unwrap_or_default();
         let note_fields: BTreeMap<String, String> =
             serde_json::from_str(&row.note_fields_json).unwrap_or_default();
         let connections = query_edges_for_node(conn, &row.id)?;
@@ -250,11 +383,9 @@ pub fn insert_node(conn: &Connection, input: CreateNodeInput) -> Result<Node, Ap
 
     let id = Uuid::new_v4().to_string();
     let created_at = now_ts();
-    let tags_json =
-        serde_json::to_string(&tags).unwrap_or_else(|_| "[]".to_string());
+    let tags_json = serde_json::to_string(&tags).unwrap_or_else(|_| "[]".to_string());
     let note_fields = note_fields.unwrap_or_default();
-    let note_fields_json = serde_json::to_string(&note_fields)
-        .unwrap_or_else(|_| "{}".to_string());
+    let note_fields_json = serde_json::to_string(&note_fields).unwrap_or_else(|_| "{}".to_string());
     let note_type_id = note_type_id.or_else(|| default_note_type_id(conn).ok().flatten());
 
     conn.execute(
@@ -274,6 +405,11 @@ pub fn insert_node(conn: &Connection, input: CreateNodeInput) -> Result<Node, Ap
             created_at
         ],
     )?;
+
+    let _ = conn.execute(
+        "INSERT OR IGNORE INTO node_layers (node_id, layer_id, created_at) VALUES (?1, ?2, ?3)",
+        params![id, layer_id, now_ts()],
+    );
 
     Ok(Node {
         id,
@@ -409,19 +545,61 @@ pub fn insert_edge(
     target_id: &str,
     edge_type: &str,
 ) -> Result<Edge, AppError> {
+    insert_edge_with_relation(conn, source_id, target_id, edge_type, None)
+}
+
+pub fn insert_edge_with_relation(
+    conn: &Connection,
+    source_id: &str,
+    target_id: &str,
+    edge_type: &str,
+    relation_id: Option<&str>,
+) -> Result<Edge, AppError> {
     let id = Uuid::new_v4().to_string();
     let created_at = now_ts();
     let weight = 1.0_f64;
     conn.execute(
-        "INSERT INTO edges (id, source_id, target_id, edge_type, weight, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![id, source_id, target_id, edge_type, weight, created_at],
+        "INSERT INTO edges (id, source_id, target_id, edge_type, relation_id, weight, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            id,
+            source_id,
+            target_id,
+            edge_type,
+            relation_id,
+            weight,
+            created_at
+        ],
     )?;
+
+    if let Ok(source_layer) = conn.query_row(
+        "SELECT layer_id FROM nodes WHERE id = ?1",
+        [source_id],
+        |row| row.get::<_, String>(0),
+    ) {
+        let _ = conn.execute(
+            "INSERT OR IGNORE INTO edge_layers (edge_id, layer_id, created_at) VALUES (?1, ?2, ?3)",
+            params![id, source_layer, now_ts()],
+        );
+    }
+
+    if let Ok(default_connection_layer_id) = conn.query_row(
+        "SELECT id FROM connection_layers ORDER BY display_order ASC, name ASC LIMIT 1",
+        [],
+        |row| row.get::<_, String>(0),
+    ) {
+        let _ = conn.execute(
+            "INSERT OR IGNORE INTO edge_connection_layers (edge_id, connection_layer_id, created_at) VALUES (?1, ?2, ?3)",
+            params![id, default_connection_layer_id, now_ts()],
+        );
+    }
+
     Ok(Edge {
         id,
         source_id: source_id.to_string(),
         target_id: target_id.to_string(),
         edge_type: edge_type.to_string(),
+        relation_id: relation_id.map(str::to_string),
         weight,
         created_at,
     })
@@ -444,22 +622,74 @@ pub fn seed_sample_data(conn: &Connection) -> Result<(), AppError> {
     // One-time migration: remove the old hardcoded "Japanese N5 Grammar" layer
     // (and its nodes/edges via CASCADE) that existed before the domain-pack system.
     // Safe to call every launch — after the first run there is nothing to delete.
-    conn.execute(
-        "DELETE FROM layers WHERE name = 'Japanese N5 Grammar'",
-        [],
-    )?;
+    conn.execute("DELETE FROM layers WHERE name = 'Japanese N5 Grammar'", [])?;
 
     // The Japanese N5 starter pack is embedded at compile time.
     // To add a new domain: create domains/<name>/pack.json and call domain::seed_pack here.
     let json = include_str!("../../domains/japanese/pack.json");
-    crate::domain::seed_pack(conn, json)
+    crate::domain::seed_pack(conn, json)?;
+    reconcile_duplicate_layers(conn)?;
+    Ok(())
 }
 
 /// Wipe all graph data and re-seed from the bundled domain pack.
 /// Use during development when seed data changes between runs.
 pub fn reset_and_reseed(conn: &Connection) -> Result<(), AppError> {
-    conn.execute_batch("DELETE FROM edges; DELETE FROM nodes; DELETE FROM layers; DELETE FROM note_types;")?;
+    conn.execute_batch(
+        "DELETE FROM edge_connection_layers;
+         DELETE FROM connection_layers;
+         DELETE FROM edges;
+         DELETE FROM node_layers;
+         DELETE FROM nodes;
+         DELETE FROM layers;
+         DELETE FROM relation_kinds;
+         DELETE FROM worlds;
+         DELETE FROM note_types;",
+    )?;
     seed_sample_data(conn)
+}
+
+fn reconcile_duplicate_layers(conn: &Connection) -> Result<(), AppError> {
+    let mut stmt = conn.prepare("SELECT name FROM layers GROUP BY name HAVING COUNT(*) > 1")?;
+    let duplicate_names = stmt
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for name in duplicate_names {
+        let mut ids_stmt =
+            conn.prepare("SELECT id FROM layers WHERE name = ?1 ORDER BY created_at ASC, id ASC")?;
+        let layer_ids = ids_stmt
+            .query_map([&name], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        if layer_ids.len() < 2 {
+            continue;
+        }
+
+        let keeper_id = &layer_ids[0];
+        for dup_id in layer_ids.iter().skip(1) {
+            conn.execute(
+                "UPDATE nodes SET layer_id = ?1 WHERE layer_id = ?2",
+                params![keeper_id, dup_id],
+            )?;
+            conn.execute(
+                "INSERT OR IGNORE INTO node_layers (node_id, layer_id, created_at)
+                 SELECT node_id, ?1, created_at FROM node_layers WHERE layer_id = ?2",
+                params![keeper_id, dup_id],
+            )?;
+            conn.execute("DELETE FROM node_layers WHERE layer_id = ?1", [dup_id])?;
+
+            conn.execute(
+                "INSERT OR IGNORE INTO edge_layers (edge_id, layer_id, created_at)
+                 SELECT edge_id, ?1, created_at FROM edge_layers WHERE layer_id = ?2",
+                params![keeper_id, dup_id],
+            )?;
+            conn.execute("DELETE FROM edge_layers WHERE layer_id = ?1", [dup_id])?;
+
+            conn.execute("DELETE FROM layers WHERE id = ?1", [dup_id])?;
+        }
+    }
+
+    Ok(())
 }
 
 pub fn query_note_types(conn: &Connection) -> Result<Vec<NoteType>, AppError> {
@@ -511,7 +741,11 @@ pub fn insert_note_type(
     })
 }
 
-pub fn set_node_note_type(conn: &Connection, node_id: &str, note_type_id: Option<String>) -> Result<Node, AppError> {
+pub fn set_node_note_type(
+    conn: &Connection,
+    node_id: &str,
+    note_type_id: Option<String>,
+) -> Result<Node, AppError> {
     let changed = conn.execute(
         "UPDATE nodes SET note_type_id = ?1 WHERE id = ?2",
         params![note_type_id, node_id],
@@ -543,6 +777,16 @@ fn ensure_default_note_types(conn: &Connection) -> Result<(), AppError> {
 
     insert_note_type(conn, "Basic", vec!["Front".into(), "Back".into()], true)?;
     insert_note_type(conn, "Cloze", vec!["Text".into(), "Extra".into()], false)?;
-    insert_note_type(conn, "Vocab", vec!["Word".into(), "Reading".into(), "Meaning".into(), "Example".into()], false)?;
+    insert_note_type(
+        conn,
+        "Vocab",
+        vec![
+            "Word".into(),
+            "Reading".into(),
+            "Meaning".into(),
+            "Example".into(),
+        ],
+        false,
+    )?;
     Ok(())
 }

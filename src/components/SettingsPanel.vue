@@ -5,6 +5,7 @@ import { useTheme } from '@/composables/useTheme'
 
 const settings = useSettings()
 const themeState = useTheme()
+const graphStore = useGraphStore()
 type ActionKey = keyof typeof settings.keys
 
 const EXCLUDED_KEYS = new Set([
@@ -83,6 +84,10 @@ function toggle() {
 function close() {
   if (listeningAction.value) return
   isOpen.value = false
+}
+
+async function resetGraphNow() {
+  await graphStore.resetGraphData()
 }
 
 function startListening(action: ActionKey) {
@@ -182,6 +187,7 @@ useEventListener(
             </div>
             <div class="header-actions">
               <button class="reset-btn" @click="settings.resetToDefaults()">Reset defaults</button>
+              <button class="reset-btn" @click="resetGraphNow">Reset graph data</button>
               <button class="close-btn" @click="close" aria-label="Close settings">Esc</button>
             </div>
           </div>
