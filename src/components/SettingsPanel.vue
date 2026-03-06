@@ -53,6 +53,7 @@ const GLOBAL_ACTIONS: Array<{ key: ActionKey; label: string }> = [
   { key: 'openNode', label: 'Center node panel' },
   { key: 'pinNode', label: 'Toggle pin node' },
   { key: 'progressOverlay', label: 'Progress overview' },
+  { key: 'worldPicker', label: 'World picker' },
   { key: 'pinnedBuffer', label: 'Pinned buffer' },
   { key: 'mapBuffer', label: 'Map buffer' },
 ]
@@ -77,7 +78,7 @@ const GRAPH_ACTIONS: Array<{ key: ActionKey; label: string }> = [
 
 const isOpen = ref(false)
 const listeningAction = ref<ActionKey | null>(null)
-const activeTab = ref<'hotkeys' | 'themes' | 'graphics' | 'learning' | 'authoring'>('hotkeys')
+const activeTab = ref<'hotkeys' | 'themes' | 'graphics' | 'learning' | 'worlds' | 'authoring'>('hotkeys')
 
 function toggle() {
   if (listeningAction.value) return
@@ -91,6 +92,14 @@ function close() {
 
 async function resetGraphNow() {
   await graphStore.resetGraphData()
+}
+
+async function selectWorldNow(worldId: string) {
+  await graphStore.selectWorld(worldId)
+}
+
+async function reloadActiveWorldNow() {
+  await graphStore.reloadActiveWorld()
 }
 
 function startListening(action: ActionKey) {
@@ -230,6 +239,9 @@ useEventListener(
             </button>
             <button class="tab-btn" :class="{ active: activeTab === 'learning' }" @click="activeTab = 'learning'">
               Learning
+            </button>
+            <button class="tab-btn" :class="{ active: activeTab === 'worlds' }" @click="activeTab = 'worlds'">
+              Worlds
             </button>
             <button class="tab-btn" :class="{ active: activeTab === 'authoring' }" @click="activeTab = 'authoring'">
               Authoring
@@ -471,6 +483,50 @@ useEventListener(
                   </div>
                   <p>{{ scheduler.description }}</p>
                 </article>
+              </section>
+            </div>
+          </div>
+
+          <div class="tab-content" v-else-if="activeTab === 'worlds'">
+            <div class="learning-layout">
+              <section class="graphics-card">
+                <div class="section-title">Active World</div>
+                <div class="world-summary">
+                  <strong>{{ graphStore.worldConfig?.name ?? 'No world loaded' }}</strong>
+                  <span>{{ graphStore.worldConfig?.id ?? 'No active world in database' }}</span>
+                </div>
+                <div class="graphics-copy">
+                  Bundled packs are scanned from `domains/*/pack.json`. User packs can be added to the app data `worlds/` folder.
+                </div>
+                <div class="graphics-actions">
+                  <button class="reset-btn" @click="reloadActiveWorldNow">Reload active world</button>
+                </div>
+              </section>
+
+              <section class="graphics-card">
+                <div class="section-title">Available Worlds</div>
+                <div class="world-list">
+                  <article v-for="world in graphStore.worldPacks" :key="world.pack_path" class="world-card" :class="{ active: world.is_active }">
+                    <div class="world-head">
+                      <div class="world-meta">
+                        <strong>{{ world.world_name ?? 'Invalid pack' }}</strong>
+                        <span>{{ world.world_id ?? world.pack_path }}</span>
+                      </div>
+                      <div class="world-badges">
+                        <span class="scheduler-key">{{ world.source_kind }}</span>
+                        <span v-if="world.is_loaded" class="theme-active">Loaded</span>
+                        <span v-else-if="world.is_active" class="theme-active">Selected</span>
+                      </div>
+                    </div>
+                    <p class="world-path">{{ world.pack_path }}</p>
+                    <p v-if="world.error" class="world-error">{{ world.error }}</p>
+                    <div class="world-actions">
+                      <button class="reset-btn" :disabled="!world.valid || world.is_active || !world.world_id" @click="world.world_id && selectWorldNow(world.world_id)">
+                        {{ world.is_active ? 'Current world' : 'Open world' }}
+                      </button>
+                    </div>
+                  </article>
+                </div>
               </section>
             </div>
           </div>
@@ -786,6 +842,81 @@ useEventListener(
   margin: 8px 0 0;
   font-size: 12px;
   color: var(--app-text-secondary);
+}
+
+.world-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.world-summary strong {
+  font-size: 14px;
+  color: var(--app-text-primary);
+}
+
+.world-summary span {
+  font-size: 12px;
+  color: var(--app-text-secondary);
+}
+
+.world-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.world-card {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.world-card.active {
+  border-color: color-mix(in srgb, var(--app-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+}
+
+.world-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.world-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.world-meta strong {
+  font-size: 13px;
+  color: var(--app-text-primary);
+}
+
+.world-meta span,
+.world-path {
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  word-break: break-all;
+}
+
+.world-badges,
+.world-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.world-error {
+  margin: 0;
+  font-size: 12px;
+  color: #f39a8f;
 }
 
 .theme-card {

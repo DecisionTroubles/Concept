@@ -7,6 +7,7 @@ export type ModuleSlot =
   | 'ProgressOverlay'
   | 'ModeIndicator'
   | 'SettingsPanel'
+  | 'WorldPickerOverlay'
   | 'NodeSearch'
   | 'CompassHUD'
   | 'BufferOverlay'

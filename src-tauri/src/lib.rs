@@ -4,6 +4,7 @@ mod error;
 mod extensions;
 mod graph;
 mod scheduler;
+mod world_registry;
 
 use std::sync::{Arc, OnceLock};
 
@@ -16,6 +17,7 @@ use graph::{
 };
 use extensions::NodeExtensionData;
 use scheduler::{ReviewEvent, SchedulerDescriptor};
+use world_registry::{ScanRoot, WorldPackInfo};
 
 // ---------------------------------------------------------------------------
 // DB state — initialized once in setup, shared across all resolver calls.
@@ -40,6 +42,7 @@ trait GraphApi {
     // Layers
     async fn get_layers() -> Result<Vec<Layer>, String>;
     async fn get_world_config() -> Result<Option<WorldConfig>, String>;
+    async fn get_world_packs() -> Result<Vec<WorldPackInfo>, String>;
     async fn get_relation_kinds() -> Result<Vec<RelationKind>, String>;
     async fn get_connection_layers() -> Result<Vec<ConnectionLayer>, String>;
     async fn create_layer(name: String, display_order: i32) -> Result<Layer, String>;
@@ -99,6 +102,8 @@ trait GraphApi {
     // Dev / seed
     async fn seed_sample_data() -> Result<(), String>;
     async fn reset_data(reseed: Option<bool>) -> Result<(), String>;
+    async fn select_world(world_id: String) -> Result<(), String>;
+    async fn reload_active_world() -> Result<(), String>;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +123,11 @@ impl GraphApi for ApiImpl {
     async fn get_world_config(self) -> Result<Option<WorldConfig>, String> {
         let conn = db().lock().await;
         graph::query_world_config(&conn).map_err(|e| e.to_string())
+    }
+
+    async fn get_world_packs(self) -> Result<Vec<WorldPackInfo>, String> {
+        let conn = db().lock().await;
+        world_registry::list_world_packs(&conn).map_err(|e| e.to_string())
     }
 
     async fn get_relation_kinds(self) -> Result<Vec<RelationKind>, String> {
@@ -278,6 +288,16 @@ impl GraphApi for ApiImpl {
         let conn = db().lock().await;
         graph::reset_data(&conn, reseed.unwrap_or(true)).map_err(|e| e.to_string())
     }
+
+    async fn select_world(self, world_id: String) -> Result<(), String> {
+        let conn = db().lock().await;
+        world_registry::select_world(&conn, &world_id).map_err(|e| e.to_string())
+    }
+
+    async fn reload_active_world(self) -> Result<(), String> {
+        let conn = db().lock().await;
+        world_registry::reload_active_world(&conn).map_err(|e| e.to_string())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -297,8 +317,37 @@ pub async fn run() {
             // Open / create the SQLite database in the app data directory.
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
+            let user_worlds_dir = data_dir.join("worlds");
+            std::fs::create_dir_all(&user_worlds_dir)?;
             let conn = Connection::open(data_dir.join("graph.db"))?;
             db::init_schema(&conn)?;
+            let mut scan_roots = Vec::new();
+
+            let bundled_domains = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../domains");
+            if bundled_domains.exists() {
+                scan_roots.push(ScanRoot {
+                    kind: "bundled".into(),
+                    path: bundled_domains,
+                });
+            }
+
+            if let Ok(resource_dir) = app.path().resource_dir() {
+                let resource_domains = resource_dir.join("domains");
+                if resource_domains.exists() {
+                    scan_roots.push(ScanRoot {
+                        kind: "bundled".into(),
+                        path: resource_domains,
+                    });
+                }
+            }
+
+            scan_roots.push(ScanRoot {
+                kind: "user".into(),
+                path: user_worlds_dir,
+            });
+
+            world_registry::configure_scan_roots(scan_roots)?;
+            world_registry::ensure_active_world_loaded(&conn)?;
             // Store in the global OnceLock — safe because setup() runs exactly once
             // before any IPC invocations can arrive.
             DB.set(Arc::new(Mutex::new(conn)))

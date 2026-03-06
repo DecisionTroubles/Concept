@@ -139,6 +139,12 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             UNIQUE(node_id, extension_key)
         );
 
+        CREATE TABLE IF NOT EXISTS app_state (
+            key        TEXT PRIMARY KEY,
+            value      TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_nodes_layer   ON nodes(layer_id);
         CREATE INDEX IF NOT EXISTS idx_edges_source  ON edges(source_id);
         CREATE INDEX IF NOT EXISTS idx_edges_target  ON edges(target_id);

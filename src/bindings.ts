@@ -36,7 +36,9 @@ export type SchedulerDescriptor = { key: string; name: string; description: stri
 
 export type WorldConfig = { id: string; name: string; config_json: string; created_at: string }
 
-const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["input"],"delete_edge":["id"],"duplicate_note_type":["source_id","name","world_id"],"get_connection_layers":[],"get_layers":[],"get_node_extension_data":["node_id","extension_key"],"get_node_progress":[],"get_nodes":["layer_id"],"get_note_type":["id"],"get_note_types":[],"get_relation_kinds":[],"get_review_events":[],"get_scheduler_algorithms":[],"get_world_config":[],"mark_learned":["id","learned"],"reset_data":["reseed"],"review_node":["node_id","grade","scheduler_key"],"seed_sample_data":[],"set_node_extension_data":["node_id","extension_key","data_json"],"set_node_note_type":["node_id","note_type_id"],"set_node_progress_status":["node_id","status"],"update_node_content":["node_id","title","note_fields","content_data","tags"],"update_node_position":["id","x","y","z"],"update_note_type":["id","input"]}' }
+export type WorldPackInfo = { world_id: string | null; world_name: string | null; pack_path: string; source_kind: string; valid: boolean; is_active: boolean; is_loaded: boolean; error: string | null }
+
+const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["input"],"delete_edge":["id"],"duplicate_note_type":["source_id","name","world_id"],"get_connection_layers":[],"get_layers":[],"get_node_extension_data":["node_id","extension_key"],"get_node_progress":[],"get_nodes":["layer_id"],"get_note_type":["id"],"get_note_types":[],"get_relation_kinds":[],"get_review_events":[],"get_scheduler_algorithms":[],"get_world_config":[],"get_world_packs":[],"mark_learned":["id","learned"],"reload_active_world":[],"reset_data":["reseed"],"review_node":["node_id","grade","scheduler_key"],"seed_sample_data":[],"select_world":["world_id"],"set_node_extension_data":["node_id","extension_key","data_json"],"set_node_note_type":["node_id","note_type_id"],"set_node_progress_status":["node_id","status"],"update_node_content":["node_id","title","note_fields","content_data","tags"],"update_node_position":["id","x","y","z"],"update_note_type":["id","input"]}' }
 export type Router = { "": {create_edge: (sourceId: string, targetId: string, edgeType: string) => Promise<Edge>, 
 create_layer: (name: string, displayOrder: number) => Promise<Layer>, 
 create_node: (input: CreateNodeInput) => Promise<Node>, 
@@ -54,10 +56,13 @@ get_relation_kinds: () => Promise<RelationKind[]>,
 get_review_events: () => Promise<ReviewEvent[]>, 
 get_scheduler_algorithms: () => Promise<SchedulerDescriptor[]>, 
 get_world_config: () => Promise<WorldConfig | null>, 
+get_world_packs: () => Promise<WorldPackInfo[]>, 
 mark_learned: (id: string, learned: boolean) => Promise<Node>, 
+reload_active_world: () => Promise<null>, 
 reset_data: (reseed: boolean | null) => Promise<null>, 
 review_node: (nodeId: string, grade: string, schedulerKey: string | null) => Promise<Node>, 
 seed_sample_data: () => Promise<null>, 
+select_world: (worldId: string) => Promise<null>, 
 set_node_extension_data: (nodeId: string, extensionKey: string, dataJson: string) => Promise<NodeExtensionData>, 
 set_node_note_type: (nodeId: string, noteTypeId: string | null) => Promise<Node>, 
 set_node_progress_status: (nodeId: string, status: string) => Promise<Node>, 

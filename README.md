@@ -47,7 +47,7 @@ Bundled example:
 To load your own world:
 
 1. create `domains/<your-world>/pack.json`
-2. follow `docs/domain-pack-v2.md`
+2. follow `WORLD_PACK.md`
 3. define:
    - `world`
    - `note_types`
@@ -56,13 +56,15 @@ To load your own world:
    - `connection_layers`
    - `nodes`
    - `edges`
-4. update the bundled seed path in `src-tauri/src/graph.rs` if you want your pack to be the default seed
-5. reset/reseed app data
+4. restart the app
+5. open `Settings -> Worlds`
+6. choose your world and open it
 
 Important:
 - pack files must be UTF-8 without BOM
 - nodes should use `note_type_id` + `note_fields`
 - page order in the centered node viewer comes from note type `layout_json`
+- bundled worlds are scanned from `domains/*/pack.json`
 
 ## Update Nodes In-App
 

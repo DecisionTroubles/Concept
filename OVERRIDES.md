@@ -184,7 +184,7 @@ Current bundled example:
 
 To load your own world today:
 
-1. create a new pack JSON using the `domain-pack-v2` format
+1. create a new pack JSON using the world pack format from `WORLD_PACK.md`
 2. include:
    - `world`
    - `note_types`
@@ -194,16 +194,18 @@ To load your own world today:
    - `nodes`
    - `edges`
 3. place it in `domains/<your-world>/pack.json`
-4. update the seed path in `src-tauri/src/graph.rs` if you want it bundled by default
-5. reset/reseed the app data
+4. restart the app
+5. open `Settings -> Worlds`
+6. select the world you want to load
 
 Important:
 - pack files must be UTF-8 **without BOM**
 - node viewer pages come from note type `layout_json`
 - node structured content comes from `note_fields`
+- bundled worlds are scanned from `domains/*/pack.json`
 
 See:
-- `docs/domain-pack-v2.md`
+- `WORLD_PACK.md`
 - `domains/japanese/pack.json`
 
 ---

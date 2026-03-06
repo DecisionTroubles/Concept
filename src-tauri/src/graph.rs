@@ -746,18 +746,7 @@ pub fn remove_edge(conn: &Connection, id: &str) -> Result<(), AppError> {
 // ---------------------------------------------------------------------------
 
 pub fn seed_sample_data(conn: &Connection) -> Result<(), AppError> {
-    ensure_default_note_types(conn)?;
-    // One-time migration: remove the old hardcoded "Japanese N5 Grammar" layer
-    // (and its nodes/edges via CASCADE) that existed before the domain-pack system.
-    // Safe to call every launch — after the first run there is nothing to delete.
-    conn.execute("DELETE FROM layers WHERE name = 'Japanese N5 Grammar'", [])?;
-
-    // The Japanese N5 starter pack is embedded at compile time.
-    // To add a new domain: create domains/<name>/pack.json and call domain::seed_pack here.
-    let json = include_str!("../../domains/japanese/pack.json");
-    crate::domain::seed_pack(conn, json)?;
-    reconcile_duplicate_layers(conn)?;
-    Ok(())
+    crate::world_registry::reload_active_world(conn)
 }
 
 pub fn reset_data(conn: &Connection, reseed: bool) -> Result<(), AppError> {
@@ -776,7 +765,7 @@ pub fn reset_data(conn: &Connection, reseed: bool) -> Result<(), AppError> {
          DELETE FROM note_types;",
     )?;
     if reseed {
-        seed_sample_data(conn)?;
+        crate::world_registry::reload_active_world(conn)?;
     }
     Ok(())
 }
@@ -854,7 +843,7 @@ pub fn set_node_progress_status(conn: &Connection, node_id: &str, status: &str) 
     query_single_node(conn, node_id)
 }
 
-fn reconcile_duplicate_layers(conn: &Connection) -> Result<(), AppError> {
+pub(crate) fn reconcile_duplicate_layers(conn: &Connection) -> Result<(), AppError> {
     let mut stmt = conn.prepare("SELECT name FROM layers GROUP BY name HAVING COUNT(*) > 1")?;
     let duplicate_names = stmt
         .query_map([], |row| row.get::<_, String>(0))?
@@ -1122,7 +1111,7 @@ fn default_note_type_id(conn: &Connection) -> Result<Option<String>, AppError> {
     }
 }
 
-fn ensure_default_note_types(conn: &Connection) -> Result<(), AppError> {
+pub(crate) fn ensure_default_note_types(conn: &Connection) -> Result<(), AppError> {
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM note_types", [], |row| row.get(0))?;
     if count > 0 {
         return Ok(());

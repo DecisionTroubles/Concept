@@ -15,6 +15,7 @@ const NodeDetailPanelModule = appKernel.getModule('NodeDetailPanel')
 const ProgressOverlayModule = appKernel.getModule('ProgressOverlay')
 const ModeIndicatorModule = appKernel.getModule('ModeIndicator')
 const SettingsPanelModule = appKernel.getModule('SettingsPanel')
+const WorldPickerOverlayModule = appKernel.getModule('WorldPickerOverlay')
 const NodeSearchModule = appKernel.getModule('NodeSearch')
 const CompassHUDModule = appKernel.getModule('CompassHUD')
 const BufferOverlayModule = appKernel.getModule('BufferOverlay')
@@ -46,6 +47,7 @@ onMounted(() => graphStore.initialize())
   <component :is="ProgressOverlayModule" />
   <component :is="ModeIndicatorModule" />
   <component :is="SettingsPanelModule" />
+  <component :is="WorldPickerOverlayModule" />
   <component :is="NodeSearchModule" />
   <component
     :is="CompassHUDModule"

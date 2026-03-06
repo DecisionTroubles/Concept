@@ -9,6 +9,7 @@ export interface Keybindings {
   openNode:   string
   pinNode:    string
   progressOverlay: string
+  worldPicker: string
   pinnedBuffer: string
   mapBuffer:    string
   graphOrbitLeft: string
@@ -50,6 +51,7 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
   openNode:   'e',
   pinNode:    'p',
   progressOverlay: 'n',
+  worldPicker: 'o',
   pinnedBuffer: 'b',
   mapBuffer:    'm',
   graphOrbitLeft: 'h',

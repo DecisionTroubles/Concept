@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ConnectionLayer, Layer, Node, NodeProgress, NoteType, NoteTypeInput, RelationKind, ReviewEvent, SchedulerDescriptor, WorldConfig } from '@/bindings'
+import type { ConnectionLayer, Layer, Node, NodeProgress, NoteType, NoteTypeInput, RelationKind, ReviewEvent, SchedulerDescriptor, WorldConfig, WorldPackInfo } from '@/bindings'
 import { useTauRPC } from '@/composables/useTauRPC'
 import { useSettings } from '@/composables/useSettings'
 
 export type BufferId = 'none' | 'pinned' | 'map'
 const CONNECTION_LAYER_SELECTION_KEY = 'concept:connection-layer-selection'
+const WORLD_PICKER_SEEN_KEY = 'concept:world-picker-startup-seen'
 
 export const useGraphStore = defineStore('graph', () => {
   const settings = useSettings()
@@ -18,6 +19,7 @@ export const useGraphStore = defineStore('graph', () => {
   const schedulerAlgorithms = ref<SchedulerDescriptor[]>([])
   const reviewEvents = ref<ReviewEvent[]>([])
   const worldConfig = ref<WorldConfig | null>(null)
+  const worldPacks = ref<WorldPackInfo[]>([])
   const relationKinds = ref<RelationKind[]>([])
   const connectionLayers = ref<ConnectionLayer[]>([])
   const activeConnectionLayerIds = ref<string[]>([])
@@ -26,6 +28,7 @@ export const useGraphStore = defineStore('graph', () => {
   const pinnedNodeIds = ref<string[]>([])
   const activeBuffer = ref<BufferId>('none')
   const progressOverlayOpen = ref(false)
+  const worldPickerOpen = ref(false)
   const focusVersion = ref(0)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -109,6 +112,20 @@ export const useGraphStore = defineStore('graph', () => {
     progressOverlayOpen.value = !progressOverlayOpen.value
   }
 
+  function openWorldPicker() {
+    worldPickerOpen.value = true
+  }
+
+  function closeWorldPicker() {
+    worldPickerOpen.value = false
+    markWorldPickerSeen()
+  }
+
+  function toggleWorldPicker() {
+    worldPickerOpen.value = !worldPickerOpen.value
+    if (!worldPickerOpen.value) markWorldPickerSeen()
+  }
+
   async function loadLayers() {
     isLoading.value = true
     try {
@@ -123,6 +140,14 @@ export const useGraphStore = defineStore('graph', () => {
   async function loadWorldConfig() {
     try {
       worldConfig.value = await useTauRPC().get_world_config()
+    } catch (e) {
+      error.value = String(e)
+    }
+  }
+
+  async function loadWorldPacks() {
+    try {
+      worldPacks.value = await useTauRPC().get_world_packs()
     } catch (e) {
       error.value = String(e)
     }
@@ -351,7 +376,7 @@ export const useGraphStore = defineStore('graph', () => {
   }
 
   async function initialize() {
-    await useTauRPC().seed_sample_data()
+    await loadWorldPacks()
     await loadWorldConfig()
     await loadRelationKinds()
     await loadConnectionLayers()
@@ -361,6 +386,8 @@ export const useGraphStore = defineStore('graph', () => {
     await loadReviewEvents()
     await loadLayers()
     if (layers.value[0]) await loadNodes(layers.value[0].id)
+    else nodes.value = []
+    maybeOpenWorldPickerOnStartup()
   }
 
   async function resetGraphData() {
@@ -370,6 +397,7 @@ export const useGraphStore = defineStore('graph', () => {
       selectedNodeId.value = null
       centeredNodePanel.value = false
       pinnedNodeIds.value = []
+      await loadWorldPacks()
       await loadWorldConfig()
       await loadRelationKinds()
       await loadConnectionLayers()
@@ -379,10 +407,85 @@ export const useGraphStore = defineStore('graph', () => {
       await loadReviewEvents()
       await loadLayers()
       if (layers.value[0]) await loadNodes(layers.value[0].id)
+      else nodes.value = []
     } catch (e) {
       error.value = String(e)
     } finally {
       isLoading.value = false
+    }
+  }
+
+  async function selectWorld(worldId: string) {
+    isLoading.value = true
+    try {
+      await useTauRPC().select_world(worldId)
+      selectedNodeId.value = null
+      centeredNodePanel.value = false
+      pinnedNodeIds.value = []
+      activeBuffer.value = 'none'
+      worldPickerOpen.value = false
+      markWorldPickerSeen()
+      await loadWorldPacks()
+      await loadWorldConfig()
+      await loadRelationKinds()
+      await loadConnectionLayers()
+      await loadNoteTypes()
+      await loadSchedulerAlgorithms()
+      await loadNodeProgress()
+      await loadReviewEvents()
+      await loadLayers()
+      if (layers.value[0]) await loadNodes(layers.value[0].id)
+      else nodes.value = []
+    } catch (e) {
+      error.value = String(e)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function reloadActiveWorld() {
+    isLoading.value = true
+    try {
+      await useTauRPC().reload_active_world()
+      selectedNodeId.value = null
+      centeredNodePanel.value = false
+      pinnedNodeIds.value = []
+      activeBuffer.value = 'none'
+      worldPickerOpen.value = false
+      await loadWorldPacks()
+      await loadWorldConfig()
+      await loadRelationKinds()
+      await loadConnectionLayers()
+      await loadNoteTypes()
+      await loadSchedulerAlgorithms()
+      await loadNodeProgress()
+      await loadReviewEvents()
+      await loadLayers()
+      if (layers.value[0]) await loadNodes(layers.value[0].id)
+      else nodes.value = []
+    } catch (e) {
+      error.value = String(e)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  function maybeOpenWorldPickerOnStartup() {
+    const validCount = worldPacks.value.filter(world => world.valid).length
+    if (validCount <= 1) return
+    try {
+      if (localStorage.getItem(WORLD_PICKER_SEEN_KEY) === '1') return
+    } catch {
+      // ignore storage failures
+    }
+    worldPickerOpen.value = true
+  }
+
+  function markWorldPickerSeen() {
+    try {
+      localStorage.setItem(WORLD_PICKER_SEEN_KEY, '1')
+    } catch {
+      // ignore storage failures
     }
   }
 
@@ -395,6 +498,7 @@ export const useGraphStore = defineStore('graph', () => {
     schedulerAlgorithms,
     reviewEvents,
     worldConfig,
+    worldPacks,
     relationKinds,
     connectionLayers,
     activeConnectionLayerIds,
@@ -404,6 +508,7 @@ export const useGraphStore = defineStore('graph', () => {
     pinnedNodes,
     activeBuffer,
     progressOverlayOpen,
+    worldPickerOpen,
     selectedNode,
     dueNodes,
     isLoading,
@@ -414,6 +519,7 @@ export const useGraphStore = defineStore('graph', () => {
     loadNodeProgress,
     loadReviewEvents,
     loadWorldConfig,
+    loadWorldPacks,
     loadRelationKinds,
     loadConnectionLayers,
     loadNodes,
@@ -438,10 +544,15 @@ export const useGraphStore = defineStore('graph', () => {
     openProgressOverlay,
     closeProgressOverlay,
     toggleProgressOverlay,
+    openWorldPicker,
+    closeWorldPicker,
+    toggleWorldPicker,
     toggleConnectionLayer,
     focusVersion,
     requestFocus,
     initialize,
     resetGraphData,
+    selectWorld,
+    reloadActiveWorld,
   }
 })
