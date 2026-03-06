@@ -232,8 +232,10 @@
                       "note_fields":  {
                                           "Term":  "wa",
                                           "Function":  "Topic marker.",
-                                          "Example":  "Example sentence using wa.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference."
+                                          "Example":  "## Core use\n- wa marks Topic marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi wa gakusei desu.",
+                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
+                                          "Diagram":  "/world-assets/jp-particle-map.svg",
+                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
                                       }
                   },
                   {
@@ -257,8 +259,10 @@
                       "note_fields":  {
                                           "Term":  "ga",
                                           "Function":  "Subject marker.",
-                                          "Example":  "Example sentence using ga.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference."
+                                          "Example":  "## Core use\n- ga marks Subject marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi ga gakusei desu.",
+                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
+                                          "Diagram":  "/world-assets/jp-particle-map.svg",
+                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
                                       }
                   },
                   {
@@ -282,8 +286,10 @@
                       "note_fields":  {
                                           "Term":  "wo",
                                           "Function":  "Object marker.",
-                                          "Example":  "Example sentence using wo.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference."
+                                          "Example":  "## Core use\n- wo marks Object marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi wo gakusei desu.",
+                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
+                                          "Diagram":  "/world-assets/jp-particle-map.svg",
+                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
                                       }
                   },
                   {
@@ -307,8 +313,10 @@
                       "note_fields":  {
                                           "Term":  "ni",
                                           "Function":  "Destination/time marker.",
-                                          "Example":  "Example sentence using ni.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference."
+                                          "Example":  "## Core use\n- ni marks Destination/time marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi ni gakusei desu.",
+                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
+                                          "Diagram":  "/world-assets/jp-particle-map.svg",
+                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
                                       }
                   },
                   {
@@ -332,8 +340,10 @@
                       "note_fields":  {
                                           "Term":  "de",
                                           "Function":  "Location of action marker.",
-                                          "Example":  "Example sentence using de.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference."
+                                          "Example":  "## Core use\n- de marks Location of action marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi de gakusei desu.",
+                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
+                                          "Diagram":  "/world-assets/jp-particle-map.svg",
+                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
                                       }
                   },
                   {
@@ -359,7 +369,10 @@
                                           "Pattern":  "masu-form",
                                           "Meaning":  "Polite verb form.",
                                           "Example":  "Simple usage pattern for masu-form.",
-                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation."
+                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation.",
+                                          "ExampleCode":  "masu-form\n# meaning\nPolite verb form.\n# usage\nSimple usage pattern for masu-form.",
+                                          "Diagram":  "/world-assets/jp-grammar-pattern.svg",
+                                          "DiagramCaption":  "Pattern shape, meaning, and common usage direction."
                                       }
                   },
                   {
@@ -385,7 +398,10 @@
                                           "Pattern":  "te-form",
                                           "Meaning":  "Connector/request form.",
                                           "Example":  "Simple usage pattern for te-form.",
-                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation."
+                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation.",
+                                          "ExampleCode":  "te-form\n# meaning\nConnector/request form.\n# usage\nSimple usage pattern for te-form.",
+                                          "Diagram":  "/world-assets/jp-grammar-pattern.svg",
+                                          "DiagramCaption":  "Pattern shape, meaning, and common usage direction."
                                       }
                   },
                   {
@@ -410,7 +426,10 @@
                                           "Pattern":  "nai-form",
                                           "Meaning":  "Plain negative form.",
                                           "Example":  "Simple usage pattern for nai-form.",
-                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation."
+                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation.",
+                                          "ExampleCode":  "nai-form\n# meaning\nPlain negative form.\n# usage\nSimple usage pattern for nai-form.",
+                                          "Diagram":  "/world-assets/jp-grammar-pattern.svg",
+                                          "DiagramCaption":  "Pattern shape, meaning, and common usage direction."
                                       }
                   },
                   {
@@ -435,7 +454,10 @@
                                           "Pattern":  "ta-form",
                                           "Meaning":  "Plain past form.",
                                           "Example":  "Simple usage pattern for ta-form.",
-                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation."
+                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation.",
+                                          "ExampleCode":  "ta-form\n# meaning\nPlain past form.\n# usage\nSimple usage pattern for ta-form.",
+                                          "Diagram":  "/world-assets/jp-grammar-pattern.svg",
+                                          "DiagramCaption":  "Pattern shape, meaning, and common usage direction."
                                       }
                   },
                   {
@@ -460,8 +482,10 @@
                       "note_fields":  {
                                           "Phrase":  "konnichiwa",
                                           "Meaning":  "Daytime greeting.",
-                                          "When":  "Used in everyday conversation.",
-                                          "Example":  "Natural usage example for konnichiwa."
+                                          "When":  "## When to use\n- Use **konnichiwa** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+                                          "Example":  "## Example\n- konnichiwa : Daytime greeting.\n- Try opening connected nodes to compare nuance",
+                                          "Visual":  "/world-assets/jp-expression-context.svg",
+                                          "VisualCaption":  "Daily expression floating inside its common context."
                                       }
                   },
                   {
@@ -485,8 +509,10 @@
                       "note_fields":  {
                                           "Phrase":  "ohayou",
                                           "Meaning":  "Morning greeting.",
-                                          "When":  "Used in everyday conversation.",
-                                          "Example":  "Natural usage example for ohayou."
+                                          "When":  "## When to use\n- Use **ohayou** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+                                          "Example":  "## Example\n- ohayou : Morning greeting.\n- Try opening connected nodes to compare nuance",
+                                          "Visual":  "/world-assets/jp-expression-context.svg",
+                                          "VisualCaption":  "Daily expression floating inside its common context."
                                       }
                   },
                   {
@@ -510,8 +536,10 @@
                       "note_fields":  {
                                           "Phrase":  "konbanwa",
                                           "Meaning":  "Evening greeting.",
-                                          "When":  "Used in everyday conversation.",
-                                          "Example":  "Natural usage example for konbanwa."
+                                          "When":  "## When to use\n- Use **konbanwa** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+                                          "Example":  "## Example\n- konbanwa : Evening greeting.\n- Try opening connected nodes to compare nuance",
+                                          "Visual":  "/world-assets/jp-expression-context.svg",
+                                          "VisualCaption":  "Daily expression floating inside its common context."
                                       }
                   },
                   {
@@ -535,8 +563,10 @@
                       "note_fields":  {
                                           "Phrase":  "arigatou",
                                           "Meaning":  "Thanks.",
-                                          "When":  "Used in everyday conversation.",
-                                          "Example":  "Natural usage example for arigatou."
+                                          "When":  "## When to use\n- Use **arigatou** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+                                          "Example":  "## Example\n- arigatou : Thanks.\n- Try opening connected nodes to compare nuance",
+                                          "Visual":  "/world-assets/jp-expression-context.svg",
+                                          "VisualCaption":  "Daily expression floating inside its common context."
                                       }
                   },
                   {
@@ -560,8 +590,10 @@
                       "note_fields":  {
                                           "Phrase":  "sumimasen",
                                           "Meaning":  "Excuse me / sorry.",
-                                          "When":  "Used in everyday conversation.",
-                                          "Example":  "Natural usage example for sumimasen."
+                                          "When":  "## When to use\n- Use **sumimasen** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+                                          "Example":  "## Example\n- sumimasen : Excuse me / sorry.\n- Try opening connected nodes to compare nuance",
+                                          "Visual":  "/world-assets/jp-expression-context.svg",
+                                          "VisualCaption":  "Daily expression floating inside its common context."
                                       }
                   },
                   {
@@ -585,8 +617,10 @@
                       "note_fields":  {
                                           "Phrase":  "onegaishimasu",
                                           "Meaning":  "Polite request phrase.",
-                                          "When":  "Used in everyday conversation.",
-                                          "Example":  "Natural usage example for onegaishimasu."
+                                          "When":  "## When to use\n- Use **onegaishimasu** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+                                          "Example":  "## Example\n- onegaishimasu : Polite request phrase.\n- Try opening connected nodes to compare nuance",
+                                          "Visual":  "/world-assets/jp-expression-context.svg",
+                                          "VisualCaption":  "Daily expression floating inside its common context."
                                       }
                   }
               ],
@@ -853,7 +887,9 @@
                                           "Term",
                                           "Function",
                                           "Example",
-                                          "Tip"
+                                          "Tip",
+                                          "Diagram",
+                                          "DiagramCaption"
                                       ],
                            "schema_json":  {
                                                "version":  1,
@@ -868,62 +904,99 @@
                                                                   "key":  "Function",
                                                                   "label":  "Function",
                                                                   "type":  "string",
-                                                                  "widget":  "text"
+                                                                  "widget":  "long_text"
                                                               },
                                                               {
                                                                   "key":  "Example",
                                                                   "label":  "Example",
                                                                   "type":  "string",
-                                                                  "widget":  "long_text"
+                                                                  "widget":  "markdown"
                                                               },
                                                               {
                                                                   "key":  "Tip",
                                                                   "label":  "Tip",
                                                                   "type":  "string",
                                                                   "widget":  "long_text"
+                                                              },
+                                                              {
+                                                                  "key":  "Diagram",
+                                                                  "label":  "Diagram",
+                                                                  "type":  "string",
+                                                                  "widget":  "image"
+                                                              },
+                                                              {
+                                                                  "key":  "DiagramCaption",
+                                                                  "label":  "Diagram Caption",
+                                                                  "type":  "string",
+                                                                  "widget":  "text"
                                                               }
                                                           ]
                                            },
                            "layout_json":  {
                                                "version":  1,
+                                               "summary":  {
+                                                               "blocks":  [
+                                                                              {
+                                                                                  "type":  "field_group",
+                                                                                  "label":  "Particle",
+                                                                                  "fields":  [
+                                                                                                 "Term",
+                                                                                                 "Function"
+                                                                                             ],
+                                                                                  "compact":  true
+                                                                              },
+                                                                              {
+                                                                                  "type":  "callout",
+                                                                                  "label":  "Tip",
+                                                                                  "field":  "Tip",
+                                                                                  "tone":  "tip",
+                                                                                  "compact":  true
+                                                                              }
+                                                                          ]
+                                                           },
                                                "pages":  [
                                                              {
                                                                  "id":  "overview",
                                                                  "label":  "Overview",
                                                                  "kind":  "content",
-                                                                 "sections":  [
-                                                                                  {
-                                                                                      "id":  "main",
-                                                                                      "label":  "Core",
-                                                                                      "items":  [
-                                                                                                    {
-                                                                                                        "field":  "Term"
-                                                                                                    },
-                                                                                                    {
-                                                                                                        "field":  "Function"
-                                                                                                    }
-                                                                                                ]
-                                                                                  }
-                                                                              ]
+                                                                 "blocks":  [
+                                                                                {
+                                                                                    "type":  "field_group",
+                                                                                    "label":  "Particle",
+                                                                                    "fields":  [
+                                                                                                   "Term",
+                                                                                                   "Function"
+                                                                                               ]
+                                                                                },
+                                                                                {
+                                                                                    "type":  "image",
+                                                                                    "label":  "Particle Map",
+                                                                                    "field":  "Diagram",
+                                                                                    "caption_field":  "DiagramCaption"
+                                                                                },
+                                                                                {
+                                                                                    "type":  "callout",
+                                                                                    "label":  "Tip",
+                                                                                    "field":  "Tip",
+                                                                                    "tone":  "tip"
+                                                                                }
+                                                                            ]
                                                              },
                                                              {
-                                                                 "id":  "examples",
-                                                                 "label":  "Examples",
+                                                                 "id":  "usage",
+                                                                 "label":  "Usage",
                                                                  "kind":  "content",
-                                                                 "sections":  [
-                                                                                  {
-                                                                                      "id":  "usage",
-                                                                                      "label":  "Usage",
-                                                                                      "items":  [
-                                                                                                    {
-                                                                                                        "field":  "Example"
-                                                                                                    },
-                                                                                                    {
-                                                                                                        "field":  "Tip"
-                                                                                                    }
-                                                                                                ]
-                                                                                  }
-                                                                              ]
+                                                                 "blocks":  [
+                                                                                {
+                                                                                    "type":  "markdown",
+                                                                                    "label":  "Example",
+                                                                                    "field":  "Example"
+                                                                                },
+                                                                                {
+                                                                                    "type":  "relations",
+                                                                                    "label":  "Related Nodes"
+                                                                                }
+                                                                            ]
                                                              },
                                                              {
                                                                  "id":  "connections",
@@ -969,8 +1042,10 @@
                            "fields":  [
                                           "Pattern",
                                           "Meaning",
-                                          "Example",
-                                          "Pitfall"
+                                          "ExampleCode",
+                                          "Pitfall",
+                                          "Diagram",
+                                          "DiagramCaption"
                                       ],
                            "schema_json":  {
                                                "version":  1,
@@ -988,59 +1063,103 @@
                                                                   "widget":  "long_text"
                                                               },
                                                               {
-                                                                  "key":  "Example",
-                                                                  "label":  "Example",
+                                                                  "key":  "ExampleCode",
+                                                                  "label":  "Pattern Form",
                                                                   "type":  "string",
-                                                                  "widget":  "long_text"
+                                                                  "widget":  "code"
                                                               },
                                                               {
                                                                   "key":  "Pitfall",
                                                                   "label":  "Pitfall",
                                                                   "type":  "string",
                                                                   "widget":  "long_text"
+                                                              },
+                                                              {
+                                                                  "key":  "Diagram",
+                                                                  "label":  "Diagram",
+                                                                  "type":  "string",
+                                                                  "widget":  "diagram"
+                                                              },
+                                                              {
+                                                                  "key":  "DiagramCaption",
+                                                                  "label":  "Diagram Caption",
+                                                                  "type":  "string",
+                                                                  "widget":  "text"
                                                               }
                                                           ]
                                            },
                            "layout_json":  {
                                                "version":  1,
+                                               "summary":  {
+                                                               "blocks":  [
+                                                                              {
+                                                                                  "type":  "field_group",
+                                                                                  "label":  "Grammar",
+                                                                                  "fields":  [
+                                                                                                 "Pattern",
+                                                                                                 "Meaning"
+                                                                                             ],
+                                                                                  "compact":  true
+                                                                              },
+                                                                              {
+                                                                                  "type":  "code",
+                                                                                  "label":  "Pattern Form",
+                                                                                  "field":  "ExampleCode",
+                                                                                  "language":  "ja-pattern",
+                                                                                  "compact":  true
+                                                                              }
+                                                                          ]
+                                                           },
                                                "pages":  [
                                                              {
                                                                  "id":  "overview",
                                                                  "label":  "Overview",
                                                                  "kind":  "content",
-                                                                 "sections":  [
-                                                                                  {
-                                                                                      "id":  "main",
-                                                                                      "label":  "Core",
-                                                                                      "items":  [
-                                                                                                    {
-                                                                                                        "field":  "Pattern"
-                                                                                                    },
-                                                                                                    {
-                                                                                                        "field":  "Meaning"
-                                                                                                    }
-                                                                                                ]
-                                                                                  }
-                                                                              ]
+                                                                 "blocks":  [
+                                                                                {
+                                                                                    "type":  "field_group",
+                                                                                    "label":  "Grammar",
+                                                                                    "fields":  [
+                                                                                                   "Pattern",
+                                                                                                   "Meaning"
+                                                                                               ]
+                                                                                },
+                                                                                {
+                                                                                    "type":  "code",
+                                                                                    "label":  "Pattern Form",
+                                                                                    "field":  "ExampleCode",
+                                                                                    "language":  "ja-pattern"
+                                                                                },
+                                                                                {
+                                                                                    "type":  "image",
+                                                                                    "label":  "Grammar Diagram",
+                                                                                    "field":  "Diagram",
+                                                                                    "caption_field":  "DiagramCaption"
+                                                                                },
+                                                                                {
+                                                                                    "type":  "callout",
+                                                                                    "label":  "Pitfall",
+                                                                                    "field":  "Pitfall",
+                                                                                    "tone":  "warning"
+                                                                                }
+                                                                            ]
                                                              },
                                                              {
                                                                  "id":  "practice",
                                                                  "label":  "Practice",
                                                                  "kind":  "content",
-                                                                 "sections":  [
-                                                                                  {
-                                                                                      "id":  "usage",
-                                                                                      "label":  "Usage",
-                                                                                      "items":  [
-                                                                                                    {
-                                                                                                        "field":  "Example"
-                                                                                                    },
-                                                                                                    {
-                                                                                                        "field":  "Pitfall"
-                                                                                                    }
-                                                                                                ]
-                                                                                  }
-                                                                              ]
+                                                                 "blocks":  [
+                                                                                {
+                                                                                    "type":  "relations",
+                                                                                    "label":  "Related Forms"
+                                                                                },
+                                                                                {
+                                                                                    "type":  "callout",
+                                                                                    "label":  "Watch out",
+                                                                                    "field":  "Pitfall",
+                                                                                    "tone":  "warning"
+                                                                                }
+                                                                            ]
                                                              },
                                                              {
                                                                  "id":  "connections",
@@ -1081,7 +1200,9 @@
                                           "Phrase",
                                           "Meaning",
                                           "When",
-                                          "Example"
+                                          "Example",
+                                          "Visual",
+                                          "VisualCaption"
                                       ],
                            "schema_json":  {
                                                "version":  1,
@@ -1102,56 +1223,91 @@
                                                                   "key":  "When",
                                                                   "label":  "When to use",
                                                                   "type":  "string",
-                                                                  "widget":  "long_text"
+                                                                  "widget":  "markdown"
                                                               },
                                                               {
                                                                   "key":  "Example",
                                                                   "label":  "Example",
                                                                   "type":  "string",
-                                                                  "widget":  "long_text"
+                                                                  "widget":  "markdown"
+                                                              },
+                                                              {
+                                                                  "key":  "Visual",
+                                                                  "label":  "Visual",
+                                                                  "type":  "string",
+                                                                  "widget":  "image"
+                                                              },
+                                                              {
+                                                                  "key":  "VisualCaption",
+                                                                  "label":  "Visual Caption",
+                                                                  "type":  "string",
+                                                                  "widget":  "text"
                                                               }
                                                           ]
                                            },
                            "layout_json":  {
                                                "version":  1,
+                                               "summary":  {
+                                                               "blocks":  [
+                                                                              {
+                                                                                  "type":  "field_group",
+                                                                                  "label":  "Expression",
+                                                                                  "fields":  [
+                                                                                                 "Phrase",
+                                                                                                 "Meaning"
+                                                                                             ],
+                                                                                  "compact":  true
+                                                                              },
+                                                                              {
+                                                                                  "type":  "markdown",
+                                                                                  "label":  "When",
+                                                                                  "field":  "When",
+                                                                                  "compact":  true
+                                                                              }
+                                                                          ]
+                                                           },
                                                "pages":  [
                                                              {
                                                                  "id":  "overview",
                                                                  "label":  "Overview",
                                                                  "kind":  "content",
-                                                                 "sections":  [
-                                                                                  {
-                                                                                      "id":  "main",
-                                                                                      "label":  "Core",
-                                                                                      "items":  [
-                                                                                                    {
-                                                                                                        "field":  "Phrase"
-                                                                                                    },
-                                                                                                    {
-                                                                                                        "field":  "Meaning"
-                                                                                                    }
-                                                                                                ]
-                                                                                  }
-                                                                              ]
+                                                                 "blocks":  [
+                                                                                {
+                                                                                    "type":  "field_group",
+                                                                                    "label":  "Expression",
+                                                                                    "fields":  [
+                                                                                                   "Phrase",
+                                                                                                   "Meaning"
+                                                                                               ]
+                                                                                },
+                                                                                {
+                                                                                    "type":  "markdown",
+                                                                                    "label":  "When to use",
+                                                                                    "field":  "When"
+                                                                                },
+                                                                                {
+                                                                                    "type":  "image",
+                                                                                    "label":  "Context Visual",
+                                                                                    "field":  "Visual",
+                                                                                    "caption_field":  "VisualCaption"
+                                                                                }
+                                                                            ]
                                                              },
                                                              {
                                                                  "id":  "usage",
                                                                  "label":  "Usage",
                                                                  "kind":  "content",
-                                                                 "sections":  [
-                                                                                  {
-                                                                                      "id":  "when",
-                                                                                      "label":  "Context",
-                                                                                      "items":  [
-                                                                                                    {
-                                                                                                        "field":  "When"
-                                                                                                    },
-                                                                                                    {
-                                                                                                        "field":  "Example"
-                                                                                                    }
-                                                                                                ]
-                                                                                  }
-                                                                              ]
+                                                                 "blocks":  [
+                                                                                {
+                                                                                    "type":  "markdown",
+                                                                                    "label":  "Example",
+                                                                                    "field":  "Example"
+                                                                                },
+                                                                                {
+                                                                                    "type":  "relations",
+                                                                                    "label":  "Nearby Expressions"
+                                                                                }
+                                                                            ]
                                                              },
                                                              {
                                                                  "id":  "connections",

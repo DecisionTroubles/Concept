@@ -1,9 +1,10 @@
 ﻿<script setup lang="ts">
-import { X, Tag, ArrowRight, CheckCircle2, Pin, Crosshair, Clock3, History, ChevronLeft, ChevronRight, PanelsTopLeft, Shapes } from 'lucide-vue-next'
+import { X, Tag, ArrowRight, CheckCircle2, Pin, Crosshair, Clock3, History, ChevronLeft, ChevronRight, PanelsTopLeft, Shapes, Pencil } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import OverlayShell from '@/components/ui/OverlayShell.vue'
 import NoteTypePageRenderer from '@/components/node/NoteTypePageRenderer.vue'
+import NodeSummaryRenderer from '@/components/node/NodeSummaryRenderer.vue'
 import NodeExtensionOutlet from '@/components/node/NodeExtensionOutlet.vue'
 import { appKernel } from '@/core/kernel'
 
@@ -275,6 +276,10 @@ function togglePinned() {
   graphStore.togglePinNode(node.value.id)
 }
 
+function openNodeEditor() {
+  graphStore.openNodeEditor()
+}
+
 async function onNoteTypeChange(e: Event) {
   if (!node.value) return
   const target = e.target as HTMLSelectElement
@@ -351,6 +356,13 @@ useEventListener(
             >
               <Pin :size="13" />
             </button>
+            <button
+              class="icon-btn"
+              @click="openNodeEditor"
+              :aria-label="`Edit node (${settings.keys.editNode.toUpperCase()})`"
+            >
+              <Pencil :size="13" />
+            </button>
             <button class="close-btn" @click="onClose" aria-label="Close">
               <X :size="14" />
             </button>
@@ -366,7 +378,7 @@ useEventListener(
             <span class="meta-chip">{{ noteTypeName }}</span>
           </div>
 
-          <p class="content-text compact-copy">{{ node.content_data || 'No content yet.' }}</p>
+          <NodeSummaryRenderer :node="node" :note-type="activeNoteType" />
 
           <div class="compact-block">
             <div class="section-label">
@@ -388,7 +400,7 @@ useEventListener(
               <ArrowRight :size="12" />
               <span>Connections</span>
             </div>
-            <ul class="connections-list">
+            <ul class="connections-list compact-connections">
               <li
                 v-for="conn in node.connections.slice(0, 6)"
                 :key="conn.id"
@@ -413,6 +425,10 @@ useEventListener(
             <PanelsTopLeft :size="13" />
             <span>Open viewer ({{ settings.keys.openNode.toUpperCase() }})</span>
           </button>
+          <button class="workspace-btn" @click="openNodeEditor">
+            <Pencil :size="13" />
+            <span>Edit node ({{ settings.keys.editNode.toUpperCase() }})</span>
+          </button>
         </div>
       </div>
     </Transition>
@@ -428,6 +444,9 @@ useEventListener(
       <template #actions>
         <span class="page-counter">{{ safePageIndex + 1 }} / {{ viewerPages.length }}</span>
         <span :class="['progress-chip', STATUS_META[progressStatus].className]">{{ STATUS_META[progressStatus].label }}</span>
+        <button class="workspace-icon-btn" @click="openNodeEditor">
+          <Pencil :size="14" />
+        </button>
         <button class="workspace-icon-btn" :class="{ active: isPinned }" @click="togglePinned">
           <Pin :size="14" />
         </button>
@@ -776,10 +795,6 @@ useEventListener(
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.compact-copy {
-  margin: 0;
-}
-
 .compact-block {
   display: flex;
   flex-direction: column;
@@ -811,13 +826,6 @@ useEventListener(
   margin-bottom: 6px;
 }
 
-.content-text {
-  font-size: 13px;
-  line-height: 1.55;
-  color: #c8cad6;
-  margin: 0;
-}
-
 .tags-list {
   display: flex;
   flex-wrap: wrap;
@@ -843,6 +851,10 @@ useEventListener(
   max-height: 240px;
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.compact-connections {
+  max-height: 180px;
 }
 
 .connection-item {

@@ -51,6 +51,7 @@ const GLOBAL_ACTIONS: Array<{ key: ActionKey; label: string }> = [
   { key: 'search', label: 'Search nodes' },
   { key: 'settings', label: 'Settings panel' },
   { key: 'openNode', label: 'Center node panel' },
+  { key: 'editNode', label: 'Edit focused node' },
   { key: 'pinNode', label: 'Toggle pin node' },
   { key: 'progressOverlay', label: 'Progress overview' },
   { key: 'worldPicker', label: 'World picker' },

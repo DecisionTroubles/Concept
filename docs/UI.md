@@ -73,7 +73,25 @@ Examples:
 
 Buffers are not the same concept as the centered node viewer. They are broader context surfaces and should remain visually distinct from node reading.
 
-### 5. Supporting Overlays
+### 5. Node Editor
+
+The node editor is a dedicated authoring workspace for the focused node.
+
+It is separate from both:
+
+- the side summary
+- the centered node viewer
+
+Its purpose is:
+
+- edit node fields
+- switch note type
+- adjust fallback content and tags
+- preview how the node renders
+
+This keeps node authoring out of Settings and avoids turning the reader/viewer into a form surface.
+
+### 6. Supporting Overlays
 
 Supporting overlays include:
 
@@ -225,9 +243,7 @@ Without those, user overrides become brittle.
 
 ## Authoring Surface
 
-Authoring currently lives inside Settings, but the UI rule remains:
-
-- authoring is a separate task surface
+Global authoring can live in Settings, but focused node editing is a separate task surface.
 
 It should not leak into the node viewer in a way that turns the viewer back into an editor/settings form.
 

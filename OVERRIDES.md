@@ -143,9 +143,8 @@ Theme-aware UI should use app variables:
 Current in-app editing flow:
 
 1. select a node in the 3D world
-2. open `Settings`
-3. go to `Authoring`
-4. use `Selected Node Content`
+2. press `X`
+3. or click the pencil button in the side panel / centered node viewer
 
 You can edit:
 - title
@@ -155,6 +154,8 @@ You can edit:
 - structured note fields from the current note type schema
 
 Then press `Save node`.
+
+`Settings -> Authoring` now handles note type/library editing, not focused node editing.
 
 ---
 

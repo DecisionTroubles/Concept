@@ -12,6 +12,7 @@ const settings = useSettings()
 const GraphSceneModule = appKernel.getModule('GraphScene')
 const LayerPanelModule = appKernel.getModule('LayerPanel')
 const NodeDetailPanelModule = appKernel.getModule('NodeDetailPanel')
+const NodeEditorOverlayModule = appKernel.getModule('NodeEditorOverlay')
 const ProgressOverlayModule = appKernel.getModule('ProgressOverlay')
 const ModeIndicatorModule = appKernel.getModule('ModeIndicator')
 const SettingsPanelModule = appKernel.getModule('SettingsPanel')
@@ -44,6 +45,7 @@ onMounted(() => graphStore.initialize())
   <!-- 2D overlay panels (position: fixed inside each component) -->
   <component :is="LayerPanelModule" />
   <component :is="NodeDetailPanelModule" />
+  <component :is="NodeEditorOverlayModule" />
   <component :is="ProgressOverlayModule" />
   <component :is="ModeIndicatorModule" />
   <component :is="SettingsPanelModule" />

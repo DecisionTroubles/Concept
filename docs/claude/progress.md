@@ -43,7 +43,8 @@
 - Authoring foundation is implemented:
   - note type editor
   - note type duplication
-  - selected-node structured field editor
+  - dedicated focused node editor overlay
+  - selected-node structured field editing moved out of Settings
   - authoring tab in Settings
 
 ### Current State

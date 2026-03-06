@@ -2,29 +2,15 @@
 import { computed } from 'vue'
 import type { Node, NoteType } from '@/bindings'
 import NodeFieldRenderer from '@/components/node/NodeFieldRenderer.vue'
-
-type NoteFieldDefinition = {
-  key: string
-  label?: string
-  type?: string
-  widget?: string
-}
-
-type LayoutItem = {
-  field?: string
-}
-
-type LayoutSection = {
-  id: string
-  label?: string
-  items?: LayoutItem[]
-}
-
-type LayoutPage = {
-  id: string
-  label?: string
-  sections?: LayoutSection[]
-}
+import NodeBlockRenderer from '@/components/node/NodeBlockRenderer.vue'
+import {
+  blocksFromLegacyPage,
+  inferFallbackBlocks,
+  parseLayout,
+  parseSchemaFields,
+  type LayoutPage,
+  type NoteFieldDefinition,
+} from '@/components/node/layout'
 
 const props = defineProps<{
   node: Node
@@ -32,19 +18,8 @@ const props = defineProps<{
   activePageId?: string | null
 }>()
 
-function parseJson<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback
-  try {
-    return JSON.parse(raw) as T
-  } catch {
-    return fallback
-  }
-}
-
 const schemaFields = computed<NoteFieldDefinition[]>(() => {
-  if (!props.noteType) return []
-  const parsed = parseJson<{ fields?: NoteFieldDefinition[] }>(props.noteType.schema_json, {})
-  return Array.isArray(parsed.fields) ? parsed.fields : []
+  return parseSchemaFields(props.noteType)
 })
 
 const fieldByKey = computed(() => {
@@ -54,8 +29,7 @@ const fieldByKey = computed(() => {
 })
 
 const pages = computed<LayoutPage[]>(() => {
-  if (!props.noteType) return []
-  const parsed = parseJson<{ pages?: LayoutPage[] }>(props.noteType.layout_json, {})
+  const parsed = parseLayout(props.noteType)
   return Array.isArray(parsed.pages) ? parsed.pages : []
 })
 
@@ -75,13 +49,23 @@ const fallbackFields = computed<NoteFieldDefinition[]>(() => {
   if (explicit.length > 0) return explicit
   return [{ key: 'content_data', label: 'Content', widget: 'long_text' }]
 })
+
+const fallbackBlocks = computed(() => inferFallbackBlocks(props.node, fieldByKey.value))
 </script>
 
 <template>
   <div v-if="hasLayout" class="note-type-pages">
     <section v-for="page in visiblePages" :key="page.id" class="note-page">
-      <div class="note-page-title">{{ page.label || page.id }}</div>
-      <div class="note-sections">
+      <div v-if="page.blocks?.length" class="note-block-list">
+        <NodeBlockRenderer
+          v-for="(block, index) in page.blocks"
+          :key="`${page.id}-block-${index}-${block.type || 'field_group'}`"
+          :node="node"
+          :note-type="noteType"
+          :block="block"
+        />
+      </div>
+      <div v-else-if="(page.sections?.length || 0) > 0" class="note-sections">
         <article v-for="section in page.sections || []" :key="section.id" class="note-section">
           <div v-if="section.label" class="note-section-title">{{ section.label }}</div>
           <div class="note-field-list">
@@ -94,13 +78,30 @@ const fallbackFields = computed<NoteFieldDefinition[]>(() => {
           </div>
         </article>
       </div>
+      <div v-else class="note-block-list">
+        <NodeBlockRenderer
+          v-for="(block, index) in blocksFromLegacyPage(page)"
+          :key="`${page.id}-fallback-${index}`"
+          :node="node"
+          :note-type="noteType"
+          :block="block"
+        />
+      </div>
     </section>
   </div>
 
   <div v-else class="note-type-pages">
     <section class="note-page">
-      <div class="note-page-title">{{ noteType?.name || 'Content' }}</div>
-      <div class="note-field-list">
+      <div class="note-block-list" v-if="fallbackBlocks.length > 0">
+        <NodeBlockRenderer
+          v-for="(block, index) in fallbackBlocks"
+          :key="`fallback-block-${index}`"
+          :node="node"
+          :note-type="noteType"
+          :block="block"
+        />
+      </div>
+      <div v-else class="note-field-list">
         <NodeFieldRenderer v-for="field in fallbackFields" :key="field.key" :node="node" :field="field" />
       </div>
     </section>
@@ -120,15 +121,13 @@ const fallbackFields = computed<NoteFieldDefinition[]>(() => {
   gap: 10px;
 }
 
-.note-page-title {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--app-accent);
+.note-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.note-sections {
+.note-block-list {
   display: flex;
   flex-direction: column;
   gap: 12px;

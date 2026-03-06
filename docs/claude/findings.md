@@ -7,7 +7,9 @@
 - Force layout currently lives in frontend via `d3-force-3d`
 - Domain-pack v2 seed pipeline active through `domains/japanese/pack.json`
 - Frontend plugin kernel implemented with core plugins and drop-in `user-plugins/`
-- Authoring foundation exists in app via Settings -> Authoring
+- Authoring is now split:
+  - focused node editing via dedicated node editor overlay
+  - global note type/library editing via Settings -> Authoring
 
 ## Key Source Files
 | File | Purpose |
@@ -21,7 +23,8 @@
 | `src-tauri/src/extensions.rs` | Node extension data persistence |
 | `src/core/kernel.ts` | Frontend plugin kernel |
 | `src/components/NodeDetailPanel.vue` | Side summary + centered node viewer |
-| `src/components/authoring/AuthoringPanel.vue` | Note type and node content authoring foundation |
+| `src/components/authoring/AuthoringPanel.vue` | Global note type/library authoring surface |
+| `src/components/NodeEditorOverlay.vue` | Focused node editing workspace |
 | `README.md` | Usage and extension entrypoint |
 | `docs/DESIGN.md` | Architecture / design reference |
 | `OVERRIDES.md` | Plugin, override, and dataset workflow guide |
@@ -55,7 +58,7 @@
 ## UI / UX Findings
 - The side node panel must stay lightweight.
 - The centered node window works better as a page/slide viewer than as a tabbed inspector.
-- Notes/assets/AI-style tools should appear as separate pages, not one clumped “extensions” page.
+- Notes/assets/AI-style tools should appear as separate pages, not one clumped "extensions" page.
 - Buffers are a distinct concept from node viewing and should stay visually/behaviorally separate.
 
 ## Plugin / Override Findings

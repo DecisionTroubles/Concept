@@ -49,7 +49,7 @@ Implementation phase. Core graph, learning foundation, plugin system, buffers, n
 ### Authoring Foundation
 - [x] note type authoring tab
 - [x] note type duplication
-- [x] selected-node structured content editing
+- [x] dedicated focused node editor overlay
 - [x] pack-defined note type import support
 
 ---
@@ -62,6 +62,8 @@ Implementation phase. Core graph, learning foundation, plugin system, buffers, n
 - [ ] richer note type layout authoring
 - [ ] live preview during authoring
 - [ ] richer field widgets
+- [ ] page/block editing inside the node editor
+- [ ] template placeholder support for note content
 
 ### Learning Product
 - [ ] dedicated review session flow

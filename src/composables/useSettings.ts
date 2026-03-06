@@ -7,6 +7,7 @@ export interface Keybindings {
   search:     string
   settings:   string
   openNode:   string
+  editNode:   string
   pinNode:    string
   progressOverlay: string
   worldPicker: string
@@ -49,6 +50,7 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
   search:     '/',
   settings:   't',
   openNode:   'e',
+  editNode:   'x',
   pinNode:    'p',
   progressOverlay: 'n',
   worldPicker: 'o',

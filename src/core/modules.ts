@@ -4,6 +4,7 @@ export type ModuleSlot =
   | 'GraphScene'
   | 'LayerPanel'
   | 'NodeDetailPanel'
+  | 'NodeEditorOverlay'
   | 'ProgressOverlay'
   | 'ModeIndicator'
   | 'SettingsPanel'

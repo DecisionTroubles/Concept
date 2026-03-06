@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { NoteType, NoteTypeInput } from '@/bindings'
+import { useSettings } from '@/composables/useSettings'
 
 type EditableField = {
   key: string
@@ -17,6 +18,7 @@ type EditablePage = {
 }
 
 const graphStore = useGraphStore()
+const settings = useSettings()
 
 const selectedNoteTypeId = ref<string | null>(null)
 const draftName = ref('')
@@ -28,21 +30,10 @@ const draftPages = ref<EditablePage[]>([])
 const draftMetadata = ref('{}')
 const createName = ref('')
 
-const nodeTitle = ref('')
-const nodeTags = ref('')
-const nodeContent = ref('')
-const nodeFields = ref<Record<string, string>>({})
 const saveStatus = ref('')
 
 const selectedNoteType = computed(() =>
   selectedNoteTypeId.value ? graphStore.noteTypes.find(noteType => noteType.id === selectedNoteTypeId.value) ?? null : null
-)
-
-const selectedNode = computed(() => graphStore.selectedNode)
-const selectedNodeNoteType = computed(() =>
-  selectedNode.value?.note_type_id
-    ? graphStore.noteTypes.find(noteType => noteType.id === selectedNode.value?.note_type_id) ?? null
-    : null
 )
 
 function parseJson<T>(raw: string | null | undefined, fallback: T): T {
@@ -150,13 +141,6 @@ function noteTypeToInput(): NoteTypeInput {
   }
 }
 
-function syncNodeDraft() {
-  nodeTitle.value = selectedNode.value?.title ?? ''
-  nodeTags.value = (selectedNode.value?.tags ?? []).join(', ')
-  nodeContent.value = selectedNode.value?.content_data ?? ''
-  nodeFields.value = { ...(selectedNode.value?.note_fields ?? {}) }
-}
-
 watch(
   () => graphStore.noteTypes,
   (noteTypes) => {
@@ -169,8 +153,6 @@ watch(
 )
 
 watch(selectedNoteType, noteType => loadNoteTypeDraft(noteType), { immediate: true })
-watch(selectedNode, () => syncNodeDraft(), { immediate: true })
-
 async function saveNoteType() {
   if (!selectedNoteType.value) return
   saveStatus.value = 'Saving note type...'
@@ -216,26 +198,6 @@ async function duplicateNoteType() {
     )
     selectedNoteTypeId.value = duplicated.id
     saveStatus.value = 'Note type duplicated.'
-  } catch (error) {
-    saveStatus.value = String(error)
-  }
-}
-
-async function saveNodeContent() {
-  if (!selectedNode.value) return
-  saveStatus.value = 'Saving node content...'
-  try {
-    await graphStore.updateNodeContent(
-      selectedNode.value.id,
-      nodeTitle.value.trim() || selectedNode.value.title,
-      nodeFields.value,
-      nodeContent.value.trim() || null,
-      nodeTags.value
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(Boolean),
-    )
-    saveStatus.value = 'Node content saved.'
   } catch (error) {
     saveStatus.value = String(error)
   }
@@ -316,7 +278,10 @@ function addPage() {
             <select v-model="field.widget">
               <option value="text">Text</option>
               <option value="long_text">Long text</option>
+              <option value="markdown">Markdown</option>
               <option value="code">Code</option>
+              <option value="image">Image</option>
+              <option value="diagram">Diagram</option>
             </select>
           </div>
         </div>
@@ -361,35 +326,14 @@ function addPage() {
       <div v-else class="empty-copy">No note type selected.</div>
     </section>
 
-    <section class="authoring-card">
-      <div class="section-title">Selected Node Content</div>
-      <template v-if="selectedNode">
-        <label class="field-block">
-          <span>Title</span>
-          <input v-model="nodeTitle" type="text" />
-        </label>
-        <label class="field-block">
-          <span>Tags</span>
-          <input v-model="nodeTags" type="text" placeholder="comma, separated, tags" />
-        </label>
-        <label class="field-block">
-          <span>Note type</span>
-          <select :value="selectedNode.note_type_id ?? ''" @change="graphStore.setNodeNoteType(selectedNode.id, ($event.target as HTMLSelectElement).value || null)">
-            <option value="">Unassigned</option>
-            <option v-for="noteType in graphStore.noteTypes" :key="noteType.id" :value="noteType.id">{{ noteType.name }}</option>
-          </select>
-        </label>
-        <label class="field-block">
-          <span>Fallback content</span>
-          <textarea v-model="nodeContent" rows="4" />
-        </label>
-        <div v-for="field in parseJson<{ fields?: Array<{ key?: string; label?: string }> }>(selectedNodeNoteType?.schema_json, {}).fields ?? []" :key="field.key" class="field-block">
-          <span>{{ field.label || field.key }}</span>
-          <input v-model="nodeFields[field.key || '']" type="text" />
-        </div>
-        <button class="authoring-btn" @click="saveNodeContent">Save node</button>
-      </template>
-      <div v-else class="empty-copy">Select a node in the graph, then edit its structured fields here.</div>
+    <section class="authoring-card authoring-help">
+      <div class="section-title">Node Editing</div>
+      <div class="empty-copy">
+        Focus a node in the graph and use the dedicated node editor instead of Settings.
+      </div>
+      <div class="empty-copy">
+        Hotkey: <strong>{{ settings.keys.editNode.toUpperCase() }}</strong>
+      </div>
       <div v-if="saveStatus" class="status-copy">{{ saveStatus }}</div>
     </section>
   </div>
@@ -398,7 +342,7 @@ function addPage() {
 <style scoped>
 .authoring-layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1.2fr) minmax(240px, 0.72fr);
   gap: 12px;
 }
 
@@ -491,6 +435,10 @@ function addPage() {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.authoring-help {
+  justify-content: flex-start;
 }
 
 @media (max-width: 1100px) {

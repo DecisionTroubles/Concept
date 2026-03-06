@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <rect width="640" height="360" rx="28" fill="#101522"/>
+  <rect x="28" y="28" width="584" height="304" rx="22" fill="#161f35" stroke="#2a3a62" stroke-width="2"/>
+  <text x="52" y="72" fill="#f1f5ff" font-size="30" font-family="Segoe UI, sans-serif" font-weight="700">Grammar Pattern Flow</text>
+  <text x="52" y="102" fill="#90a1c4" font-size="18" font-family="Segoe UI, sans-serif">Pattern form, meaning, and caution point</text>
+  <rect x="64" y="146" width="164" height="86" rx="18" fill="#23355a" stroke="#5e88ff"/>
+  <text x="146" y="186" text-anchor="middle" fill="#dfe8ff" font-size="24" font-family="Consolas, monospace">te-form</text>
+  <text x="146" y="212" text-anchor="middle" fill="#aabce3" font-size="16" font-family="Segoe UI, sans-serif">pattern shape</text>
+  <path d="M228 189 H324" stroke="#5e88ff" stroke-width="6" stroke-linecap="round"/>
+  <polygon points="324,189 304,177 304,201" fill="#5e88ff"/>
+  <rect x="348" y="146" width="228" height="86" rx="18" fill="#1f2a43" stroke="#44d38d"/>
+  <text x="462" y="184" text-anchor="middle" fill="#e9fff3" font-size="22" font-family="Segoe UI, sans-serif">Action linked in sequence</text>
+  <text x="462" y="212" text-anchor="middle" fill="#9edab8" font-size="16" font-family="Segoe UI, sans-serif">common meaning layer</text>
+  <rect x="128" y="258" width="384" height="42" rx="14" fill="#45221d" stroke="#f2a866"/>
+  <text x="320" y="285" text-anchor="middle" fill="#ffd9bd" font-size="18" font-family="Segoe UI, sans-serif">Pitfall: learn the form and the usage together, not separately</text>
+</svg>

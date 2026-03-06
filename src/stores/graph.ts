@@ -25,6 +25,7 @@ export const useGraphStore = defineStore('graph', () => {
   const activeConnectionLayerIds = ref<string[]>([])
   const connectionLayerSelectionInitialized = ref(false)
   const centeredNodePanel = ref(false)
+  const nodeEditorOpen = ref(false)
   const pinnedNodeIds = ref<string[]>([])
   const activeBuffer = ref<BufferId>('none')
   const progressOverlayOpen = ref(false)
@@ -55,6 +56,7 @@ export const useGraphStore = defineStore('graph', () => {
     selectedNodeId.value = id
     if (!id) {
       centeredNodePanel.value = false
+      nodeEditorOpen.value = false
     }
   }
 
@@ -66,6 +68,20 @@ export const useGraphStore = defineStore('graph', () => {
   function toggleCenteredNodePanel() {
     if (!selectedNodeId.value) return
     centeredNodePanel.value = !centeredNodePanel.value
+  }
+
+  function openNodeEditor() {
+    if (!selectedNodeId.value) return
+    nodeEditorOpen.value = true
+  }
+
+  function closeNodeEditor() {
+    nodeEditorOpen.value = false
+  }
+
+  function toggleNodeEditor() {
+    if (!selectedNodeId.value) return
+    nodeEditorOpen.value = !nodeEditorOpen.value
   }
 
   function isNodePinned(id: string | null | undefined): boolean {
@@ -259,6 +275,7 @@ export const useGraphStore = defineStore('graph', () => {
     activeLayerId.value = layerId
     selectedNodeId.value = null
     centeredNodePanel.value = false
+    nodeEditorOpen.value = false
     isLoading.value = true
     try {
       nodes.value = await useTauRPC().get_nodes(layerId)
@@ -396,6 +413,7 @@ export const useGraphStore = defineStore('graph', () => {
       await useTauRPC().reset_data(true)
       selectedNodeId.value = null
       centeredNodePanel.value = false
+      nodeEditorOpen.value = false
       pinnedNodeIds.value = []
       await loadWorldPacks()
       await loadWorldConfig()
@@ -421,6 +439,7 @@ export const useGraphStore = defineStore('graph', () => {
       await useTauRPC().select_world(worldId)
       selectedNodeId.value = null
       centeredNodePanel.value = false
+      nodeEditorOpen.value = false
       pinnedNodeIds.value = []
       activeBuffer.value = 'none'
       worldPickerOpen.value = false
@@ -449,6 +468,7 @@ export const useGraphStore = defineStore('graph', () => {
       await useTauRPC().reload_active_world()
       selectedNodeId.value = null
       centeredNodePanel.value = false
+      nodeEditorOpen.value = false
       pinnedNodeIds.value = []
       activeBuffer.value = 'none'
       worldPickerOpen.value = false
@@ -504,6 +524,7 @@ export const useGraphStore = defineStore('graph', () => {
     activeConnectionLayerIds,
     selectedNodeId,
     centeredNodePanel,
+    nodeEditorOpen,
     pinnedNodeIds,
     pinnedNodes,
     activeBuffer,
@@ -534,6 +555,9 @@ export const useGraphStore = defineStore('graph', () => {
     reviewNode,
     selectNode,
     toggleCenteredNodePanel,
+    openNodeEditor,
+    closeNodeEditor,
+    toggleNodeEditor,
     isNodePinned,
     togglePinNode,
     unpinNode,

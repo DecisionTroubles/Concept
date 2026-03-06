@@ -2,6 +2,7 @@ import type { AppPlugin } from '@/core/plugin'
 import GraphScene from '@/components/scene/GraphScene.vue'
 import LayerPanel from '@/components/LayerPanel.vue'
 import NodeDetailPanel from '@/components/NodeDetailPanel.vue'
+import NodeEditorOverlay from '@/components/NodeEditorOverlay.vue'
 import ProgressOverlay from '@/components/ProgressOverlay.vue'
 import ModeIndicator from '@/components/ModeIndicator.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
@@ -19,6 +20,7 @@ export const defaultPlugin: AppPlugin = {
     GraphScene,
     LayerPanel,
     NodeDetailPanel,
+    NodeEditorOverlay,
     ProgressOverlay,
     ModeIndicator,
     SettingsPanel,
