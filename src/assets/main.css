@@ -32,6 +32,7 @@ body {
   height: 100%;
   color: var(--app-text-primary);
   background: var(--app-canvas-bg);
+  color-scheme: dark;
 }
 
 * {
@@ -93,13 +94,90 @@ p {
   filter: drop-shadow(0 0 2em #249b73);
 }
 
-input {
+input[type='text'],
+input[type='number'],
+input[type='search'],
+input[type='email'],
+input[type='password'] {
   @apply bg-gray-700 text-gray-200 px-3 py-2 rounded-md my-4 border border-gray-700 mx-2;
 }
 
 input,
-textarea {
+textarea,
+select {
   @apply select-auto;
+}
+
+select,
+textarea,
+input[type='text'],
+input[type='number'],
+input[type='search'] {
+  color: var(--app-text-primary);
+  background: color-mix(in srgb, var(--app-overlay-bg) 88%, #0a0f18);
+  border: 1px solid var(--app-overlay-border);
+  border-radius: 8px;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 6px 28px 6px 10px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--app-text-secondary) 50%),
+    linear-gradient(135deg, var(--app-text-secondary) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 10px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+select option {
+  color: var(--app-text-primary);
+  background: #0d1220;
+}
+
+input[type='range'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 42%, transparent), rgba(255, 255, 255, 0.08));
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -4px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 50%, white 10%);
+  background: color-mix(in srgb, var(--app-accent) 72%, white 28%);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.18);
+}
+
+input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--app-accent) 42%, transparent), rgba(255, 255, 255, 0.08));
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 50%, white 10%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-accent) 72%, white 28%);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.18);
 }
 
 @theme inline {

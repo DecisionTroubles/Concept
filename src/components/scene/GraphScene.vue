@@ -180,7 +180,7 @@ onMounted(() => {
       }
     }
 
-    if (editorMode.mode.value === 'graph' && !isInput) {
+    if (editorMode.mode.value === 'graph' && !isInput && !graphStore.centeredNodePanel) {
       if (e.key === 'Tab') {
         e.preventDefault()
         const id = e.shiftKey ? editorMode.tabPrev() : editorMode.tabNext()
@@ -226,12 +226,26 @@ onMounted(() => {
   try {
     const scene: THREE.Scene | undefined = tres?.scene?.value ?? tres?.scene
     if (scene instanceof THREE.Scene) {
-      scene.fog = new THREE.FogExp2(new THREE.Color('#080b14'), 0.014)
+      scene.fog = new THREE.FogExp2(new THREE.Color('#080b14'), settings.graphics.fogDensity)
     }
   } catch {
     /* skip if context not yet ready */
   }
 })
+
+watch(
+  () => settings.graphics.fogDensity,
+  density => {
+    try {
+      const scene: THREE.Scene | undefined = tres?.scene?.value ?? tres?.scene
+      if (scene?.fog instanceof THREE.FogExp2) {
+        scene.fog.density = density
+      }
+    } catch {
+      /* skip if context not yet ready */
+    }
+  }
+)
 
 // в”Ђв”Ђ Camera focus animation в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const focusTarget = shallowRef<THREE.Vector3 | null>(null)
@@ -606,6 +620,31 @@ const { positionedNodes } = useForceLayout(
 // в”Ђв”Ђ Node helpers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function nodeRadius(node: PositionedNode): number {
   return Math.min(1.4, Math.max(0.55, 0.65 + (node.weight ?? 1) * 0.2))
+}
+
+function nodeGeometryDetail(): number {
+  return settings.graphics.nodeDetail
+}
+
+function sphereSegments(): [number, number] {
+  const detail = nodeGeometryDetail()
+  if (detail <= 0) return [12, 9]
+  if (detail === 1) return [18, 14]
+  return [24, 18]
+}
+
+function torusSegments(): [number, number] {
+  const detail = nodeGeometryDetail()
+  if (detail <= 0) return [8, 16]
+  if (detail === 1) return [12, 24]
+  return [16, 32]
+}
+
+function haloSegments(): [number, number] {
+  const detail = nodeGeometryDetail()
+  if (detail <= 0) return [10, 8]
+  if (detail === 1) return [14, 10]
+  return [18, 14]
 }
 
 const TYPE_COLORS = computed<Record<string, string>>(() => {
@@ -992,6 +1031,25 @@ function nodeLabelOpacity(node: PositionedNode): number {
   return 1 - (dist - 14) / 28
 }
 
+function nodeProgressStatus(node: PositionedNode): 'new' | 'learning' | 'review' | 'mastered' {
+  const status = node.progress_status
+  if (status === 'learning' || status === 'review' || status === 'mastered') return status
+  return 'new'
+}
+
+function nodeProgressLabel(node: PositionedNode): string {
+  switch (nodeProgressStatus(node)) {
+    case 'learning':
+      return 'Learning'
+    case 'review':
+      return 'Review'
+    case 'mastered':
+      return 'Mastered'
+    default:
+      return 'New'
+  }
+}
+
 // в”Ђв”Ђ Event handlers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function onNodeClick(node: PositionedNode, event: { stopPropagation?: () => void }) {
   event.stopPropagation?.()
@@ -1065,17 +1123,17 @@ watch(
     @pointer-enter="(e: any) => onNodePointerEnter(node, e)"
     @pointer-leave="(e: any) => onNodePointerLeave(node, e)"
   >
-    <TresOctahedronGeometry v-if="node.node_type === 'grammar'" :args="[nodeRadius(node) * 0.85, 0]" />
+    <TresOctahedronGeometry v-if="node.node_type === 'grammar'" :args="[nodeRadius(node) * 0.85, nodeGeometryDetail()]" />
     <TresBoxGeometry
       v-else-if="node.node_type === 'kanji'"
       :args="[nodeRadius(node) * 1.2, nodeRadius(node) * 1.2, nodeRadius(node) * 1.2]"
     />
-    <TresIcosahedronGeometry v-else-if="node.node_type === 'concept'" :args="[nodeRadius(node) * 0.9, 0]" />
+    <TresIcosahedronGeometry v-else-if="node.node_type === 'concept'" :args="[nodeRadius(node) * 0.9, nodeGeometryDetail()]" />
     <TresTorusGeometry
       v-else-if="node.node_type === 'particle'"
-      :args="[nodeRadius(node) * 0.7, nodeRadius(node) * 0.22, 12, 24]"
+      :args="[nodeRadius(node) * 0.7, nodeRadius(node) * 0.22, torusSegments()[0], torusSegments()[1]]"
     />
-    <TresSphereGeometry v-else :args="[nodeRadius(node), 18, 14]" />
+    <TresSphereGeometry v-else :args="[nodeRadius(node), sphereSegments()[0], sphereSegments()[1]]" />
     <TresMeshStandardMaterial
       :color="nodeColor(node)"
       :emissive="nodeEmissive(node)"
@@ -1092,7 +1150,7 @@ watch(
     :position="[node.x, node.y, node.z]"
     :scale="nodeScale(node) * 1.05"
   >
-    <TresSphereGeometry :args="[nodeRadius(node) * 1.8, 14, 10]" />
+    <TresSphereGeometry :args="[nodeRadius(node) * 1.8, haloSegments()[0], haloSegments()[1]]" />
     <TresMeshBasicMaterial
       :color="nodeColor(node)"
       :opacity="focusedGroupSet.size > 0 && !nodeGroupIds(node).some(g => focusedGroupSet.has(g)) ? 0.08 : 0.16"
@@ -1115,7 +1173,14 @@ watch(
       class="node-label"
       :style="{ opacity: nodeLabelOpacity(node) }"
     >
-      {{ node.title }}
+      <span>{{ node.title }}</span>
+      <span
+        class="node-progress-chip"
+        :class="`is-${nodeProgressStatus(node)}`"
+        :title="`Progress: ${nodeProgressLabel(node)}`"
+      >
+        {{ nodeProgressLabel(node) }}
+      </span>
     </div>
   </Html>
 
@@ -1134,6 +1199,9 @@ watch(
 
 <style scoped>
 .node-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: #e8eaf0;
   font-family: 'Inter', 'Segoe UI Variable', 'Noto Sans JP', 'Segoe UI', sans-serif;
   font-size: clamp(12px, 0.72vw, 15px);
@@ -1150,6 +1218,41 @@ watch(
   backdrop-filter: blur(2px);
   padding: 3px 9px;
   border-radius: 6px;
+}
+
+.node-progress-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+}
+
+.node-progress-chip.is-new {
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, 0.14);
+  border-color: rgba(14, 165, 233, 0.24);
+}
+
+.node-progress-chip.is-learning {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.24);
+}
+
+.node-progress-chip.is-review {
+  color: #c084fc;
+  background: rgba(168, 85, 247, 0.14);
+  border-color: rgba(168, 85, 247, 0.24);
+}
+
+.node-progress-chip.is-mastered {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.24);
 }
 
 .pin-tag {

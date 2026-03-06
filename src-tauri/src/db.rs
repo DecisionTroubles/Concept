@@ -94,8 +94,45 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             id         TEXT PRIMARY KEY,
             name       TEXT NOT NULL UNIQUE,
             fields     TEXT NOT NULL DEFAULT '[]',
+            schema_json TEXT NOT NULL DEFAULT '{}',
+            layout_json TEXT NOT NULL DEFAULT '{}',
             is_default INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS node_progress (
+            node_id            TEXT PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
+            status             TEXT NOT NULL DEFAULT 'new',
+            review_count       INTEGER NOT NULL DEFAULT 0,
+            streak             INTEGER NOT NULL DEFAULT 0,
+            last_reviewed_at   TEXT,
+            next_review_at     TEXT,
+            scheduler_key      TEXT NOT NULL DEFAULT 'basic-v1',
+            scheduler_state    TEXT NOT NULL DEFAULT '{}',
+            created_at         TEXT NOT NULL,
+            updated_at         TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS review_events (
+            id                 TEXT PRIMARY KEY,
+            node_id            TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+            grade              TEXT NOT NULL,
+            scheduler_key      TEXT NOT NULL,
+            reviewed_at        TEXT NOT NULL,
+            previous_status    TEXT NOT NULL,
+            next_status        TEXT NOT NULL,
+            scheduled_for_at   TEXT,
+            scheduler_state    TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE TABLE IF NOT EXISTS node_extension_data (
+            id                 TEXT PRIMARY KEY,
+            node_id            TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+            extension_key      TEXT NOT NULL,
+            data_json          TEXT NOT NULL DEFAULT '{}',
+            created_at         TEXT NOT NULL,
+            updated_at         TEXT NOT NULL,
+            UNIQUE(node_id, extension_key)
         );
 
         CREATE INDEX IF NOT EXISTS idx_nodes_layer   ON nodes(layer_id);
@@ -105,6 +142,12 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_node_layers_layer ON node_layers(layer_id);
         CREATE INDEX IF NOT EXISTS idx_edge_layers_layer ON edge_layers(layer_id);
         CREATE INDEX IF NOT EXISTS idx_edge_connection_layers_layer ON edge_connection_layers(connection_layer_id);
+        CREATE INDEX IF NOT EXISTS idx_node_progress_status ON node_progress(status);
+        CREATE INDEX IF NOT EXISTS idx_node_progress_next_review ON node_progress(next_review_at);
+        CREATE INDEX IF NOT EXISTS idx_review_events_node_id ON review_events(node_id);
+        CREATE INDEX IF NOT EXISTS idx_review_events_reviewed_at ON review_events(reviewed_at);
+        CREATE INDEX IF NOT EXISTS idx_node_extension_data_node ON node_extension_data(node_id);
+        CREATE INDEX IF NOT EXISTS idx_node_extension_data_extension_key ON node_extension_data(extension_key);
         ",
     )?;
 
@@ -159,6 +202,40 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         "CREATE INDEX IF NOT EXISTS idx_nodes_note_type ON nodes(note_type_id)",
         [],
     )?;
+
+    let mut note_type_stmt = conn.prepare("PRAGMA table_info(note_types)")?;
+    let note_type_cols = note_type_stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if !note_type_cols.iter().any(|c| c == "schema_json") {
+        conn.execute(
+            "ALTER TABLE note_types ADD COLUMN schema_json TEXT NOT NULL DEFAULT '{}'",
+            [],
+        )?;
+    }
+    if !note_type_cols.iter().any(|c| c == "layout_json") {
+        conn.execute(
+            "ALTER TABLE note_types ADD COLUMN layout_json TEXT NOT NULL DEFAULT '{}'",
+            [],
+        )?;
+    }
+
+    let mut progress_stmt = conn.prepare("PRAGMA table_info(node_progress)")?;
+    let progress_cols = progress_stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if !progress_cols.iter().any(|c| c == "scheduler_key") {
+        conn.execute(
+            "ALTER TABLE node_progress ADD COLUMN scheduler_key TEXT NOT NULL DEFAULT 'basic-v1'",
+            [],
+        )?;
+    }
+    if !progress_cols.iter().any(|c| c == "scheduler_state") {
+        conn.execute(
+            "ALTER TABLE node_progress ADD COLUMN scheduler_state TEXT NOT NULL DEFAULT '{}'",
+            [],
+        )?;
+    }
 
     // Run one-time migration to reconcile duplicate layers from v1→v2 transition
     reconcile_duplicate_layers(conn)?;

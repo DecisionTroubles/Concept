@@ -14,19 +14,27 @@ export type EdgeRef = { id: string; target_id: string; edge_type: string; relati
 
 export type Layer = { id: string; name: string; display_order: number; filter_json: string; metadata: string; created_at: string }
 
-export type Node = { id: string; title: string; layer_id: string; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }>; content_type: string; content_data: string | null; tags: string[]; learned: boolean; weight: number; pos_x: number | null; pos_y: number | null; pos_z: number | null; 
+export type Node = { id: string; title: string; layer_id: string; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }>; content_type: string; content_data: string | null; tags: string[]; learned: boolean; progress_status: string; progress_review_count: number; progress_streak: number; progress_last_reviewed_at: string | null; progress_next_review_at: string | null; progress_scheduler_key: string; progress_scheduler_state: string; weight: number; pos_x: number | null; pos_y: number | null; pos_z: number | null; 
 /**
  * Outgoing edges — loaded in the same call, no second IPC round-trip needed.
  */
 connections: EdgeRef[]; created_at: string }
 
-export type NoteType = { id: string; name: string; fields: string[]; is_default: boolean; created_at: string }
+export type NodeExtensionData = { id: string; node_id: string; extension_key: string; data_json: string; created_at: string; updated_at: string }
+
+export type NodeProgress = { node_id: string; status: string; review_count: number; streak: number; last_reviewed_at: string | null; next_review_at: string | null; scheduler_key: string; scheduler_state: string; created_at: string; updated_at: string }
+
+export type NoteType = { id: string; name: string; fields: string[]; schema_json: string; layout_json: string; is_default: boolean; created_at: string }
 
 export type RelationKind = { id: string; world_id: string; label: string; directed: boolean; default_weight: number; metadata: string; created_at: string }
 
+export type ReviewEvent = { id: string; node_id: string; grade: string; scheduler_key: string; reviewed_at: string; previous_status: string; next_status: string; scheduled_for_at: string | null; scheduler_state: string }
+
+export type SchedulerDescriptor = { key: string; name: string; description: string }
+
 export type WorldConfig = { id: string; name: string; config_json: string; created_at: string }
 
-const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["name","fields","is_default"],"delete_edge":["id"],"get_connection_layers":[],"get_layers":[],"get_nodes":["layer_id"],"get_note_types":[],"get_relation_kinds":[],"get_world_config":[],"mark_learned":["id","learned"],"reset_data":["reseed"],"seed_sample_data":[],"set_node_note_type":["node_id","note_type_id"],"update_node_position":["id","x","y","z"]}' }
+const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["name","fields","is_default"],"delete_edge":["id"],"get_connection_layers":[],"get_layers":[],"get_node_extension_data":["node_id","extension_key"],"get_node_progress":[],"get_nodes":["layer_id"],"get_note_types":[],"get_relation_kinds":[],"get_review_events":[],"get_scheduler_algorithms":[],"get_world_config":[],"mark_learned":["id","learned"],"reset_data":["reseed"],"review_node":["node_id","grade","scheduler_key"],"seed_sample_data":[],"set_node_extension_data":["node_id","extension_key","data_json"],"set_node_note_type":["node_id","note_type_id"],"set_node_progress_status":["node_id","status"],"update_node_position":["id","x","y","z"]}' }
 export type Router = { "": {create_edge: (sourceId: string, targetId: string, edgeType: string) => Promise<Edge>, 
 create_layer: (name: string, displayOrder: number) => Promise<Layer>, 
 create_node: (input: CreateNodeInput) => Promise<Node>, 
@@ -34,14 +42,21 @@ create_note_type: (name: string, fields: string[], isDefault: boolean) => Promis
 delete_edge: (id: string) => Promise<null>, 
 get_connection_layers: () => Promise<ConnectionLayer[]>, 
 get_layers: () => Promise<Layer[]>, 
+get_node_extension_data: (nodeId: string, extensionKey: string | null) => Promise<NodeExtensionData[]>, 
+get_node_progress: () => Promise<NodeProgress[]>, 
 get_nodes: (layerId: string) => Promise<Node[]>, 
 get_note_types: () => Promise<NoteType[]>, 
 get_relation_kinds: () => Promise<RelationKind[]>, 
+get_review_events: () => Promise<ReviewEvent[]>, 
+get_scheduler_algorithms: () => Promise<SchedulerDescriptor[]>, 
 get_world_config: () => Promise<WorldConfig | null>, 
 mark_learned: (id: string, learned: boolean) => Promise<Node>, 
 reset_data: (reseed: boolean | null) => Promise<null>, 
+review_node: (nodeId: string, grade: string, schedulerKey: string | null) => Promise<Node>, 
 seed_sample_data: () => Promise<null>, 
+set_node_extension_data: (nodeId: string, extensionKey: string, dataJson: string) => Promise<NodeExtensionData>, 
 set_node_note_type: (nodeId: string, noteTypeId: string | null) => Promise<Node>, 
+set_node_progress_status: (nodeId: string, status: string) => Promise<Node>, 
 update_node_position: (id: string, x: number, y: number, z: number) => Promise<null>} };
 
 

@@ -1,7 +1,9 @@
 mod db;
 mod domain;
 mod error;
+mod extensions;
 mod graph;
+mod scheduler;
 
 use std::sync::{Arc, OnceLock};
 
@@ -10,8 +12,10 @@ use tauri::Manager;
 use tokio::sync::Mutex;
 
 use graph::{
-    ConnectionLayer, CreateNodeInput, Edge, Layer, Node, NoteType, RelationKind, WorldConfig,
+    ConnectionLayer, CreateNodeInput, Edge, Layer, Node, NodeProgress, NoteType, RelationKind, WorldConfig,
 };
+use extensions::NodeExtensionData;
+use scheduler::{ReviewEvent, SchedulerDescriptor};
 
 // ---------------------------------------------------------------------------
 // DB state — initialized once in setup, shared across all resolver calls.
@@ -46,6 +50,18 @@ trait GraphApi {
     async fn mark_learned(id: String, learned: bool) -> Result<Node, String>;
     async fn update_node_position(id: String, x: f64, y: f64, z: f64) -> Result<(), String>;
     async fn get_note_types() -> Result<Vec<NoteType>, String>;
+    async fn get_node_progress() -> Result<Vec<NodeProgress>, String>;
+    async fn get_scheduler_algorithms() -> Result<Vec<SchedulerDescriptor>, String>;
+    async fn get_review_events() -> Result<Vec<ReviewEvent>, String>;
+    async fn get_node_extension_data(
+        node_id: String,
+        extension_key: Option<String>,
+    ) -> Result<Vec<NodeExtensionData>, String>;
+    async fn set_node_extension_data(
+        node_id: String,
+        extension_key: String,
+        data_json: String,
+    ) -> Result<NodeExtensionData, String>;
     async fn create_note_type(
         name: String,
         fields: Vec<String>,
@@ -54,6 +70,12 @@ trait GraphApi {
     async fn set_node_note_type(
         node_id: String,
         note_type_id: Option<String>,
+    ) -> Result<Node, String>;
+    async fn set_node_progress_status(node_id: String, status: String) -> Result<Node, String>;
+    async fn review_node(
+        node_id: String,
+        grade: String,
+        scheduler_key: Option<String>,
     ) -> Result<Node, String>;
 
     // Edges
@@ -128,6 +150,39 @@ impl GraphApi for ApiImpl {
         graph::query_note_types(&conn).map_err(|e| e.to_string())
     }
 
+    async fn get_node_progress(self) -> Result<Vec<NodeProgress>, String> {
+        let conn = db().lock().await;
+        graph::query_node_progress(&conn).map_err(|e| e.to_string())
+    }
+
+    async fn get_scheduler_algorithms(self) -> Result<Vec<SchedulerDescriptor>, String> {
+        Ok(scheduler::query_scheduler_descriptors())
+    }
+
+    async fn get_review_events(self) -> Result<Vec<ReviewEvent>, String> {
+        let conn = db().lock().await;
+        scheduler::query_review_events(&conn).map_err(|e| e.to_string())
+    }
+
+    async fn get_node_extension_data(
+        self,
+        node_id: String,
+        extension_key: Option<String>,
+    ) -> Result<Vec<NodeExtensionData>, String> {
+        let conn = db().lock().await;
+        extensions::query_node_extension_data(&conn, &node_id, extension_key.as_deref()).map_err(|e| e.to_string())
+    }
+
+    async fn set_node_extension_data(
+        self,
+        node_id: String,
+        extension_key: String,
+        data_json: String,
+    ) -> Result<NodeExtensionData, String> {
+        let conn = db().lock().await;
+        extensions::upsert_node_extension_data(&conn, &node_id, &extension_key, &data_json).map_err(|e| e.to_string())
+    }
+
     async fn create_note_type(
         self,
         name: String,
@@ -145,6 +200,21 @@ impl GraphApi for ApiImpl {
     ) -> Result<Node, String> {
         let conn = db().lock().await;
         graph::set_node_note_type(&conn, &node_id, note_type_id).map_err(|e| e.to_string())
+    }
+
+    async fn set_node_progress_status(self, node_id: String, status: String) -> Result<Node, String> {
+        let conn = db().lock().await;
+        graph::set_node_progress_status(&conn, &node_id, &status).map_err(|e| e.to_string())
+    }
+
+    async fn review_node(
+        self,
+        node_id: String,
+        grade: String,
+        scheduler_key: Option<String>,
+    ) -> Result<Node, String> {
+        let conn = db().lock().await;
+        scheduler::review_node(&conn, &node_id, &grade, scheduler_key.as_deref()).map_err(|e| e.to_string())
     }
 
     async fn create_edge(

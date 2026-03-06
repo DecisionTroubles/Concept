@@ -4,6 +4,7 @@ export type ModuleSlot =
   | 'GraphScene'
   | 'LayerPanel'
   | 'NodeDetailPanel'
+  | 'ProgressOverlay'
   | 'ModeIndicator'
   | 'SettingsPanel'
   | 'NodeSearch'
@@ -11,4 +12,3 @@ export type ModuleSlot =
   | 'BufferOverlay'
 
 export type ModuleMap = Partial<Record<ModuleSlot, Component>>
-

@@ -1,10 +1,12 @@
 import type { Component } from 'vue'
+import type { NodeWorkspaceExtension } from '@/core/nodeExtensions'
 import type { AppPlugin } from '@/core/plugin'
 import type { ModuleSlot } from '@/core/modules'
 import { DEFAULT_THEMES, type ThemePreset } from '@/core/themes'
 
 class AppKernel {
   private modules = new Map<ModuleSlot, Component>()
+  private nodeWorkspaceExtensions: NodeWorkspaceExtension[] = []
   private themes = new Map<string, ThemePreset>()
   private plugins = new Map<string, AppPlugin>()
 
@@ -21,6 +23,11 @@ class AppKernel {
         if (!module) continue
         this.modules.set(slot as ModuleSlot, module)
       }
+    }
+
+    if (plugin.nodeWorkspaceExtensions) {
+      this.nodeWorkspaceExtensions.push(...plugin.nodeWorkspaceExtensions)
+      this.nodeWorkspaceExtensions.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     }
 
     if (plugin.themes) {
@@ -45,7 +52,10 @@ class AppKernel {
   hasTheme(id: string): boolean {
     return this.themes.has(id)
   }
+
+  listNodeWorkspaceExtensions(): NodeWorkspaceExtension[] {
+    return [...this.nodeWorkspaceExtensions]
+  }
 }
 
 export const appKernel = new AppKernel()
-

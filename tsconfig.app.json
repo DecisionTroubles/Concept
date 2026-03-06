@@ -6,7 +6,8 @@
     "components.d.ts",
     "auto-imports.d.ts",
     "src/**/*",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "user-plugins/**/*"
   ],
   "exclude": ["src/**/__tests__/*"],
   "compilerOptions": {

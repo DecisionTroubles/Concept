@@ -7,6 +7,7 @@ const settings = useSettings()
 const themeState = useTheme()
 const graphStore = useGraphStore()
 type ActionKey = keyof typeof settings.keys
+type GraphicsPreset = 'low' | 'medium' | 'high'
 
 const EXCLUDED_KEYS = new Set([
   'Escape',
@@ -50,6 +51,7 @@ const GLOBAL_ACTIONS: Array<{ key: ActionKey; label: string }> = [
   { key: 'settings', label: 'Settings panel' },
   { key: 'openNode', label: 'Center node panel' },
   { key: 'pinNode', label: 'Toggle pin node' },
+  { key: 'progressOverlay', label: 'Progress overview' },
   { key: 'pinnedBuffer', label: 'Pinned buffer' },
   { key: 'mapBuffer', label: 'Map buffer' },
 ]
@@ -74,7 +76,7 @@ const GRAPH_ACTIONS: Array<{ key: ActionKey; label: string }> = [
 
 const isOpen = ref(false)
 const listeningAction = ref<ActionKey | null>(null)
-const activeTab = ref<'hotkeys' | 'themes'>('hotkeys')
+const activeTab = ref<'hotkeys' | 'themes' | 'graphics' | 'learning'>('hotkeys')
 
 function toggle() {
   if (listeningAction.value) return
@@ -104,6 +106,29 @@ function actionAliases(action: ActionKey): string[] {
     if (flyKey.length === 1) return [`${flyKey}${flyKey}`]
   }
   return []
+}
+
+function setGraphicsPreset(preset: GraphicsPreset) {
+  settings.applyGraphicsPreset(preset)
+}
+
+function updateGraphicNumber(
+  key: 'bloomIntensity' | 'bloomThreshold' | 'bloomSmoothing' | 'vignetteDarkness' | 'fogDensity' | 'nodeDetail',
+  event: Event
+) {
+  settings.updateGraphics(key, Number((event.target as HTMLInputElement).value))
+}
+
+function updateGraphicBoolean(key: 'bloomEnabled' | 'vignetteEnabled', event: Event) {
+  settings.updateGraphics(key, (event.target as HTMLInputElement).checked)
+}
+
+function formatGraphicNumber(value: number, digits: number = 2): string {
+  return value.toFixed(digits)
+}
+
+function updateDefaultScheduler(event: Event) {
+  settings.setDefaultSchedulerKey((event.target as HTMLSelectElement).value)
 }
 
 useEventListener(
@@ -199,6 +224,12 @@ useEventListener(
             <button class="tab-btn" :class="{ active: activeTab === 'themes' }" @click="activeTab = 'themes'">
               Themes
             </button>
+            <button class="tab-btn" :class="{ active: activeTab === 'graphics' }" @click="activeTab = 'graphics'">
+              Graphics
+            </button>
+            <button class="tab-btn" :class="{ active: activeTab === 'learning' }" @click="activeTab = 'learning'">
+              Learning
+            </button>
           </div>
 
           <div class="tab-content" v-if="activeTab === 'hotkeys'">
@@ -262,7 +293,7 @@ useEventListener(
             </div>
           </div>
 
-          <div class="tab-content" v-else>
+          <div class="tab-content" v-else-if="activeTab === 'themes'">
             <div class="theme-list">
               <button
                 v-for="preset in themeState.themes.value"
@@ -283,6 +314,160 @@ useEventListener(
                   <span class="swatch" :style="{ background: preset.vars['--app-text-primary'] }" />
                 </div>
               </button>
+            </div>
+          </div>
+
+          <div class="tab-content" v-else-if="activeTab === 'graphics'">
+            <div class="graphics-layout">
+              <section class="graphics-card">
+                <div class="section-title">Quality</div>
+                <div class="preset-row">
+                  <button
+                    v-for="preset in (['low', 'medium', 'high'] as GraphicsPreset[])"
+                    :key="preset"
+                    class="preset-btn"
+                    :class="{ active: settings.graphics.qualityPreset === preset }"
+                    @click="setGraphicsPreset(preset)"
+                  >
+                    {{ preset }}
+                  </button>
+                </div>
+                <div class="graphics-copy">
+                  Current preset: <strong>{{ settings.graphics.qualityPreset }}</strong>
+                </div>
+              </section>
+
+              <section class="graphics-card">
+                <div class="section-title">Post Processing</div>
+                <label class="toggle-row">
+                  <span>Bloom</span>
+                  <input
+                    type="checkbox"
+                    :checked="settings.graphics.bloomEnabled"
+                    @change="updateGraphicBoolean('bloomEnabled', $event)"
+                  />
+                </label>
+                <label class="slider-row">
+                  <span>Bloom intensity</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.5"
+                    step="0.01"
+                    :value="settings.graphics.bloomIntensity"
+                    @input="updateGraphicNumber('bloomIntensity', $event)"
+                  />
+                  <strong>{{ formatGraphicNumber(settings.graphics.bloomIntensity) }}</strong>
+                </label>
+                <label class="slider-row">
+                  <span>Bloom threshold</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    :value="settings.graphics.bloomThreshold"
+                    @input="updateGraphicNumber('bloomThreshold', $event)"
+                  />
+                  <strong>{{ formatGraphicNumber(settings.graphics.bloomThreshold) }}</strong>
+                </label>
+                <label class="slider-row">
+                  <span>Bloom smoothing</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    :value="settings.graphics.bloomSmoothing"
+                    @input="updateGraphicNumber('bloomSmoothing', $event)"
+                  />
+                  <strong>{{ formatGraphicNumber(settings.graphics.bloomSmoothing) }}</strong>
+                </label>
+                <label class="toggle-row">
+                  <span>Vignette</span>
+                  <input
+                    type="checkbox"
+                    :checked="settings.graphics.vignetteEnabled"
+                    @change="updateGraphicBoolean('vignetteEnabled', $event)"
+                  />
+                </label>
+                <label class="slider-row">
+                  <span>Vignette darkness</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    :value="settings.graphics.vignetteDarkness"
+                    @input="updateGraphicNumber('vignetteDarkness', $event)"
+                  />
+                  <strong>{{ formatGraphicNumber(settings.graphics.vignetteDarkness) }}</strong>
+                </label>
+              </section>
+
+              <section class="graphics-card">
+                <div class="section-title">Scene</div>
+                <label class="slider-row">
+                  <span>Fog density</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="0.03"
+                    step="0.001"
+                    :value="settings.graphics.fogDensity"
+                    @input="updateGraphicNumber('fogDensity', $event)"
+                  />
+                  <strong>{{ formatGraphicNumber(settings.graphics.fogDensity, 3) }}</strong>
+                </label>
+                <label class="slider-row">
+                  <span>Node detail</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="1"
+                    :value="settings.graphics.nodeDetail"
+                    @input="updateGraphicNumber('nodeDetail', $event)"
+                  />
+                  <strong>{{ settings.graphics.nodeDetail }}</strong>
+                </label>
+                <div class="graphics-copy">
+                  Lower detail reduces mesh complexity and helps on weaker GPUs.
+                </div>
+                <div class="graphics-actions">
+                  <button class="reset-btn" @click="settings.resetGraphicsToDefaults()">Reset graphics</button>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div class="tab-content" v-else>
+            <div class="learning-layout">
+              <section class="graphics-card">
+                <div class="section-title">Scheduler</div>
+                <label class="learning-field">
+                  <span>Default review scheduler</span>
+                  <select :value="settings.learning.defaultSchedulerKey" @change="updateDefaultScheduler">
+                    <option v-for="scheduler in graphStore.schedulerAlgorithms" :key="scheduler.key" :value="scheduler.key">
+                      {{ scheduler.name }}
+                    </option>
+                  </select>
+                </label>
+                <div class="graphics-copy">
+                  Review buttons in the progress window and node panel use this scheduler by default.
+                </div>
+              </section>
+
+              <section class="graphics-card">
+                <div class="section-title">Available Algorithms</div>
+                <article v-for="scheduler in graphStore.schedulerAlgorithms" :key="scheduler.key" class="scheduler-card">
+                  <div class="scheduler-head">
+                    <strong>{{ scheduler.name }}</strong>
+                    <span class="scheduler-key">{{ scheduler.key }}</span>
+                  </div>
+                  <p>{{ scheduler.description }}</p>
+                </article>
+              </section>
             </div>
           </div>
         </div>
@@ -466,6 +651,135 @@ useEventListener(
   gap: 10px;
 }
 
+.graphics-layout {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.learning-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.graphics-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preset-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #c8cad8;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.preset-btn.active {
+  color: var(--app-accent);
+  border-color: color-mix(in srgb, var(--app-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--app-accent) 14%, transparent);
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.slider-row span,
+.toggle-row span,
+.graphics-copy {
+  font-size: 12px;
+  color: #c8cad8;
+}
+
+.slider-row input[type='range'] {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.slider-row strong {
+  font-size: 11px;
+  color: var(--app-accent);
+  min-width: 40px;
+  text-align: right;
+}
+
+.graphics-actions {
+  padding-top: 4px;
+}
+
+.learning-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.learning-field span {
+  font-size: 12px;
+  color: #c8cad8;
+}
+
+.scheduler-card {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+}
+
+.scheduler-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.scheduler-head strong {
+  font-size: 13px;
+  color: var(--app-text-primary);
+}
+
+.scheduler-key {
+  font-size: 10px;
+  color: var(--app-accent);
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: color-mix(in srgb, var(--app-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-accent) 26%, transparent);
+}
+
+.scheduler-card p {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+}
+
 .theme-card {
   text-align: left;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -643,6 +957,14 @@ useEventListener(
   .hotkey-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  .graphics-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .learning-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {
@@ -675,6 +997,23 @@ useEventListener(
 
   .theme-list {
     grid-template-columns: 1fr;
+  }
+
+  .graphics-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .learning-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .slider-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .slider-row strong {
+    text-align: left;
   }
 }
 

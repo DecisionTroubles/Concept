@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import { Layers3, Pin, X } from 'lucide-vue-next'
+import OverlayShell from '@/components/ui/OverlayShell.vue'
 
 const graphStore = useGraphStore()
 const settings = useSettings()
@@ -19,6 +20,7 @@ const dragStartX = ref(0)
 const dragStartY = ref(0)
 const dragStartCenterX = ref(0)
 const dragStartCenterZ = ref(0)
+const BUFFER_ORDER: Array<Exclude<typeof graphStore.activeBuffer.value, 'none'>> = ['pinned', 'map']
 
 type MapEdge = {
   id: string
@@ -158,6 +160,14 @@ function focusNode(id: string) {
   graphStore.requestFocus(id)
 }
 
+function cycleBuffer(direction: 1 | -1) {
+  const current = graphStore.activeBuffer
+  const index = BUFFER_ORDER.indexOf(current === 'none' ? 'pinned' : current)
+  const safeIndex = index >= 0 ? index : 0
+  const nextIndex = (safeIndex + direction + BUFFER_ORDER.length) % BUFFER_ORDER.length
+  graphStore.openBuffer(BUFFER_ORDER[nextIndex])
+}
+
 function clampMapView() {
   mapZoom.value = Math.max(0.45, Math.min(3.2, mapZoom.value))
 }
@@ -234,6 +244,13 @@ useEventListener(
       return
     }
 
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      cycleBuffer(e.ctrlKey || e.shiftKey ? -1 : 1)
+      return
+    }
+
     const k = e.key.toLowerCase()
     if (k === settings.keys.pinnedBuffer) {
       e.preventDefault()
@@ -289,23 +306,22 @@ useEventListener(
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="buffer">
-      <div v-if="isOpen" class="buffer-backdrop" @click.self="graphStore.closeBuffer()">
-        <div class="buffer-shell">
-          <div class="buffer-head">
-            <div class="buffer-tabs">
-              <button :class="['tab-btn', isPinnedBuffer ? 'active' : '']" @click="graphStore.openBuffer('pinned')">
-                <Pin :size="14" /> Pinned
-              </button>
-              <button :class="['tab-btn', isMapBuffer ? 'active' : '']" @click="graphStore.openBuffer('map')">
-                <Layers3 :size="14" /> Map
-              </button>
-            </div>
-            <button class="close-btn" @click="graphStore.closeBuffer()" aria-label="Close"><X :size="15" /></button>
-          </div>
+  <OverlayShell :open="isOpen" @close="graphStore.closeBuffer()">
+    <template #title>
+      <div class="buffer-tabs">
+        <button :class="['tab-btn', isPinnedBuffer ? 'active' : '']" @click="graphStore.openBuffer('pinned')">
+          <Pin :size="14" /> Pinned
+        </button>
+        <button :class="['tab-btn', isMapBuffer ? 'active' : '']" @click="graphStore.openBuffer('map')">
+          <Layers3 :size="14" /> Map
+        </button>
+      </div>
+    </template>
+    <template #actions>
+      <button class="close-btn" @click="graphStore.closeBuffer()" aria-label="Close"><X :size="15" /></button>
+    </template>
 
-          <div v-if="isPinnedBuffer" class="buffer-body">
+    <div v-if="isPinnedBuffer" class="buffer-body">
             <div class="buffer-title">Pinned Nodes</div>
             <div v-if="graphStore.pinnedNodes.length === 0" class="empty">
               No pinned nodes yet. Select node and press {{ settings.keys.pinNode.toUpperCase() }}.
@@ -359,9 +375,9 @@ useEventListener(
                 </article>
               </div>
             </div>
-          </div>
+    </div>
 
-          <div v-else-if="isMapBuffer" class="buffer-body">
+    <div v-else-if="isMapBuffer" class="buffer-body">
             <div class="buffer-title">Quick Map</div>
             <div
               class="map-wrap"
@@ -425,46 +441,11 @@ useEventListener(
                 {{ mapStats.nodes }} nodes · {{ mapStats.edges }} links · {{ mapStats.pinned }} pinned
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+    </div>
+  </OverlayShell>
 </template>
 
 <style scoped>
-.buffer-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-buffer-modal);
-  background: rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.buffer-shell {
-  width: min(1100px, 100%);
-  height: min(86vh, 860px);
-  background: var(--app-overlay-bg);
-  border: 1px solid var(--app-overlay-border);
-  border-radius: 14px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.buffer-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
 .buffer-tabs {
   display: flex;
   gap: 8px;
@@ -812,13 +793,4 @@ useEventListener(
   }
 }
 
-.buffer-enter-active,
-.buffer-leave-active {
-  transition: opacity 0.16s ease;
-}
-
-.buffer-enter-from,
-.buffer-leave-to {
-  opacity: 0;
-}
 </style>

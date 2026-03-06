@@ -1,17 +1,22 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ConnectionLayer, Layer, Node, NoteType, RelationKind, WorldConfig } from '@/bindings'
+import type { ConnectionLayer, Layer, Node, NodeProgress, NoteType, RelationKind, ReviewEvent, SchedulerDescriptor, WorldConfig } from '@/bindings'
 import { useTauRPC } from '@/composables/useTauRPC'
+import { useSettings } from '@/composables/useSettings'
 
 export type BufferId = 'none' | 'pinned' | 'map'
 const CONNECTION_LAYER_SELECTION_KEY = 'concept:connection-layer-selection'
 
 export const useGraphStore = defineStore('graph', () => {
+  const settings = useSettings()
   const layers = ref<Layer[]>([])
   const activeLayerId = ref<string | null>(null)
   const nodes = ref<Node[]>([])
   const selectedNodeId = ref<string | null>(null)
   const noteTypes = ref<NoteType[]>([])
+  const nodeProgress = ref<NodeProgress[]>([])
+  const schedulerAlgorithms = ref<SchedulerDescriptor[]>([])
+  const reviewEvents = ref<ReviewEvent[]>([])
   const worldConfig = ref<WorldConfig | null>(null)
   const relationKinds = ref<RelationKind[]>([])
   const connectionLayers = ref<ConnectionLayer[]>([])
@@ -20,6 +25,7 @@ export const useGraphStore = defineStore('graph', () => {
   const centeredNodePanel = ref(false)
   const pinnedNodeIds = ref<string[]>([])
   const activeBuffer = ref<BufferId>('none')
+  const progressOverlayOpen = ref(false)
   const focusVersion = ref(0)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -31,6 +37,16 @@ export const useGraphStore = defineStore('graph', () => {
     const set = new Set(pinnedNodeIds.value)
     return nodes.value.filter(n => set.has(n.id))
   })
+  const dueNodes = computed(() =>
+    nodes.value.filter(n => {
+      if (n.progress_status === 'mastered') {
+        return n.progress_next_review_at ? Number(n.progress_next_review_at) <= Date.now() / 1000 : false
+      }
+      if (n.progress_status === 'new') return true
+      if (!n.progress_next_review_at) return true
+      return Number(n.progress_next_review_at) <= Date.now() / 1000
+    })
+  )
 
   function selectNode(id: string | null) {
     selectedNodeId.value = id
@@ -81,6 +97,18 @@ export const useGraphStore = defineStore('graph', () => {
     activeBuffer.value = activeBuffer.value === buffer ? 'none' : buffer
   }
 
+  function openProgressOverlay() {
+    progressOverlayOpen.value = true
+  }
+
+  function closeProgressOverlay() {
+    progressOverlayOpen.value = false
+  }
+
+  function toggleProgressOverlay() {
+    progressOverlayOpen.value = !progressOverlayOpen.value
+  }
+
   async function loadLayers() {
     isLoading.value = true
     try {
@@ -111,6 +139,33 @@ export const useGraphStore = defineStore('graph', () => {
   async function loadNoteTypes() {
     try {
       noteTypes.value = await useTauRPC().get_note_types()
+    } catch (e) {
+      error.value = String(e)
+    }
+  }
+
+  async function loadNodeProgress() {
+    try {
+      nodeProgress.value = await useTauRPC().get_node_progress()
+    } catch (e) {
+      error.value = String(e)
+    }
+  }
+
+  async function loadSchedulerAlgorithms() {
+    try {
+      schedulerAlgorithms.value = await useTauRPC().get_scheduler_algorithms()
+      if (!schedulerAlgorithms.value.some(x => x.key === settings.learning.defaultSchedulerKey) && schedulerAlgorithms.value[0]) {
+        settings.setDefaultSchedulerKey(schedulerAlgorithms.value[0].key)
+      }
+    } catch (e) {
+      error.value = String(e)
+    }
+  }
+
+  async function loadReviewEvents() {
+    try {
+      reviewEvents.value = await useTauRPC().get_review_events()
     } catch (e) {
       error.value = String(e)
     }
@@ -217,12 +272,39 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
+  async function setNodeProgressStatus(nodeId: string, status: string) {
+    try {
+      const updated = await useTauRPC().set_node_progress_status(nodeId, status)
+      const idx = nodes.value.findIndex(n => n.id === nodeId)
+      if (idx !== -1) nodes.value[idx] = updated
+      await loadNodeProgress()
+      await loadReviewEvents()
+    } catch (e) {
+      error.value = String(e)
+    }
+  }
+
+  async function reviewNode(nodeId: string, grade: string, schedulerKey: string | null = null) {
+    try {
+      const updated = await useTauRPC().review_node(nodeId, grade, schedulerKey ?? settings.learning.defaultSchedulerKey)
+      const idx = nodes.value.findIndex(n => n.id === nodeId)
+      if (idx !== -1) nodes.value[idx] = updated
+      await loadNodeProgress()
+      await loadReviewEvents()
+    } catch (e) {
+      error.value = String(e)
+    }
+  }
+
   async function initialize() {
     await useTauRPC().seed_sample_data()
     await loadWorldConfig()
     await loadRelationKinds()
     await loadConnectionLayers()
     await loadNoteTypes()
+    await loadSchedulerAlgorithms()
+    await loadNodeProgress()
+    await loadReviewEvents()
     await loadLayers()
     if (layers.value[0]) await loadNodes(layers.value[0].id)
   }
@@ -238,6 +320,9 @@ export const useGraphStore = defineStore('graph', () => {
       await loadRelationKinds()
       await loadConnectionLayers()
       await loadNoteTypes()
+      await loadSchedulerAlgorithms()
+      await loadNodeProgress()
+      await loadReviewEvents()
       await loadLayers()
       if (layers.value[0]) await loadNodes(layers.value[0].id)
     } catch (e) {
@@ -252,6 +337,9 @@ export const useGraphStore = defineStore('graph', () => {
     activeLayerId,
     nodes,
     noteTypes,
+    nodeProgress,
+    schedulerAlgorithms,
+    reviewEvents,
     worldConfig,
     relationKinds,
     connectionLayers,
@@ -261,11 +349,16 @@ export const useGraphStore = defineStore('graph', () => {
     pinnedNodeIds,
     pinnedNodes,
     activeBuffer,
+    progressOverlayOpen,
     selectedNode,
+    dueNodes,
     isLoading,
     error,
     loadLayers,
     loadNoteTypes,
+    loadSchedulerAlgorithms,
+    loadNodeProgress,
+    loadReviewEvents,
     loadWorldConfig,
     loadRelationKinds,
     loadConnectionLayers,
@@ -273,6 +366,8 @@ export const useGraphStore = defineStore('graph', () => {
     markLearned,
     updateNodePosition,
     setNodeNoteType,
+    setNodeProgressStatus,
+    reviewNode,
     selectNode,
     toggleCenteredNodePanel,
     isNodePinned,
@@ -282,6 +377,9 @@ export const useGraphStore = defineStore('graph', () => {
     closeBuffer,
     openBuffer,
     toggleBuffer,
+    openProgressOverlay,
+    closeProgressOverlay,
+    toggleProgressOverlay,
     toggleConnectionLayer,
     focusVersion,
     requestFocus,

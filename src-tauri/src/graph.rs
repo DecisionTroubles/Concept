@@ -67,6 +67,20 @@ pub struct EdgeRef {
 }
 
 #[taurpc::ipc_type]
+pub struct NodeProgress {
+    pub node_id: String,
+    pub status: String,
+    pub review_count: i32,
+    pub streak: i32,
+    pub last_reviewed_at: Option<String>,
+    pub next_review_at: Option<String>,
+    pub scheduler_key: String,
+    pub scheduler_state: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[taurpc::ipc_type]
 pub struct Node {
     pub id: String,
     pub title: String,
@@ -78,6 +92,13 @@ pub struct Node {
     pub content_data: Option<String>,
     pub tags: Vec<String>,
     pub learned: bool,
+    pub progress_status: String,
+    pub progress_review_count: i32,
+    pub progress_streak: i32,
+    pub progress_last_reviewed_at: Option<String>,
+    pub progress_next_review_at: Option<String>,
+    pub progress_scheduler_key: String,
+    pub progress_scheduler_state: String,
     pub weight: f64,
     pub pos_x: Option<f64>,
     pub pos_y: Option<f64>,
@@ -104,6 +125,8 @@ pub struct NoteType {
     pub id: String,
     pub name: String,
     pub fields: Vec<String>,
+    pub schema_json: String,
+    pub layout_json: String,
     pub is_default: bool,
     pub created_at: String,
 }
@@ -300,6 +323,13 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
         content_data: Option<String>,
         tags_json: String,
         learned: bool,
+        progress_status: String,
+        progress_review_count: i32,
+        progress_streak: i32,
+        progress_last_reviewed_at: Option<String>,
+        progress_next_review_at: Option<String>,
+        progress_scheduler_key: String,
+        progress_scheduler_state: String,
         weight: f64,
         pos_x: Option<f64>,
         pos_y: Option<f64>,
@@ -308,9 +338,18 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
     }
 
     let mut stmt = conn.prepare(
-        "SELECT id, title, layer_id, node_type, note_type_id, note_fields, content_type, content_data,
-                 tags, learned, weight, pos_x, pos_y, pos_z, created_at
+        "SELECT n.id, n.title, n.layer_id, n.node_type, n.note_type_id, n.note_fields, n.content_type, n.content_data,
+                 n.tags, n.learned,
+                 COALESCE(np.status, 'new'),
+                 COALESCE(np.review_count, 0),
+                 COALESCE(np.streak, 0),
+                 np.last_reviewed_at,
+                 np.next_review_at,
+                 COALESCE(np.scheduler_key, 'basic-v1'),
+                 COALESCE(np.scheduler_state, '{}'),
+                 n.weight, n.pos_x, n.pos_y, n.pos_z, n.created_at
          FROM nodes n
+         LEFT JOIN node_progress np ON np.node_id = n.id
          WHERE n.layer_id = ?1
             OR EXISTS (
               SELECT 1
@@ -332,11 +371,18 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
                 content_data: row.get(7)?,
                 tags_json: row.get(8)?,
                 learned: row.get::<_, i32>(9)? != 0,
-                weight: row.get(10)?,
-                pos_x: row.get(11)?,
-                pos_y: row.get(12)?,
-                pos_z: row.get(13)?,
-                created_at: row.get(14)?,
+                progress_status: row.get(10)?,
+                progress_review_count: row.get(11)?,
+                progress_streak: row.get(12)?,
+                progress_last_reviewed_at: row.get(13)?,
+                progress_next_review_at: row.get(14)?,
+                progress_scheduler_key: row.get(15)?,
+                progress_scheduler_state: row.get(16)?,
+                weight: row.get(17)?,
+                pos_x: row.get(18)?,
+                pos_y: row.get(19)?,
+                pos_z: row.get(20)?,
+                created_at: row.get(21)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -358,6 +404,13 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
             content_data: row.content_data,
             tags,
             learned: row.learned,
+            progress_status: row.progress_status,
+            progress_review_count: row.progress_review_count,
+            progress_streak: row.progress_streak,
+            progress_last_reviewed_at: row.progress_last_reviewed_at,
+            progress_next_review_at: row.progress_next_review_at,
+            progress_scheduler_key: row.progress_scheduler_key,
+            progress_scheduler_state: row.progress_scheduler_state,
             weight: row.weight,
             pos_x: row.pos_x,
             pos_y: row.pos_y,
@@ -411,6 +464,14 @@ pub fn insert_node(conn: &Connection, input: CreateNodeInput) -> Result<Node, Ap
         params![id, layer_id, now_ts()],
     );
 
+    let progress_created_at = now_ts();
+    let _ = conn.execute(
+        "INSERT OR IGNORE INTO node_progress
+            (node_id, status, review_count, streak, last_reviewed_at, next_review_at, scheduler_key, scheduler_state, created_at, updated_at)
+         VALUES (?1, 'new', 0, 0, NULL, NULL, 'basic-v1', '{}', ?2, ?2)",
+        params![id, progress_created_at],
+    );
+
     Ok(Node {
         id,
         title,
@@ -422,6 +483,13 @@ pub fn insert_node(conn: &Connection, input: CreateNodeInput) -> Result<Node, Ap
         content_data,
         tags,
         learned: false,
+        progress_status: "new".to_string(),
+        progress_review_count: 0,
+        progress_streak: 0,
+        progress_last_reviewed_at: None,
+        progress_next_review_at: None,
+        progress_scheduler_key: "basic-v1".to_string(),
+        progress_scheduler_state: "{}".to_string(),
         weight,
         pos_x: None,
         pos_y: None,
@@ -440,6 +508,19 @@ pub fn set_learned(conn: &Connection, id: &str, learned: bool) -> Result<Node, A
     if changed == 0 {
         return Err(AppError::NotFound(format!("Node {} not found", id)));
     }
+    let updated_at = now_ts();
+    let status = if learned { "mastered" } else { "new" };
+    let _ = conn.execute(
+        "INSERT INTO node_progress
+            (node_id, status, review_count, streak, last_reviewed_at, next_review_at, scheduler_key, scheduler_state, created_at, updated_at)
+         VALUES (?1, ?2, 0, 0, NULL, NULL, 'basic-v1', '{}', ?3, ?3)
+         ON CONFLICT(node_id) DO UPDATE SET
+            status = excluded.status,
+            scheduler_key = excluded.scheduler_key,
+            scheduler_state = excluded.scheduler_state,
+            updated_at = excluded.updated_at",
+        params![id, status, updated_at],
+    );
     query_single_node(conn, id)
 }
 
@@ -460,7 +541,7 @@ pub fn set_node_position(
     Ok(())
 }
 
-fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
+pub fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
     struct NodeData {
         title: String,
         layer_id: String,
@@ -471,6 +552,13 @@ fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
         content_data: Option<String>,
         tags_json: String,
         learned: bool,
+        progress_status: String,
+        progress_review_count: i32,
+        progress_streak: i32,
+        progress_last_reviewed_at: Option<String>,
+        progress_next_review_at: Option<String>,
+        progress_scheduler_key: String,
+        progress_scheduler_state: String,
         weight: f64,
         pos_x: Option<f64>,
         pos_y: Option<f64>,
@@ -480,9 +568,19 @@ fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
 
     let data = conn
         .query_row(
-            "SELECT title, layer_id, node_type, note_type_id, note_fields, content_type, content_data,
-                    tags, learned, weight, pos_x, pos_y, pos_z, created_at
-             FROM nodes WHERE id = ?1",
+            "SELECT n.title, n.layer_id, n.node_type, n.note_type_id, n.note_fields, n.content_type, n.content_data,
+                    n.tags, n.learned,
+                    COALESCE(np.status, 'new'),
+                    COALESCE(np.review_count, 0),
+                    COALESCE(np.streak, 0),
+                    np.last_reviewed_at,
+                    np.next_review_at,
+                    COALESCE(np.scheduler_key, 'basic-v1'),
+                    COALESCE(np.scheduler_state, '{}'),
+                    n.weight, n.pos_x, n.pos_y, n.pos_z, n.created_at
+             FROM nodes n
+             LEFT JOIN node_progress np ON np.node_id = n.id
+             WHERE n.id = ?1",
             [id],
             |row| {
                 Ok(NodeData {
@@ -495,11 +593,18 @@ fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
                     content_data: row.get(6)?,
                     tags_json: row.get(7)?,
                     learned: row.get::<_, i32>(8)? != 0,
-                    weight: row.get(9)?,
-                    pos_x: row.get(10)?,
-                    pos_y: row.get(11)?,
-                    pos_z: row.get(12)?,
-                    created_at: row.get(13)?,
+                    progress_status: row.get(9)?,
+                    progress_review_count: row.get(10)?,
+                    progress_streak: row.get(11)?,
+                    progress_last_reviewed_at: row.get(12)?,
+                    progress_next_review_at: row.get(13)?,
+                    progress_scheduler_key: row.get(14)?,
+                    progress_scheduler_state: row.get(15)?,
+                    weight: row.get(16)?,
+                    pos_x: row.get(17)?,
+                    pos_y: row.get(18)?,
+                    pos_z: row.get(19)?,
+                    created_at: row.get(20)?,
                 })
             },
         )
@@ -526,6 +631,13 @@ fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> {
         content_data: data.content_data,
         tags,
         learned: data.learned,
+        progress_status: data.progress_status,
+        progress_review_count: data.progress_review_count,
+        progress_streak: data.progress_streak,
+        progress_last_reviewed_at: data.progress_last_reviewed_at,
+        progress_next_review_at: data.progress_next_review_at,
+        progress_scheduler_key: data.progress_scheduler_key,
+        progress_scheduler_state: data.progress_scheduler_state,
         weight: data.weight,
         pos_x: data.pos_x,
         pos_y: data.pos_y,
@@ -637,6 +749,9 @@ pub fn reset_data(conn: &Connection, reseed: bool) -> Result<(), AppError> {
         "DELETE FROM edge_connection_layers;
          DELETE FROM connection_layers;
          DELETE FROM edges;
+         DELETE FROM node_extension_data;
+         DELETE FROM review_events;
+         DELETE FROM node_progress;
          DELETE FROM node_layers;
          DELETE FROM nodes;
          DELETE FROM layers;
@@ -648,6 +763,79 @@ pub fn reset_data(conn: &Connection, reseed: bool) -> Result<(), AppError> {
         seed_sample_data(conn)?;
     }
     Ok(())
+}
+
+pub fn query_node_progress(conn: &Connection) -> Result<Vec<NodeProgress>, AppError> {
+    let mut stmt = conn.prepare(
+        "SELECT node_id, status, review_count, streak, last_reviewed_at, next_review_at, scheduler_key, scheduler_state, created_at, updated_at
+         FROM node_progress
+         ORDER BY updated_at DESC, node_id ASC",
+    )?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(NodeProgress {
+                node_id: row.get(0)?,
+                status: row.get(1)?,
+                review_count: row.get(2)?,
+                streak: row.get(3)?,
+                last_reviewed_at: row.get(4)?,
+                next_review_at: row.get(5)?,
+                scheduler_key: row.get(6)?,
+                scheduler_state: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+pub fn set_node_progress_status(conn: &Connection, node_id: &str, status: &str) -> Result<Node, AppError> {
+    let updated_at = now_ts();
+    let next_review_at = if status == "mastered" {
+        None::<String>
+    } else {
+        Some(updated_at.clone())
+    };
+    let review_increment = matches!(status, "review" | "mastered") as i32;
+    let streak_increment = matches!(status, "review" | "mastered") as i32;
+    conn.execute(
+        "INSERT INTO node_progress
+            (node_id, status, review_count, streak, last_reviewed_at, next_review_at, scheduler_key, scheduler_state, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'basic-v1', '{}', ?7, ?7)
+         ON CONFLICT(node_id) DO UPDATE SET
+            status = excluded.status,
+            review_count = CASE
+                WHEN excluded.review_count > 0 THEN node_progress.review_count + excluded.review_count
+                ELSE node_progress.review_count
+            END,
+            streak = CASE
+                WHEN excluded.status = 'new' THEN 0
+                WHEN excluded.status = 'learning' THEN MAX(node_progress.streak, 0)
+                WHEN excluded.status = 'review' OR excluded.status = 'mastered' THEN node_progress.streak + excluded.streak
+                ELSE node_progress.streak
+            END,
+            last_reviewed_at = excluded.last_reviewed_at,
+            next_review_at = excluded.next_review_at,
+            scheduler_key = excluded.scheduler_key,
+            scheduler_state = excluded.scheduler_state,
+            updated_at = excluded.updated_at",
+        params![
+            node_id,
+            status,
+            review_increment,
+            streak_increment,
+            Some(updated_at.clone()),
+            next_review_at,
+            updated_at
+        ],
+    )?;
+    let learned = status == "mastered";
+    let _ = conn.execute(
+        "UPDATE nodes SET learned = ?1 WHERE id = ?2",
+        params![if learned { 1 } else { 0 }, node_id],
+    );
+    query_single_node(conn, node_id)
 }
 
 fn reconcile_duplicate_layers(conn: &Connection) -> Result<(), AppError> {
@@ -695,7 +883,7 @@ fn reconcile_duplicate_layers(conn: &Connection) -> Result<(), AppError> {
 
 pub fn query_note_types(conn: &Connection) -> Result<Vec<NoteType>, AppError> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, fields, is_default, created_at
+        "SELECT id, name, fields, schema_json, layout_json, is_default, created_at
          FROM note_types
          ORDER BY is_default DESC, name ASC",
     )?;
@@ -707,8 +895,10 @@ pub fn query_note_types(conn: &Connection) -> Result<Vec<NoteType>, AppError> {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 fields,
-                is_default: row.get::<_, i32>(3)? != 0,
-                created_at: row.get(4)?,
+                schema_json: row.get(3)?,
+                layout_json: row.get(4)?,
+                is_default: row.get::<_, i32>(5)? != 0,
+                created_at: row.get(6)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -724,19 +914,23 @@ pub fn insert_note_type(
     let id = Uuid::new_v4().to_string();
     let created_at = now_ts();
     let fields_json = serde_json::to_string(&fields).unwrap_or_else(|_| "[]".to_string());
+    let schema_json = default_note_type_schema_json(name, &fields);
+    let layout_json = default_note_type_layout_json(name, &fields);
     let is_default_i = if is_default { 1 } else { 0 };
     if is_default {
         conn.execute("UPDATE note_types SET is_default = 0", [])?;
     }
     conn.execute(
-        "INSERT INTO note_types (id, name, fields, is_default, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![id, name, fields_json, is_default_i, created_at],
+        "INSERT INTO note_types (id, name, fields, schema_json, layout_json, is_default, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![id, name, fields_json, schema_json, layout_json, is_default_i, created_at],
     )?;
     Ok(NoteType {
         id,
         name: name.to_string(),
         fields,
+        schema_json,
+        layout_json,
         is_default,
         created_at,
     })
@@ -790,4 +984,59 @@ fn ensure_default_note_types(conn: &Connection) -> Result<(), AppError> {
         false,
     )?;
     Ok(())
+}
+
+fn default_note_type_schema_json(name: &str, fields: &[String]) -> String {
+    let defs = fields
+        .iter()
+        .map(|field| {
+            let widget = if field.eq_ignore_ascii_case("example") || field.eq_ignore_ascii_case("extra") {
+                "long_text"
+            } else {
+                "text"
+            };
+            serde_json::json!({
+                "key": field,
+                "label": field,
+                "type": "string",
+                "widget": widget,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    serde_json::json!({
+        "version": 1,
+        "name": name,
+        "fields": defs,
+    })
+    .to_string()
+}
+
+fn default_note_type_layout_json(name: &str, fields: &[String]) -> String {
+    let primary_fields = if fields.is_empty() {
+        vec![serde_json::json!({ "field": "Content" })]
+    } else {
+        fields
+            .iter()
+            .map(|field| serde_json::json!({ "field": field }))
+            .collect::<Vec<_>>()
+    };
+
+    serde_json::json!({
+        "version": 1,
+        "pages": [
+            {
+                "id": "content",
+                "label": format!("{} Content", name),
+                "sections": [
+                    {
+                        "id": "main",
+                        "label": "Main",
+                        "items": primary_fields
+                    }
+                ]
+            }
+        ]
+    })
+    .to_string()
 }

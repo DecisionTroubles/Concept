@@ -8,6 +8,7 @@ export interface Keybindings {
   settings:   string
   openNode:   string
   pinNode:    string
+  progressOverlay: string
   pinnedBuffer: string
   mapBuffer:    string
   graphOrbitLeft: string
@@ -24,6 +25,22 @@ export interface Keybindings {
   flyDown:    string
 }
 
+export interface GraphicsSettings {
+  qualityPreset: 'low' | 'medium' | 'high' | 'custom'
+  bloomEnabled: boolean
+  bloomIntensity: number
+  bloomThreshold: number
+  bloomSmoothing: number
+  vignetteEnabled: boolean
+  vignetteDarkness: number
+  fogDensity: number
+  nodeDetail: number
+}
+
+export interface LearningSettings {
+  defaultSchedulerKey: string
+}
+
 const DEFAULT_KEYBINDINGS: Keybindings = {
   flyMode:    'f',
   graphMode:  'g',
@@ -32,6 +49,7 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
   settings:   't',
   openNode:   'e',
   pinNode:    'p',
+  progressOverlay: 'n',
   pinnedBuffer: 'b',
   mapBuffer:    'm',
   graphOrbitLeft: 'h',
@@ -49,6 +67,63 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
 }
 
 const STORAGE_KEY = 'concept:keybindings'
+const GRAPHICS_STORAGE_KEY = 'concept:graphics-settings'
+const LEARNING_STORAGE_KEY = 'concept:learning-settings'
+
+const GRAPHICS_PRESETS: Record<'low' | 'medium' | 'high', Omit<GraphicsSettings, 'qualityPreset'>> = {
+  low: {
+    bloomEnabled: false,
+    bloomIntensity: 0.35,
+    bloomThreshold: 0.42,
+    bloomSmoothing: 0.24,
+    vignetteEnabled: false,
+    vignetteDarkness: 0.2,
+    fogDensity: 0.01,
+    nodeDetail: 0,
+  },
+  medium: {
+    bloomEnabled: true,
+    bloomIntensity: 0.75,
+    bloomThreshold: 0.28,
+    bloomSmoothing: 0.52,
+    vignetteEnabled: true,
+    vignetteDarkness: 0.42,
+    fogDensity: 0.014,
+    nodeDetail: 1,
+  },
+  high: {
+    bloomEnabled: true,
+    bloomIntensity: 1.05,
+    bloomThreshold: 0.18,
+    bloomSmoothing: 0.68,
+    vignetteEnabled: true,
+    vignetteDarkness: 0.6,
+    fogDensity: 0.018,
+    nodeDetail: 2,
+  },
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+function sanitizeGraphics(input: Partial<GraphicsSettings>): GraphicsSettings {
+  const preset = input.qualityPreset === 'low' || input.qualityPreset === 'high' || input.qualityPreset === 'custom'
+    ? input.qualityPreset
+    : 'medium'
+  const base = preset !== 'custom' ? GRAPHICS_PRESETS[preset] : GRAPHICS_PRESETS.medium
+  return {
+    qualityPreset: preset,
+    bloomEnabled: input.bloomEnabled ?? base.bloomEnabled,
+    bloomIntensity: clamp(input.bloomIntensity ?? base.bloomIntensity, 0, 1.5),
+    bloomThreshold: clamp(input.bloomThreshold ?? base.bloomThreshold, 0, 1),
+    bloomSmoothing: clamp(input.bloomSmoothing ?? base.bloomSmoothing, 0, 1),
+    vignetteEnabled: input.vignetteEnabled ?? base.vignetteEnabled,
+    vignetteDarkness: clamp(input.vignetteDarkness ?? base.vignetteDarkness, 0, 1),
+    fogDensity: clamp(input.fogDensity ?? base.fogDensity, 0, 0.03),
+    nodeDetail: Math.round(clamp(input.nodeDetail ?? base.nodeDetail, 0, 2)),
+  }
+}
 
 function loadFromStorage(): Keybindings {
   try {
@@ -99,11 +174,49 @@ function loadFromStorage(): Keybindings {
   return { ...DEFAULT_KEYBINDINGS }
 }
 
+function loadGraphicsFromStorage(): GraphicsSettings {
+  try {
+    const raw = localStorage.getItem(GRAPHICS_STORAGE_KEY)
+    if (raw) return sanitizeGraphics(JSON.parse(raw) as Partial<GraphicsSettings>)
+  } catch {
+    /* ignore */
+  }
+  return sanitizeGraphics({ qualityPreset: 'medium', ...GRAPHICS_PRESETS.medium })
+}
+
+function loadLearningFromStorage(): LearningSettings {
+  try {
+    const raw = localStorage.getItem(LEARNING_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<LearningSettings>
+      return {
+        defaultSchedulerKey:
+          typeof parsed.defaultSchedulerKey === 'string' && parsed.defaultSchedulerKey.trim().length > 0
+            ? parsed.defaultSchedulerKey
+            : 'basic-v1',
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return { defaultSchedulerKey: 'basic-v1' }
+}
+
 // Module-level singleton — shared across all useSettings() calls
 const keys = reactive<Keybindings>(loadFromStorage())
+const graphics = reactive<GraphicsSettings>(loadGraphicsFromStorage())
+const learning = reactive<LearningSettings>(loadLearningFromStorage())
 
 function saveToStorage() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...keys }))
+}
+
+function saveGraphicsToStorage() {
+  localStorage.setItem(GRAPHICS_STORAGE_KEY, JSON.stringify({ ...graphics }))
+}
+
+function saveLearningToStorage() {
+  localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify({ ...learning }))
 }
 
 export function useSettings() {
@@ -118,5 +231,37 @@ export function useSettings() {
     saveToStorage()
   }
 
-  return { keys, rebind, resetToDefaults }
+  function applyGraphicsPreset(preset: 'low' | 'medium' | 'high') {
+    const next = sanitizeGraphics({ qualityPreset: preset, ...GRAPHICS_PRESETS[preset] })
+    Object.assign(graphics, next)
+    saveGraphicsToStorage()
+  }
+
+  function updateGraphics<K extends keyof GraphicsSettings>(key: K, value: GraphicsSettings[K]) {
+    const next = sanitizeGraphics({ ...graphics, [key]: value, qualityPreset: 'custom' })
+    Object.assign(graphics, next)
+    graphics.qualityPreset = 'custom'
+    saveGraphicsToStorage()
+  }
+
+  function resetGraphicsToDefaults() {
+    applyGraphicsPreset('medium')
+  }
+
+  function setDefaultSchedulerKey(key: string) {
+    learning.defaultSchedulerKey = key
+    saveLearningToStorage()
+  }
+
+  return {
+    keys,
+    graphics,
+    learning,
+    rebind,
+    resetToDefaults,
+    applyGraphicsPreset,
+    updateGraphics,
+    resetGraphicsToDefaults,
+    setDefaultSchedulerKey,
+  }
 }

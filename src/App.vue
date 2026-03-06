@@ -7,10 +7,12 @@ import { useTheme } from '@/composables/useTheme'
 const graphStore = useGraphStore()
 const editorMode = useEditorMode()
 const themeState = useTheme()
+const settings = useSettings()
 
 const GraphSceneModule = appKernel.getModule('GraphScene')
 const LayerPanelModule = appKernel.getModule('LayerPanel')
 const NodeDetailPanelModule = appKernel.getModule('NodeDetailPanel')
+const ProgressOverlayModule = appKernel.getModule('ProgressOverlay')
 const ModeIndicatorModule = appKernel.getModule('ModeIndicator')
 const SettingsPanelModule = appKernel.getModule('SettingsPanel')
 const NodeSearchModule = appKernel.getModule('NodeSearch')
@@ -28,18 +30,20 @@ onMounted(() => graphStore.initialize())
     <!-- Post-processing stack -->
     <EffectComposerPmndrs>
       <BloomPmndrs
-        :intensity="0.9"
-        :luminance-threshold="0.25"
-        :luminance-smoothing="0.6"
+        v-if="settings.graphics.bloomEnabled"
+        :intensity="settings.graphics.bloomIntensity"
+        :luminance-threshold="settings.graphics.bloomThreshold"
+        :luminance-smoothing="settings.graphics.bloomSmoothing"
         :kernel-size="4"
       />
-      <VignettePmndrs :offset="0.45" :darkness="0.55" />
+      <VignettePmndrs v-if="settings.graphics.vignetteEnabled" :offset="0.45" :darkness="settings.graphics.vignetteDarkness" />
     </EffectComposerPmndrs>
   </TresCanvas>
 
   <!-- 2D overlay panels (position: fixed inside each component) -->
   <component :is="LayerPanelModule" />
   <component :is="NodeDetailPanelModule" />
+  <component :is="ProgressOverlayModule" />
   <component :is="ModeIndicatorModule" />
   <component :is="SettingsPanelModule" />
   <component :is="NodeSearchModule" />
