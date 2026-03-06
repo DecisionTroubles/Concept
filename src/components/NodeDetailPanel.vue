@@ -23,6 +23,10 @@ type LayoutSection = {
 type LayoutPage = {
   id: string
   label?: string
+  kind?: 'content' | 'built_in' | 'extension'
+  source?: string
+  slot?: string
+  extension_id?: string
   sections?: LayoutSection[]
 }
 type ViewerPage =
@@ -89,7 +93,9 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
 const contentPages = computed<LayoutPage[]>(() => {
   if (activeNoteType.value) {
     const parsed = parseJson<{ pages?: LayoutPage[] }>(activeNoteType.value.layout_json, {})
-    if (Array.isArray(parsed.pages) && parsed.pages.length > 0) return parsed.pages
+    if (Array.isArray(parsed.pages) && parsed.pages.length > 0) {
+      return parsed.pages.filter(page => (page.kind ?? 'content') === 'content')
+    }
   }
 
   const fallbackFields = Object.keys(node.value?.note_fields ?? {})
@@ -108,6 +114,53 @@ const primaryExtensions = computed(() =>
   appKernel.listNodeWorkspaceExtensions().filter(extension => extension.slot === 'extensions.primary')
 )
 
+const explicitBuiltInPages = computed<ViewerPage[]>(() => {
+  if (!activeNoteType.value) return []
+  const parsed = parseJson<{ pages?: LayoutPage[] }>(activeNoteType.value.layout_json, {})
+  const pages = Array.isArray(parsed.pages) ? parsed.pages : []
+  const builtIns = pages.filter(page => page.kind === 'built_in')
+  return builtIns
+    .map((page) => {
+      const label = page.label || page.id
+      switch (page.source) {
+        case 'connections':
+          return { id: page.id, kind: 'connections' as const, label }
+        case 'learning':
+          return { id: page.id, kind: 'learning' as const, label }
+        case 'history':
+          return { id: page.id, kind: 'history' as const, label }
+        default:
+          return null
+      }
+    })
+    .filter((page): page is ViewerPage => !!page)
+})
+
+const explicitExtensionPages = computed<ViewerPage[]>(() => {
+  if (!activeNoteType.value) return []
+  const parsed = parseJson<{ pages?: LayoutPage[] }>(activeNoteType.value.layout_json, {})
+  const pages = Array.isArray(parsed.pages) ? parsed.pages : []
+  const layoutPages = pages.filter(page => page.kind === 'extension')
+  return layoutPages
+    .map((page) => {
+      const extensionId = page.extension_id || page.source
+      if (!extensionId) return null
+      return {
+        id: page.id,
+        kind: 'extension' as const,
+        label: page.label || page.id,
+        extensionId,
+      }
+    })
+    .filter((page): page is ViewerPage => !!page)
+})
+
+const hasExplicitPageLayout = computed(() => {
+  if (!activeNoteType.value) return false
+  const parsed = parseJson<{ pages?: LayoutPage[] }>(activeNoteType.value.layout_json, {})
+  return Array.isArray(parsed.pages) && parsed.pages.length > 0
+})
+
 const viewerPages = computed<ViewerPage[]>(() => [
   ...contentPages.value.map(page => ({
     id: `content:${page.id}`,
@@ -115,15 +168,21 @@ const viewerPages = computed<ViewerPage[]>(() => [
     label: page.label || page.id,
     pageId: page.id,
   })),
-  { id: 'connections', kind: 'connections' as const, label: 'Connections' },
-  { id: 'learning', kind: 'learning' as const, label: 'Learning' },
-  { id: 'history', kind: 'history' as const, label: 'History' },
-  ...primaryExtensions.value.map(extension => ({
-    id: `extension:${extension.id}`,
-    kind: 'extension' as const,
-    label: extension.title,
-    extensionId: extension.id,
-  })),
+  ...(hasExplicitPageLayout.value
+    ? explicitBuiltInPages.value
+    : [
+        { id: 'connections', kind: 'connections' as const, label: 'Connections' },
+        { id: 'learning', kind: 'learning' as const, label: 'Learning' },
+        { id: 'history', kind: 'history' as const, label: 'History' },
+      ]),
+  ...(hasExplicitPageLayout.value
+    ? explicitExtensionPages.value
+    : primaryExtensions.value.map(extension => ({
+        id: `extension:${extension.id}`,
+        kind: 'extension' as const,
+        label: extension.title,
+        extensionId: extension.id,
+      }))),
 ])
 
 const safePageIndex = computed(() => {

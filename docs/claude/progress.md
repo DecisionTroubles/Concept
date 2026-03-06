@@ -1,58 +1,74 @@
-# Progress Log — 3D Memory Graph Platform
+# Progress Log - 3D Memory Graph Platform
 
 ---
 
-## Session: 2026-02-26
+## Session: 2026-03-06
 
 ### Accomplished
-- Read and digested DESIGN.md (original architecture spec)
-- Confirmed tech stack from package.json and Cargo.toml:
-  - Vue 3 + TypeScript + Pinia + TailwindCSS v4
-  - Tauri v2, pnpm, Vite v7
-  - Rust backend (stub only)
-- Updated DESIGN.md with concrete technology decisions (Three.js, SQLite/rusqlite, strict IPC separation)
-- Created docs/claude/ planning directory
-- Created task_plan.md, findings.md, progress.md
-- Created docs/CLAUDE.md (AI context file)
+- The project is now a working application, not a template baseline.
+- Backend foundation is implemented:
+  - graph/world storage in SQLite
+  - typed Tauri IPC
+  - note types
+  - node progress
+  - review events
+  - scheduler boundary
+  - generic node extension persistence
+- Domain-pack v2 is active as the seed/import format.
+- The bundled Japanese pack now includes:
+  - pack-defined note types
+  - node `note_type_id`
+  - node `note_fields`
+  - authored content pages
+  - authored built-in/extension pages
+- Frontend graph/runtime is implemented:
+  - 3D scene
+  - layer panel
+  - connection layer filtering
+  - search
+  - settings
+  - progress overlay
+  - pinned/map buffers
+- Node UI was reworked:
+  - lightweight side summary panel
+  - centered page-based node viewer
+  - extension pages separated instead of one clumped catch-all page
+- Plugin system is implemented:
+  - core/default plugins
+  - drop-in `user-plugins/`
+  - node workspace extensions
+- Real node extensions exist:
+  - `Node Notes`
+  - `Node Assets`
+- Authoring foundation is implemented:
+  - note type editor
+  - note type duplication
+  - selected-node structured field editor
+  - authoring tab in Settings
 
 ### Current State
-Architecture documentation phase complete. No code written yet. Project is at the template baseline.
+The current architecture is centered on:
+- structured note types
+- dataset/page-driven node viewing
+- backend-owned learning logic
+- plugin-based node extensibility
+
+The application is now past the “basic graph” stage. The main remaining work is refinement and expansion:
+- better authoring UX
+- pack export/import tooling
+- review session flow
+- media/file-backed assets
+- performance and bundle-size work
+
+### Validation
+- `cargo check --manifest-path src-tauri/Cargo.toml`
+- `pnpm vue-tsc --noEmit`
+- `pnpm vite build`
 
 ### Next Steps
-1. Answer open questions in findings.md (force layout location, map DB format)
-2. Begin Phase 1: Rust backend — install rusqlite, define structs, implement CRUD commands
-3. Begin Phase 2 in parallel or after: add Three.js, basic scene setup
-
----
-
-## Session: 2026-03-04
-
-### Accomplished
-- Implemented Rust data layer and typed IPC for layers/nodes/edges/note types
-- Added seeded Japanese domain pack loading and reset/reseed path
-- Implemented 3D graph scene with typed node geometry, edge rendering, camera controls, fly mode, and focus behavior
-- Implemented node detail panel, layer panel, node search modal, settings modal, compass HUD, and buffer overlays
-- Added configurable keybindings with ergonomic defaults (WASD fly + vim-style graph controls)
-- Refactored frontend into a plugin kernel:
-  - module slot override system
-  - plugin bootstrap + user plugin registry
-  - default plugin + example override plugin
-- Implemented theme preset system:
-  - runtime theme switching in Settings
-  - persisted theme selection
-  - CSS-variable based app-level theming
-- Reworked quick map buffer multiple iterations:
-  - viewport-style map navigation (WASD + mouse drag + wheel zoom + reset)
-  - improved label handling and modal overflow behavior
-  - moved map visuals toward cleaner vector style
-- Added documentation guide for user overrides: `docs/OVERRIDES.md`
-
-### Current State
-Project is beyond architecture/template phase and in active implementation. Core backend/frontend loop is functional. Current focus is UI/interaction polish and consistency (especially map UX and theming coverage).
-
-### Next Steps
-1. Continue quick-map UX polish (label readability, spacing policy, viewport behavior tuning)
-2. Finish theme-token coverage across all remaining components
-3. Add targeted tests (store logic, map interaction math, keybinding behavior)
+1. Add pack export/import validation flow.
+2. Improve authoring UX with stronger page composition and richer widgets.
+3. Turn learning into a proper review session product.
+4. Add real media/file handling behind node assets.
 
 ---

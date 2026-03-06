@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import { useTheme } from '@/composables/useTheme'
+import AuthoringPanel from '@/components/authoring/AuthoringPanel.vue'
 
 const settings = useSettings()
 const themeState = useTheme()
@@ -76,7 +77,7 @@ const GRAPH_ACTIONS: Array<{ key: ActionKey; label: string }> = [
 
 const isOpen = ref(false)
 const listeningAction = ref<ActionKey | null>(null)
-const activeTab = ref<'hotkeys' | 'themes' | 'graphics' | 'learning'>('hotkeys')
+const activeTab = ref<'hotkeys' | 'themes' | 'graphics' | 'learning' | 'authoring'>('hotkeys')
 
 function toggle() {
   if (listeningAction.value) return
@@ -229,6 +230,9 @@ useEventListener(
             </button>
             <button class="tab-btn" :class="{ active: activeTab === 'learning' }" @click="activeTab = 'learning'">
               Learning
+            </button>
+            <button class="tab-btn" :class="{ active: activeTab === 'authoring' }" @click="activeTab = 'authoring'">
+              Authoring
             </button>
           </div>
 
@@ -441,7 +445,7 @@ useEventListener(
             </div>
           </div>
 
-          <div class="tab-content" v-else>
+          <div class="tab-content" v-else-if="activeTab === 'learning'">
             <div class="learning-layout">
               <section class="graphics-card">
                 <div class="section-title">Scheduler</div>
@@ -469,6 +473,10 @@ useEventListener(
                 </article>
               </section>
             </div>
+          </div>
+
+          <div class="tab-content" v-else>
+            <AuthoringPanel />
           </div>
         </div>
       </div>

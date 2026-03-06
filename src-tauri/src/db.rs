@@ -93,11 +93,15 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         CREATE TABLE IF NOT EXISTS note_types (
             id         TEXT PRIMARY KEY,
             name       TEXT NOT NULL UNIQUE,
+            world_id   TEXT REFERENCES worlds(id) ON DELETE CASCADE,
+            base_note_type_id TEXT REFERENCES note_types(id) ON DELETE SET NULL,
             fields     TEXT NOT NULL DEFAULT '[]',
             schema_json TEXT NOT NULL DEFAULT '{}',
             layout_json TEXT NOT NULL DEFAULT '{}',
+            metadata   TEXT NOT NULL DEFAULT '{}',
             is_default INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS node_progress (
@@ -219,6 +223,43 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             [],
         )?;
     }
+    if !note_type_cols.iter().any(|c| c == "world_id") {
+        conn.execute(
+            "ALTER TABLE note_types ADD COLUMN world_id TEXT REFERENCES worlds(id) ON DELETE CASCADE",
+            [],
+        )?;
+    }
+    if !note_type_cols.iter().any(|c| c == "base_note_type_id") {
+        conn.execute(
+            "ALTER TABLE note_types ADD COLUMN base_note_type_id TEXT REFERENCES note_types(id) ON DELETE SET NULL",
+            [],
+        )?;
+    }
+    if !note_type_cols.iter().any(|c| c == "metadata") {
+        conn.execute(
+            "ALTER TABLE note_types ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'",
+            [],
+        )?;
+    }
+    if !note_type_cols.iter().any(|c| c == "updated_at") {
+        conn.execute(
+            "ALTER TABLE note_types ADD COLUMN updated_at TEXT NOT NULL DEFAULT '0'",
+            [],
+        )?;
+        conn.execute(
+            "UPDATE note_types SET updated_at = created_at WHERE updated_at = '0'",
+            [],
+        )?;
+    }
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_note_types_world_id ON note_types(world_id)",
+        [],
+    )?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_note_types_base_note_type ON note_types(base_note_type_id)",
+        [],
+    )?;
 
     let mut progress_stmt = conn.prepare("PRAGMA table_info(node_progress)")?;
     let progress_cols = progress_stmt

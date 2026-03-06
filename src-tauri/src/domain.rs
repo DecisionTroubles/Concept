@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::error::AppError;
-use crate::graph::{insert_edge_with_relation, insert_layer, insert_node, CreateNodeInput};
+use crate::graph::{insert_edge_with_relation, insert_layer, insert_node, insert_note_type, CreateNodeInput, NoteTypeInput};
 
 fn now_ts() -> String {
     std::time::SystemTime::now()
@@ -21,6 +21,8 @@ pub struct DomainPackV2 {
     pub version: String,
     pub world: PackWorldV2,
     #[serde(default)]
+    pub note_types: Vec<PackNoteTypeV2>,
+    #[serde(default)]
     pub relation_kinds: Vec<PackRelationKindV2>,
     pub layers: Vec<PackLayerV2>,
     #[serde(default)]
@@ -28,6 +30,24 @@ pub struct DomainPackV2 {
     pub nodes: Vec<PackNodeV2>,
     #[serde(default)]
     pub edges: Vec<PackEdgeV2>,
+}
+
+#[derive(Deserialize)]
+pub struct PackNoteTypeV2 {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub base_note_type_id: Option<String>,
+    #[serde(default)]
+    pub fields: Vec<String>,
+    #[serde(default)]
+    pub schema_json: Value,
+    #[serde(default)]
+    pub layout_json: Value,
+    #[serde(default)]
+    pub metadata: Value,
+    #[serde(default)]
+    pub is_default: bool,
 }
 
 #[derive(Deserialize)]
@@ -79,6 +99,10 @@ pub struct PackNodeV2 {
     pub id: String,
     pub title: String,
     pub node_type: String,
+    #[serde(default)]
+    pub note_type_id: Option<String>,
+    #[serde(default)]
+    pub note_fields: Value,
     pub content_data: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
@@ -191,6 +215,24 @@ fn seed_v2(conn: &Connection, pack: DomainPackV2) -> Result<(), AppError> {
     .unwrap_or_else(|_| "{}".to_string());
     ensure_world(conn, &pack.world.id, &pack.world.name, &world_config_json)?;
 
+    let mut note_type_id_map = std::collections::BTreeMap::<String, String>::new();
+    for note_type in &pack.note_types {
+        let inserted = insert_note_type(
+            conn,
+            NoteTypeInput {
+                name: note_type.name.clone(),
+                world_id: Some(pack.world.id.clone()),
+                base_note_type_id: note_type.base_note_type_id.clone(),
+                fields: note_type.fields.clone(),
+                schema_json: json_text(&note_type.schema_json),
+                layout_json: json_text(&note_type.layout_json),
+                metadata: json_text(&note_type.metadata),
+                is_default: note_type.is_default,
+            },
+        )?;
+        note_type_id_map.insert(note_type.id.clone(), inserted.id);
+    }
+
     for relation in &pack.relation_kinds {
         ensure_relation_kind(
             conn,
@@ -266,8 +308,12 @@ fn seed_v2(conn: &Connection, pack: DomainPackV2) -> Result<(), AppError> {
                 title: node.title.clone(),
                 layer_id: primary_layer.clone(),
                 node_type: node.node_type.clone(),
-                note_type_id: None,
-                note_fields: None,
+                note_type_id: node
+                    .note_type_id
+                    .as_ref()
+                    .and_then(|id| note_type_id_map.get(id).cloned())
+                    .or_else(|| node.note_type_id.clone()),
+                note_fields: serde_json::from_value(node.note_fields.clone()).ok(),
                 content_data: node.content_data.clone(),
                 tags: node.tags.clone(),
                 weight: node.weight,

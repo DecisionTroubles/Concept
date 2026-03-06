@@ -1,213 +1,249 @@
-# UI Specification — 3D Memory Graph Platform
+# UI
 
-## Philosophy
+## Purpose
 
-The UI is a **dark, immersive environment** — not a traditional app with sidebars and navbars. The 3D graph world is the primary surface. Everything else (descriptions, notes, menus) floats over it as contextual overlays that appear when needed and disappear when not.
+The UI is designed around one primary idea:
 
-The user should feel like they are **navigating a space**, not using software.
+- the 3D world is the main surface
 
----
+Everything else exists to support navigation, reading, learning, and authoring without replacing the graph as the center of the experience.
 
-## UI Framework
+## UI Principles
 
-### Choice: shadcn-vue (built on Radix Vue)
+- `World-first`: the graph stays visible and meaningful, not just a launcher for forms
+- `Focused overlays`: major tasks open in clear, bounded windows
+- `Content over inspection`: opened nodes should read like content pages, not settings panels
+- `Consistent shells`: overlays should share framing, spacing, and motion language
+- `Theme-defined visuals`: colors, surfaces, borders, text, and emphasis should come from theme variables, not ad hoc component styling
+- `Override-friendly`: themes and UI modules must remain replaceable through the plugin system
 
-**Recommended over PrimeVue** for the following reasons:
+## Primary Surfaces
 
-| Concern | shadcn-vue | PrimeVue |
-|---------|------------|----------|
-| Dark-first | Yes — dark is the default, not a theme | Dark themes exist but feel secondary |
-| Tailwind integration | Native (components are Tailwind classes) | Parallel system, can conflict |
-| Bundle size | Zero — you copy only what you use | Full library import |
-| Canvas coexistence | No global styles that bleed into Three.js | Has global CSS resets that can interfere |
-| Customizability | Full source ownership, modify anything | Override system, more friction |
-| Aesthetic | Modern, minimal, premium | Heavier, more "enterprise" |
+### 1. 3D World
 
-shadcn-vue components are copied into the project as source (not an npm package), making them fully owned and customizable. Components are built on **Radix Vue** primitives for accessibility.
+The world is the persistent base layer.
 
-Install reference: `https://www.shadcn-vue.com/`
+It is responsible for:
 
----
+- node placement and navigation
+- connection visibility
+- context through spatial grouping
+- immediate recognition of selected, pinned, and progress-marked nodes
 
-## Layout Structure
+The world should never feel visually secondary to the overlays placed on top of it.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│          3D Graph Canvas (Three.js)                 │
-│          — full viewport, always behind —           │
-│                                                     │
-│   ┌─────────────┐              ┌─────────────────┐  │
-│   │ Layer Panel │              │  Node Detail    │  │
-│   │ (floating,  │              │  Panel          │  │
-│   │  left edge) │              │  (floating,     │  │
-│   └─────────────┘              │  right, on      │  │
-│                                │  node click)    │  │
-│                                └─────────────────┘  │
-│   ┌──────────────────────────────────────────────┐  │
-│   │  Status bar / breadcrumb (bottom, minimal)   │  │
-│   └──────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
-```
+### 2. Side Node Summary
 
-### Panels
-All panels are:
-- **Floating** — `position: fixed`, with glassmorphism background (`backdrop-blur` + semi-transparent dark)
-- **Non-blocking** — clicking through the canvas when no panel is focused
-- **Dismissible** — pressing Escape or clicking away closes them
-- **Minimal by default** — expand on hover/click
+The side summary is a compact contextual panel for the selected node.
 
-### Color palette (dark theme)
+It exists for:
 
-```
-Background (canvas bg):  #080b14  — near-black with blue undertone
-Panel bg:                rgba(12, 16, 28, 0.75) + backdrop-blur-md
-Panel border:            rgba(255, 255, 255, 0.06)
-Text primary:            #e8eaf0
-Text secondary:          #7a8099
-Accent (interactive):    #5b8fff  — cool blue
-Learned node:            #3dd68c  — emerald green
-Edge default:            rgba(90, 100, 140, 0.4)
-Edge highlighted:        rgba(91, 143, 255, 0.9)
-Edge learned:            rgba(61, 214, 140, 0.6)
-```
+- title and note type
+- quick status and learning cues
+- immediate actions
+- short connection context
 
----
+It is intentionally not the deep-reading experience.
 
-## 3D Node Visual Language
+### 3. Centered Node Viewer
 
-Nodes are not all the same shape. Their geometry encodes their **type/context**:
+The centered node viewer is the focused reading surface for a node.
 
-| Node Type | Geometry | Rationale |
-|-----------|----------|-----------|
-| Vocabulary / word | Sphere | Smooth, neutral, most common |
-| Grammar point | Octahedron | Angular, structural — grammar is the skeleton |
-| Kanji / character | Box (slightly rounded) | Dense, contained — kanji are building blocks |
-| Concept / abstract | Icosahedron | Complex, multi-faced |
-| Connector / particle | Torus (small) | A ring — particles link things |
-| Root / anchor node | Larger sphere with ring | Prominent, foundational |
+It should behave like:
 
-### Node States (color + material)
+- a buffer-like content window
+- page or slide navigation
+- one page visible at a time
 
-| State | Visual |
-|-------|--------|
-| Unseen | Dark grey, low emissive, ~0.3 opacity |
-| Seen / in-progress | Mid-tone layer color, full opacity |
-| **Learned** | Emerald green (`#3dd68c`), stronger emissive glow |
-| **Reachable next** | Accent blue (`#5b8fff`) pulse animation on connected edges |
-| Selected (clicked) | White-outlined, brightest emissive, info panel opens |
-| Hover | Slight scale-up + brightness increase |
+It should not behave like:
 
-### Node size
-- Scaled by `weight` field: more important/common nodes are slightly larger
-- Min size prevents disappearing; max size prevents dominating the scene
+- a settings inspector
+- a dense property sheet
+- a tab-heavy admin panel
 
----
+### 4. Buffers
 
-## Edge Visual Language
+Buffers are alternate workspaces.
 
-| Edge Type | Style |
-|-----------|-------|
-| Context | Solid thin line, default color |
-| Prerequisite | Dashed or dotted line |
-| Semantic | Thin, slightly transparent |
-| UserDefined | Distinct color (amber) |
+Examples:
 
-### Edge state
-- **Default**: dim, barely visible (`rgba(90, 100, 140, 0.4)`)
-- **Node selected**: edges from that node brighten and show direction arrows
-- **Reachable next**: edges to unlearned connected nodes pulse blue
-- **Fully learned path**: edges between learned nodes turn green-tinted
+- pinned nodes
+- map buffer
+- future review queues or cluster views
 
----
+Buffers are not the same concept as the centered node viewer. They are broader context surfaces and should remain visually distinct from node reading.
 
-## Floating Panels
+### 5. Supporting Overlays
 
-### Node Detail Panel (right side, on click)
-```
-┌───────────────────────────────┐
-│ [Node title]          [×]     │
-│ ─────────────────────────── │
-│ [Content: text / audio / img] │
-│                               │
-│ Tags: [grammar] [N5]          │
-│                               │
-│ Connections:                  │
-│   → Node A  (Context)         │
-│   → Node B  (Prerequisite)    │
-│                               │
-│ [Mark as Learned]             │
-└───────────────────────────────┘
-```
-- Opens on node click
-- `Mark as Learned` button changes node color immediately (optimistic update to Rust backend)
-- After marking learned, connected unlearned edges pulse to guide next steps
+Supporting overlays include:
 
-### Layer Panel (left side, collapsible)
-```
-┌────────────┐
-│ Layers     │
-│ ● Grammar  │  ← active
-│ ○ Kanji    │
-│ ○ Vocab    │
-│            │
-│ [+ New]    │
-└────────────┘
-```
-- Clicking a layer switches the active graph
-- Cross-layer links are shown as faint connectors
+- settings
+- learning/progress window
+- search
+- mode indicators
+- HUD elements
 
-### Minimap (bottom-right, optional)
-- 2D top-down projection of the 3D graph
-- Shows user's current camera focus position
-- Learned nodes shown in green
+These should stay secondary to both the world and the node viewer.
 
-### Quick Map Buffer (implemented)
-- Full-buffer 2D viewport into the graph world (not auto-fit of all nodes)
-- Pan: `W/A/S/D` or mouse drag
-- Zoom: wheel + mapped zoom hotkeys, reset with `0`
-- Click node to focus it in 3D scene
+## Node Viewer Model
 
----
+The node viewer is page-based.
 
-## Camera & Navigation
+Page order should come from note type layout and authored page definitions.
 
-- **Orbit controls**: drag to rotate, scroll to zoom, right-drag to pan
-- **Click node**: camera smoothly animates (lerp) to focus on that node, detail panel opens
-- **Double-click empty space**: deselect, camera relaxes back
-- **Layer transition**: animated fly-through effect when switching layers
-- No hard clip planes — the world feels infinite
+Possible page sources:
 
----
+- note type content pages
+- built-in pages such as `connections`, `learning`, `history`
+- extension pages such as notes, assets, or future AI tools
 
-## Post-Processing (@tresjs/post-processing)
+Important rule:
 
-| Effect | Purpose |
-|--------|---------|
-| Bloom | Glow around emissive nodes (learned, selected, highlighted) |
-| Depth of field (subtle) | Focus on selected node, blur distant ones slightly |
-| Vignette | Darken edges of viewport for immersive feel |
-| FXAA | Anti-aliasing |
+- different tools should remain distinct pages when they represent distinct tasks
 
----
+Examples:
 
-## Typography
+- `Notes` should be its own page
+- `Assets` should be its own page
+- `AI Assistant` should be its own page
 
-- **Font**: `Inter` (or system-ui fallback) — clean, readable at small sizes
-- Panel titles: `text-sm font-semibold tracking-wide uppercase text-secondary`
-- Node labels (3D): rendered as sprites (HTML canvas → texture) or CSS2DObject — white, small, visible from ~medium distance only
+They should not be collapsed into one generic extension catch-all unless a layout explicitly chooses that.
 
----
+## Theme System
 
-## Interaction Summary
+Theme defines the UI globally.
 
-| Action | Result |
-|--------|--------|
-| Click node | Open detail panel, focus camera |
-| Mark as Learned | Node turns green, edges to next nodes pulse |
-| Hover node | Scale up, show label |
-| Click layer | Switch active graph layer |
-| Scroll | Zoom in/out |
-| Drag | Rotate view |
-| Escape | Close panel, deselect |
-| Right-drag | Pan camera |
+That includes:
+
+- background and overlay surfaces
+- text colors
+- borders
+- focus states
+- accent colors
+- interactive control appearance
+- component contrast and emphasis
+- graph-adjacent overlay styling
+
+Components should derive their visuals from theme variables instead of hardcoded colors.
+
+### Theme Scope
+
+A theme is expected to cover:
+
+- app canvas background
+- overlay backgrounds
+- overlay borders
+- primary and secondary text
+- accent color
+- muted and disabled states
+- inputs
+- selects
+- textareas
+- range sliders
+- buttons
+- chips / badges / markers
+
+This is important because incomplete theme coverage creates mismatched UI, especially on native controls.
+
+## User Theme Overrides
+
+Themes are not core-only.
+
+Users should be able to:
+
+- add new themes
+- override existing theme values
+- ship themes through user plugins
+
+That means the UI design must assume:
+
+- theme variables are the contract
+- components must consume those variables consistently
+- new user themes should not require component rewrites
+
+Theme additions and overrides belong in the plugin/override system, not in scattered component-local hacks.
+
+## Plugin and Override UI Contract
+
+The UI is designed to be extensible in two ways:
+
+### Module overrides
+
+Plugins may replace major UI modules such as:
+
+- settings panel
+- buffer overlay
+- node viewer module
+- search surface
+
+### UI extensions
+
+Plugins may add:
+
+- node viewer pages
+- custom panels
+- themes
+
+This means UI design must preserve:
+
+- stable surface boundaries
+- stable slot names
+- stable theme variable contracts
+
+Without those, user overrides become brittle.
+
+## Visual Language
+
+### World
+
+- immersive and legible
+- dark or low-clutter base
+- node emphasis through color, glow, labels, and motion restraint
+- edge styling should communicate relation meaning without dominating the scene
+
+### Overlays
+
+- clear separation from the world
+- readable typography
+- strong information hierarchy
+- bounded, intentional surfaces rather than generic white-box forms
+
+### Node Viewer
+
+- centered, calm, content-forward
+- large readable stage
+- page navigation should feel obvious
+- tools and extensions should feel like dedicated spaces, not appended clutter
+
+## Interaction Rules
+
+- selecting a node should stay lightweight
+- opening a node should transition into focused reading
+- buffer interactions should not be confused with node reading
+- keyboard navigation should respect the active surface
+- theming should remain coherent across base controls and custom components
+
+## Authoring Surface
+
+Authoring currently lives inside Settings, but the UI rule remains:
+
+- authoring is a separate task surface
+
+It should not leak into the node viewer in a way that turns the viewer back into an editor/settings form.
+
+The design direction for authoring is:
+
+- schema-driven editing
+- stronger preview behavior
+- page composition awareness
+- eventual richer widgets for structured fields and media
+
+## UI Boundaries
+
+To keep the system coherent:
+
+- world navigation is not authoring
+- node viewing is not settings
+- buffers are not node pages
+- themes are global styling contracts
+- plugin UI must enter through explicit extension points

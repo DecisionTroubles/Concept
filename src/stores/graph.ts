@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ConnectionLayer, Layer, Node, NodeProgress, NoteType, RelationKind, ReviewEvent, SchedulerDescriptor, WorldConfig } from '@/bindings'
+import type { ConnectionLayer, Layer, Node, NodeProgress, NoteType, NoteTypeInput, RelationKind, ReviewEvent, SchedulerDescriptor, WorldConfig } from '@/bindings'
 import { useTauRPC } from '@/composables/useTauRPC'
 import { useSettings } from '@/composables/useSettings'
 
@@ -272,6 +272,60 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
+  async function createNoteType(input: NoteTypeInput) {
+    try {
+      const created = await useTauRPC().create_note_type(input)
+      noteTypes.value.push(created)
+      noteTypes.value.sort((a, b) => a.name.localeCompare(b.name))
+      return created
+    } catch (e) {
+      error.value = String(e)
+      throw e
+    }
+  }
+
+  async function updateNoteType(id: string, input: NoteTypeInput) {
+    try {
+      const updated = await useTauRPC().update_note_type(id, input)
+      const idx = noteTypes.value.findIndex(n => n.id === id)
+      if (idx !== -1) noteTypes.value[idx] = updated
+      return updated
+    } catch (e) {
+      error.value = String(e)
+      throw e
+    }
+  }
+
+  async function duplicateNoteType(sourceId: string, name: string, worldId: string | null = null) {
+    try {
+      const duplicated = await useTauRPC().duplicate_note_type(sourceId, name, worldId)
+      noteTypes.value.push(duplicated)
+      noteTypes.value.sort((a, b) => a.name.localeCompare(b.name))
+      return duplicated
+    } catch (e) {
+      error.value = String(e)
+      throw e
+    }
+  }
+
+  async function updateNodeContent(
+    nodeId: string,
+    title: string,
+    noteFields: Record<string, string>,
+    contentData: string | null,
+    tags: string[]
+  ) {
+    try {
+      const updated = await useTauRPC().update_node_content(nodeId, title, noteFields, contentData, tags)
+      const idx = nodes.value.findIndex(n => n.id === nodeId)
+      if (idx !== -1) nodes.value[idx] = updated
+      return updated
+    } catch (e) {
+      error.value = String(e)
+      throw e
+    }
+  }
+
   async function setNodeProgressStatus(nodeId: string, status: string) {
     try {
       const updated = await useTauRPC().set_node_progress_status(nodeId, status)
@@ -366,6 +420,10 @@ export const useGraphStore = defineStore('graph', () => {
     markLearned,
     updateNodePosition,
     setNodeNoteType,
+    createNoteType,
+    updateNoteType,
+    duplicateNoteType,
+    updateNodeContent,
     setNodeProgressStatus,
     reviewNode,
     selectNode,

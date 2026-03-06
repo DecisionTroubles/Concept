@@ -12,7 +12,7 @@ use tauri::Manager;
 use tokio::sync::Mutex;
 
 use graph::{
-    ConnectionLayer, CreateNodeInput, Edge, Layer, Node, NodeProgress, NoteType, RelationKind, WorldConfig,
+    ConnectionLayer, CreateNodeInput, Edge, Layer, Node, NodeProgress, NoteType, NoteTypeInput, RelationKind, WorldConfig,
 };
 use extensions::NodeExtensionData;
 use scheduler::{ReviewEvent, SchedulerDescriptor};
@@ -50,6 +50,7 @@ trait GraphApi {
     async fn mark_learned(id: String, learned: bool) -> Result<Node, String>;
     async fn update_node_position(id: String, x: f64, y: f64, z: f64) -> Result<(), String>;
     async fn get_note_types() -> Result<Vec<NoteType>, String>;
+    async fn get_note_type(id: String) -> Result<NoteType, String>;
     async fn get_node_progress() -> Result<Vec<NodeProgress>, String>;
     async fn get_scheduler_algorithms() -> Result<Vec<SchedulerDescriptor>, String>;
     async fn get_review_events() -> Result<Vec<ReviewEvent>, String>;
@@ -62,14 +63,23 @@ trait GraphApi {
         extension_key: String,
         data_json: String,
     ) -> Result<NodeExtensionData, String>;
-    async fn create_note_type(
+    async fn create_note_type(input: NoteTypeInput) -> Result<NoteType, String>;
+    async fn update_note_type(id: String, input: NoteTypeInput) -> Result<NoteType, String>;
+    async fn duplicate_note_type(
+        source_id: String,
         name: String,
-        fields: Vec<String>,
-        is_default: bool,
+        world_id: Option<String>,
     ) -> Result<NoteType, String>;
     async fn set_node_note_type(
         node_id: String,
         note_type_id: Option<String>,
+    ) -> Result<Node, String>;
+    async fn update_node_content(
+        node_id: String,
+        title: String,
+        note_fields: std::collections::BTreeMap<String, String>,
+        content_data: Option<String>,
+        tags: Vec<String>,
     ) -> Result<Node, String>;
     async fn set_node_progress_status(node_id: String, status: String) -> Result<Node, String>;
     async fn review_node(
@@ -150,6 +160,11 @@ impl GraphApi for ApiImpl {
         graph::query_note_types(&conn).map_err(|e| e.to_string())
     }
 
+    async fn get_note_type(self, id: String) -> Result<NoteType, String> {
+        let conn = db().lock().await;
+        graph::query_note_type(&conn, &id).map_err(|e| e.to_string())
+    }
+
     async fn get_node_progress(self) -> Result<Vec<NodeProgress>, String> {
         let conn = db().lock().await;
         graph::query_node_progress(&conn).map_err(|e| e.to_string())
@@ -183,14 +198,24 @@ impl GraphApi for ApiImpl {
         extensions::upsert_node_extension_data(&conn, &node_id, &extension_key, &data_json).map_err(|e| e.to_string())
     }
 
-    async fn create_note_type(
+    async fn create_note_type(self, input: NoteTypeInput) -> Result<NoteType, String> {
+        let conn = db().lock().await;
+        graph::insert_note_type(&conn, input).map_err(|e| e.to_string())
+    }
+
+    async fn update_note_type(self, id: String, input: NoteTypeInput) -> Result<NoteType, String> {
+        let conn = db().lock().await;
+        graph::update_note_type(&conn, &id, input).map_err(|e| e.to_string())
+    }
+
+    async fn duplicate_note_type(
         self,
+        source_id: String,
         name: String,
-        fields: Vec<String>,
-        is_default: bool,
+        world_id: Option<String>,
     ) -> Result<NoteType, String> {
         let conn = db().lock().await;
-        graph::insert_note_type(&conn, &name, fields, is_default).map_err(|e| e.to_string())
+        graph::duplicate_note_type(&conn, &source_id, &name, world_id).map_err(|e| e.to_string())
     }
 
     async fn set_node_note_type(
@@ -200,6 +225,18 @@ impl GraphApi for ApiImpl {
     ) -> Result<Node, String> {
         let conn = db().lock().await;
         graph::set_node_note_type(&conn, &node_id, note_type_id).map_err(|e| e.to_string())
+    }
+
+    async fn update_node_content(
+        self,
+        node_id: String,
+        title: String,
+        note_fields: std::collections::BTreeMap<String, String>,
+        content_data: Option<String>,
+        tags: Vec<String>,
+    ) -> Result<Node, String> {
+        let conn = db().lock().await;
+        graph::update_node_content(&conn, &node_id, title, note_fields, content_data, tags).map_err(|e| e.to_string())
     }
 
     async fn set_node_progress_status(self, node_id: String, status: String) -> Result<Node, String> {

@@ -24,7 +24,9 @@ export type NodeExtensionData = { id: string; node_id: string; extension_key: st
 
 export type NodeProgress = { node_id: string; status: string; review_count: number; streak: number; last_reviewed_at: string | null; next_review_at: string | null; scheduler_key: string; scheduler_state: string; created_at: string; updated_at: string }
 
-export type NoteType = { id: string; name: string; fields: string[]; schema_json: string; layout_json: string; is_default: boolean; created_at: string }
+export type NoteType = { id: string; name: string; world_id: string | null; base_note_type_id: string | null; fields: string[]; schema_json: string; layout_json: string; metadata: string; is_default: boolean; created_at: string; updated_at: string }
+
+export type NoteTypeInput = { name: string; world_id: string | null; base_note_type_id: string | null; fields: string[]; schema_json: string; layout_json: string; metadata: string; is_default: boolean }
 
 export type RelationKind = { id: string; world_id: string; label: string; directed: boolean; default_weight: number; metadata: string; created_at: string }
 
@@ -34,17 +36,19 @@ export type SchedulerDescriptor = { key: string; name: string; description: stri
 
 export type WorldConfig = { id: string; name: string; config_json: string; created_at: string }
 
-const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["name","fields","is_default"],"delete_edge":["id"],"get_connection_layers":[],"get_layers":[],"get_node_extension_data":["node_id","extension_key"],"get_node_progress":[],"get_nodes":["layer_id"],"get_note_types":[],"get_relation_kinds":[],"get_review_events":[],"get_scheduler_algorithms":[],"get_world_config":[],"mark_learned":["id","learned"],"reset_data":["reseed"],"review_node":["node_id","grade","scheduler_key"],"seed_sample_data":[],"set_node_extension_data":["node_id","extension_key","data_json"],"set_node_note_type":["node_id","note_type_id"],"set_node_progress_status":["node_id","status"],"update_node_position":["id","x","y","z"]}' }
+const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["input"],"delete_edge":["id"],"duplicate_note_type":["source_id","name","world_id"],"get_connection_layers":[],"get_layers":[],"get_node_extension_data":["node_id","extension_key"],"get_node_progress":[],"get_nodes":["layer_id"],"get_note_type":["id"],"get_note_types":[],"get_relation_kinds":[],"get_review_events":[],"get_scheduler_algorithms":[],"get_world_config":[],"mark_learned":["id","learned"],"reset_data":["reseed"],"review_node":["node_id","grade","scheduler_key"],"seed_sample_data":[],"set_node_extension_data":["node_id","extension_key","data_json"],"set_node_note_type":["node_id","note_type_id"],"set_node_progress_status":["node_id","status"],"update_node_content":["node_id","title","note_fields","content_data","tags"],"update_node_position":["id","x","y","z"],"update_note_type":["id","input"]}' }
 export type Router = { "": {create_edge: (sourceId: string, targetId: string, edgeType: string) => Promise<Edge>, 
 create_layer: (name: string, displayOrder: number) => Promise<Layer>, 
 create_node: (input: CreateNodeInput) => Promise<Node>, 
-create_note_type: (name: string, fields: string[], isDefault: boolean) => Promise<NoteType>, 
+create_note_type: (input: NoteTypeInput) => Promise<NoteType>, 
 delete_edge: (id: string) => Promise<null>, 
+duplicate_note_type: (sourceId: string, name: string, worldId: string | null) => Promise<NoteType>, 
 get_connection_layers: () => Promise<ConnectionLayer[]>, 
 get_layers: () => Promise<Layer[]>, 
 get_node_extension_data: (nodeId: string, extensionKey: string | null) => Promise<NodeExtensionData[]>, 
 get_node_progress: () => Promise<NodeProgress[]>, 
 get_nodes: (layerId: string) => Promise<Node[]>, 
+get_note_type: (id: string) => Promise<NoteType>, 
 get_note_types: () => Promise<NoteType[]>, 
 get_relation_kinds: () => Promise<RelationKind[]>, 
 get_review_events: () => Promise<ReviewEvent[]>, 
@@ -57,7 +61,9 @@ seed_sample_data: () => Promise<null>,
 set_node_extension_data: (nodeId: string, extensionKey: string, dataJson: string) => Promise<NodeExtensionData>, 
 set_node_note_type: (nodeId: string, noteTypeId: string | null) => Promise<Node>, 
 set_node_progress_status: (nodeId: string, status: string) => Promise<Node>, 
-update_node_position: (id: string, x: number, y: number, z: number) => Promise<null>} };
+update_node_content: (nodeId: string, title: string, noteFields: Partial<{ [key in string]: string }>, contentData: string | null, tags: string[]) => Promise<Node>, 
+update_node_position: (id: string, x: number, y: number, z: number) => Promise<null>, 
+update_note_type: (id: string, input: NoteTypeInput) => Promise<NoteType>} };
 
 
 export const createTauRPCProxy = () => createProxy<Router>(ARGS_MAP)

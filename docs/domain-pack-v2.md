@@ -15,6 +15,7 @@ This document defines the only supported domain pack format.
 {
   "version": "2",
   "world": {},
+  "note_types": [],
   "relation_kinds": [],
   "layers": [],
   "connection_layers": [],
@@ -101,6 +102,8 @@ This document defines the only supported domain pack format.
   "id": "n-1",
   "title": "Topic A",
   "node_type": "concept",
+  "note_type_id": "pack-note-type",
+  "note_fields": { "Front": "Topic A", "Back": "Meaning" },
   "content_data": "optional text",
   "tags": ["tag"],
   "weight": 1.0,
@@ -110,8 +113,55 @@ This document defines the only supported domain pack format.
 }
 ```
 
+- `note_type_id` may reference a pack-defined note type or a stable global base note type.
+- `note_fields` is the primary structured node payload for page-driven viewers.
 - `layer_membership` is optional, but recommended.
 - If omitted, backend assigns the node to a fallback layer.
+
+## Note Types
+
+```json
+{
+  "id": "pack-note-type",
+  "name": "Concept Card",
+  "base_note_type_id": "basic",
+  "fields": ["Front", "Back", "Example"],
+  "schema_json": {
+    "version": 1,
+    "fields": [
+      { "key": "Front", "label": "Front", "type": "string", "widget": "text" },
+      { "key": "Back", "label": "Back", "type": "string", "widget": "long_text" }
+    ]
+  },
+  "layout_json": {
+    "version": 1,
+    "pages": [
+      {
+        "id": "overview",
+        "label": "Overview",
+        "kind": "content",
+        "sections": [
+          {
+            "id": "main",
+            "label": "Main",
+            "items": [{ "field": "Front" }, { "field": "Back" }]
+          }
+        ]
+      },
+      { "id": "connections", "label": "Connections", "kind": "built_in", "source": "connections" },
+      { "id": "notes", "label": "Node Notes", "kind": "extension", "extension_id": "node-notes" }
+    ]
+  },
+  "metadata": {},
+  "is_default": false
+}
+```
+
+- `base_note_type_id` supports global base templates plus pack-local overrides.
+- `schema_json` defines fields and widgets.
+- `layout_json` defines page order for the node viewer.
+- `kind: "built_in"` currently supports `connections`, `learning`, and `history`.
+- `kind: "extension"` renders a specific node extension page by `extension_id`.
 
 ## Edges
 

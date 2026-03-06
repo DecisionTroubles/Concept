@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AuthoringPanel: typeof import('./src/components/authoring/AuthoringPanel.vue')['default']
     Badge: typeof import('./src/components/ui/badge/Badge.vue')['default']
     BufferOverlay: typeof import('./src/components/BufferOverlay.vue')['default']
     Button: typeof import('./src/components/ui/button/Button.vue')['default']

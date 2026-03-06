@@ -1,16 +1,16 @@
 # 3D Memory Graph
 
-A desktop app for learning through a navigable 3D graph of connected knowledge nodes. Designed initially for Japanese language learning but architecturally domain-agnostic.
+Desktop app for learning through a navigable 3D graph of connected knowledge nodes.
 
-Nodes represent learning items such as words, grammar rules, kanji, and concepts. Edges encode context relationships. The user moves through 3D space; proximity and clustering encode meaning.
+The system is domain-agnostic. A world is loaded from a domain pack and rendered as a 3D knowledge map with structured nodes, relation-driven edges, learning progress, and extension pages.
 
-## Tech Stack
+## Stack
 
-- Desktop: Tauri v2 (Rust + WebView2)
-- Frontend: Vue 3 + TypeScript, Pinia, TailwindCSS v4, TresJS (Three.js)
-- Backend: Rust (Tauri command handlers, graph and learning logic)
-- Storage: SQLite via rusqlite
-- IPC: TauRPC (typed, auto-generated TypeScript bindings)
+- Desktop: Tauri v2
+- Frontend: Vue 3 + TypeScript + Pinia + TresJS/Three.js
+- Backend: Rust
+- Storage: SQLite via `rusqlite`
+- IPC: TauRPC
 
 ## Development
 
@@ -19,68 +19,93 @@ pnpm i
 pnpm tauri dev
 ```
 
-Frontend tests:
+Checks:
 
 ```sh
-pnpm test
+cargo check --manifest-path src-tauri/Cargo.toml
+pnpm vue-tsc --noEmit
+pnpm vite build
 ```
 
-Build:
+## Project Structure
 
-```sh
-pnpm tauri build
-```
+- `src/` - Vue frontend
+- `src-tauri/` - Rust backend
+- `domains/` - bundled domain packs
+- `docs/` - design/spec docs
+- `docs/claude/` - findings, progress, and planning notes
+- `user-plugins/` - drop-in user plugins
+- `OVERRIDES.md` - customization/plugin/dataset guide
 
-## Dev Notes
+## Load Your Own 3D World
 
-`src/bindings.ts` is generated and must be committed. If the API changes, run `pnpm tauri dev` and commit the updated file.
+The app currently seeds from a domain pack JSON file.
 
-`vue-devtools` may exit with code `0` shortly after startup. That is expected. The dev script uses `--kill-others-on-fail`, so Vite should only be killed when a process exits non-zero.
+Bundled example:
+- `domains/japanese/pack.json`
 
-## Structure
+To load your own world:
 
-- `src/` — Vue frontend
-- `src-tauri/` — Rust backend
-- `docs/` — architecture and design notes
-- `domains/` — bundled dataset/domain packs
-- `user-plugins/` — drop-in user plugins loaded after core plugins
+1. create `domains/<your-world>/pack.json`
+2. follow `docs/domain-pack-v2.md`
+3. define:
+   - `world`
+   - `note_types`
+   - `relation_kinds`
+   - `layers`
+   - `connection_layers`
+   - `nodes`
+   - `edges`
+4. update the bundled seed path in `src-tauri/src/graph.rs` if you want your pack to be the default seed
+5. reset/reseed app data
 
-## User Plugins
+Important:
+- pack files must be UTF-8 without BOM
+- nodes should use `note_type_id` + `note_fields`
+- page order in the centered node viewer comes from note type `layout_json`
 
-User plugins are auto-loaded from `user-plugins/**/*.ts`, `user-plugins/**/*.js`, and `user-plugins/**/*.mjs`.
+## Update Nodes In-App
+
+Current editing flow:
+
+1. select a node in the 3D world
+2. open `Settings`
+3. go to `Authoring`
+4. use `Selected Node Content`
+
+You can edit:
+- title
+- tags
+- note type
+- fallback content
+- structured note fields from the current note type schema
+
+## Plugins and Overrides
+
+User plugins are auto-loaded from:
+
+- `user-plugins/**/*.ts`
+- `user-plugins/**/*.js`
+- `user-plugins/**/*.mjs`
 
 Supported exports:
 
 ```ts
 export default definePlugin({...})
-```
-
-```ts
 export const plugin = definePlugin({...})
+export const plugins = [definePlugin({...})]
 ```
 
-```ts
-export const plugins = [definePlugin({...}), definePlugin({...})]
-```
+Use plugins to:
+- override frontend module slots
+- add themes
+- add node extension pages
 
-Minimal example:
+See:
+- `OVERRIDES.md`
+- `user-plugins/example.plugin.ts`
 
-```ts
-import { definePlugin } from '@/core/plugin'
+## Notes
 
-export default definePlugin({
-  id: 'user.example',
-  name: 'User Example',
-  nodeWorkspaceExtensions: [
-    {
-      id: 'user.example.notes',
-      title: 'Extra Notes',
-      description: 'Adds a custom node workspace block.',
-      slot: 'extensions.primary',
-      order: 100,
-    },
-  ],
-})
-```
-
-Core plugins load first. User plugins load after them, so a user plugin can override module slots or add node workspace extensions without editing `src/plugins/defaultPlugin.ts`.
+- `src/bindings.ts` is generated and should be committed after IPC/type changes
+- stale dev processes can interfere with startup; fully restart when changing seed/data behavior

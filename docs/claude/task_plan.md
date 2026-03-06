@@ -1,67 +1,89 @@
-# Task Plan — 3D Memory Graph Platform
+# Task Plan - 3D Memory Graph Platform
 
-## Project Summary
-A Tauri v2 + Vue 3 + Three.js + Rust + SQLite desktop app for context-driven knowledge graph learning. Nodes represent learning items; edges encode context relationships. The 3D graph is the primary UI metaphor.
-
-## Status: IMPLEMENTATION PHASE
+## Status
+Implementation phase. Core graph, learning foundation, plugin system, buffers, node viewer, and authoring foundation are implemented.
 
 ---
 
-## Phase 0 — Architecture & Documentation ✅ COMPLETE
-- [x] Write DESIGN.md with concrete tech decisions
-- [x] Create docs/claude/ planning directory
-- [x] Write docs/CLAUDE.md (AI context file)
-- [x] Finalize node/edge schema in findings.md
-- [x] Add override/customization guide (`docs/OVERRIDES.md`)
+## Completed
 
-## Phase 1 — Rust Backend Foundation
-- [x] Set up SQLite with rusqlite in Cargo.toml
-- [x] Define Node, Edge, Layer structs with serde
-- [x] Implement graph CRUD Tauri commands
-- [ ] Basic spaced repetition (SM-2) logic
-- [ ] Unit tests for graph + SR logic
+### Core App
+- [x] Tauri + Vue + Rust + SQLite foundation
+- [x] typed IPC bindings
+- [x] persistent graph/world schema
+- [x] reset/reseed flow
 
-## Phase 2 — Three.js Graph Renderer
-- [x] Add three.js to frontend deps
-- [x] Basic 3D scene: camera, lights, orbit controls
-- [x] Render typed nodes + edges
-- [x] Force-directed layout in 3D
-- [x] Node click → info panel
+### Graph Runtime
+- [x] 3D graph rendering
+- [x] force layout
+- [x] node selection/focus
+- [x] layer panel
+- [x] connection layer filtering
+- [x] search
+- [x] pinned buffer
+- [x] map buffer
 
-## Phase 3 — Layer System
-- [x] Layer switching UI
-- [ ] Cross-layer edge rendering
-- [ ] Depth navigation (drill into sub-layer)
+### Node System
+- [x] side node summary
+- [x] centered page-based node viewer
+- [x] note types with schema + layout
+- [x] structured node fields
+- [x] authored built-in pages
+- [x] authored extension pages
 
-## Phase 4 — Adaptive Learning UI
-- [x] Node state visualization (selected / pinned / learned / neighbor)
-- [x] Recommendation-style highlights (neighbor emphasis + compass)
-- [ ] Review session flow
+### Learning
+- [x] node progress model
+- [x] review events
+- [x] scheduler abstraction
+- [x] progress overlay
+- [x] node learning controls
 
-## Phase 5 — Data & Import
-- [ ] Domain pack format (SQLite DB file)
-- [ ] Japanese starter pack (grammar → kanji layers)
-- [ ] Anki import/export
+### Extensibility
+- [x] frontend plugin kernel
+- [x] core plugin vs user plugin split
+- [x] node extension registry
+- [x] persisted node extension data
+- [x] real `Node Notes`
+- [x] real `Node Assets`
 
-## Phase 6 — Polish
-- [x] Themes / CSS override support (preset registry + runtime switch)
-- [ ] Performance: LOD for large graphs
-- [x] Settings panel (center modal, hotkeys + themes tabs)
-- [x] Buffer overlays (pinned cards/list + quick map)
-
-## Cross-cutting
-- [x] Plugin kernel for frontend module overrides
-- [x] Example plugin entrypoint + user plugin registry
+### Authoring Foundation
+- [x] note type authoring tab
+- [x] note type duplication
+- [x] selected-node structured content editing
+- [x] pack-defined note type import support
 
 ---
 
-## Key Decisions
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| 3D library | Three.js | Lighter, larger graph-rendering ecosystem |
-| Storage | SQLite via rusqlite | Pragmatic, offline, Anki-compat |
-| SR algorithm | Manual mark-as-learned (SM-2 is future) | Simpler, ships first |
-| UI framework | shadcn-vue (Radix Vue) | Dark-first, Tailwind-native, no canvas bleed |
-| Node geometry | Shape encodes type (sphere/octahedron/box/torus) | Visual language without labels |
-| Frontend framework | Vue 3 + Pinia | Already in template |
-| Styling | TailwindCSS v4 | Already in template |
+## Next Major Work
+
+### Pack / Authoring
+- [ ] pack export flow
+- [ ] pack validation diagnostics
+- [ ] richer note type layout authoring
+- [ ] live preview during authoring
+- [ ] richer field widgets
+
+### Learning Product
+- [ ] dedicated review session flow
+- [ ] due queue / answer / reveal / grade loop
+- [ ] analytics by cluster / note type / neighborhood
+
+### Media / Assets
+- [ ] file-backed asset storage
+- [ ] previews / playback
+- [ ] media placement within authored pages
+
+### Runtime / Performance
+- [ ] large-graph performance pass
+- [ ] chunk/code splitting
+- [ ] further camera/navigation refinement
+- [ ] edge readability improvements
+
+---
+
+## Current Decisions
+- Domain packs are JSON-based v2 packs.
+- Note types are reusable templates with schema + layout, not only field lists.
+- Centered node viewing is page-based, not a settings-like tab inspector.
+- Scheduler logic is separated and replaceable.
+- User plugins load after core plugins from a dedicated drop-in folder.

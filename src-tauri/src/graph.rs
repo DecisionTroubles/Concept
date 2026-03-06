@@ -124,11 +124,27 @@ pub struct CreateNodeInput {
 pub struct NoteType {
     pub id: String,
     pub name: String,
+    pub world_id: Option<String>,
+    pub base_note_type_id: Option<String>,
     pub fields: Vec<String>,
     pub schema_json: String,
     pub layout_json: String,
+    pub metadata: String,
     pub is_default: bool,
     pub created_at: String,
+    pub updated_at: String,
+}
+
+#[taurpc::ipc_type]
+pub struct NoteTypeInput {
+    pub name: String,
+    pub world_id: Option<String>,
+    pub base_note_type_id: Option<String>,
+    pub fields: Vec<String>,
+    pub schema_json: String,
+    pub layout_json: String,
+    pub metadata: String,
+    pub is_default: bool,
 }
 
 #[taurpc::ipc_type]
@@ -883,56 +899,172 @@ fn reconcile_duplicate_layers(conn: &Connection) -> Result<(), AppError> {
 
 pub fn query_note_types(conn: &Connection) -> Result<Vec<NoteType>, AppError> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, fields, schema_json, layout_json, is_default, created_at
+        "SELECT id, name, world_id, base_note_type_id, fields, schema_json, layout_json, metadata, is_default, created_at, updated_at
          FROM note_types
-         ORDER BY is_default DESC, name ASC",
+         ORDER BY CASE WHEN world_id IS NULL THEN 0 ELSE 1 END ASC, is_default DESC, name ASC",
     )?;
     let rows = stmt
         .query_map([], |row| {
-            let fields_json: String = row.get(2)?;
+            let fields_json: String = row.get(4)?;
             let fields: Vec<String> = serde_json::from_str(&fields_json).unwrap_or_default();
             Ok(NoteType {
                 id: row.get(0)?,
                 name: row.get(1)?,
+                world_id: row.get(2)?,
+                base_note_type_id: row.get(3)?,
                 fields,
-                schema_json: row.get(3)?,
-                layout_json: row.get(4)?,
-                is_default: row.get::<_, i32>(5)? != 0,
-                created_at: row.get(6)?,
+                schema_json: row.get(5)?,
+                layout_json: row.get(6)?,
+                metadata: row.get(7)?,
+                is_default: row.get::<_, i32>(8)? != 0,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
 }
 
-pub fn insert_note_type(
+fn insert_note_type_with_id(
     conn: &Connection,
-    name: &str,
-    fields: Vec<String>,
-    is_default: bool,
+    id: &str,
+    input: NoteTypeInput,
 ) -> Result<NoteType, AppError> {
-    let id = Uuid::new_v4().to_string();
     let created_at = now_ts();
-    let fields_json = serde_json::to_string(&fields).unwrap_or_else(|_| "[]".to_string());
-    let schema_json = default_note_type_schema_json(name, &fields);
-    let layout_json = default_note_type_layout_json(name, &fields);
-    let is_default_i = if is_default { 1 } else { 0 };
-    if is_default {
-        conn.execute("UPDATE note_types SET is_default = 0", [])?;
+    let updated_at = created_at.clone();
+    let fields_json = serde_json::to_string(&input.fields).unwrap_or_else(|_| "[]".to_string());
+    let schema_json = if input.schema_json.trim().is_empty() {
+        default_note_type_schema_json(&input.name, &input.fields)
+    } else {
+        input.schema_json
+    };
+    let layout_json = if input.layout_json.trim().is_empty() {
+        default_note_type_layout_json(&input.name, &input.fields)
+    } else {
+        input.layout_json
+    };
+    let metadata = if input.metadata.trim().is_empty() {
+        "{}".to_string()
+    } else {
+        input.metadata
+    };
+    let is_default_i = if input.is_default { 1 } else { 0 };
+    if input.is_default {
+        conn.execute("UPDATE note_types SET is_default = 0 WHERE world_id IS ?1", [input.world_id.clone()])?;
     }
     conn.execute(
-        "INSERT INTO note_types (id, name, fields, schema_json, layout_json, is_default, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![id, name, fields_json, schema_json, layout_json, is_default_i, created_at],
+        "INSERT INTO note_types
+            (id, name, world_id, base_note_type_id, fields, schema_json, layout_json, metadata, is_default, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![
+            id,
+            input.name,
+            input.world_id,
+            input.base_note_type_id,
+            fields_json,
+            schema_json,
+            layout_json,
+            metadata,
+            is_default_i,
+            created_at,
+            updated_at
+        ],
     )?;
-    Ok(NoteType {
-        id,
+    query_note_type(conn, id)
+}
+
+pub fn query_note_type(conn: &Connection, id: &str) -> Result<NoteType, AppError> {
+    conn.query_row(
+        "SELECT id, name, world_id, base_note_type_id, fields, schema_json, layout_json, metadata, is_default, created_at, updated_at
+         FROM note_types WHERE id = ?1",
+        [id],
+        |row| {
+            let fields_json: String = row.get(4)?;
+            let fields: Vec<String> = serde_json::from_str(&fields_json).unwrap_or_default();
+            Ok(NoteType {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                world_id: row.get(2)?,
+                base_note_type_id: row.get(3)?,
+                fields,
+                schema_json: row.get(5)?,
+                layout_json: row.get(6)?,
+                metadata: row.get(7)?,
+                is_default: row.get::<_, i32>(8)? != 0,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
+            })
+        },
+    ).map_err(|e| match e {
+        rusqlite::Error::QueryReturnedNoRows => AppError::NotFound(format!("Note type {} not found", id)),
+        other => AppError::Database(other),
+    })
+}
+
+pub fn insert_note_type(conn: &Connection, input: NoteTypeInput) -> Result<NoteType, AppError> {
+    let id = Uuid::new_v4().to_string();
+    insert_note_type_with_id(conn, &id, input)
+}
+
+pub fn update_note_type(conn: &Connection, id: &str, input: NoteTypeInput) -> Result<NoteType, AppError> {
+    let fields_json = serde_json::to_string(&input.fields).unwrap_or_else(|_| "[]".to_string());
+    let schema_json = if input.schema_json.trim().is_empty() {
+        default_note_type_schema_json(&input.name, &input.fields)
+    } else {
+        input.schema_json
+    };
+    let layout_json = if input.layout_json.trim().is_empty() {
+        default_note_type_layout_json(&input.name, &input.fields)
+    } else {
+        input.layout_json
+    };
+    let metadata = if input.metadata.trim().is_empty() {
+        "{}".to_string()
+    } else {
+        input.metadata
+    };
+    if input.is_default {
+        conn.execute("UPDATE note_types SET is_default = 0 WHERE world_id IS ?1", [input.world_id.clone()])?;
+    }
+    let changed = conn.execute(
+        "UPDATE note_types
+         SET name = ?1, world_id = ?2, base_note_type_id = ?3, fields = ?4, schema_json = ?5, layout_json = ?6, metadata = ?7, is_default = ?8, updated_at = ?9
+         WHERE id = ?10",
+        params![
+            input.name,
+            input.world_id,
+            input.base_note_type_id,
+            fields_json,
+            schema_json,
+            layout_json,
+            metadata,
+            if input.is_default { 1 } else { 0 },
+            now_ts(),
+            id
+        ],
+    )?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("Note type {} not found", id)));
+    }
+    query_note_type(conn, id)
+}
+
+pub fn duplicate_note_type(
+    conn: &Connection,
+    source_id: &str,
+    name: &str,
+    world_id: Option<String>,
+) -> Result<NoteType, AppError> {
+    let source = query_note_type(conn, source_id)?;
+    insert_note_type(conn, NoteTypeInput {
         name: name.to_string(),
-        fields,
-        schema_json,
-        layout_json,
-        is_default,
-        created_at,
+        world_id,
+        base_note_type_id: Some(source.id.clone()),
+        fields: source.fields,
+        schema_json: source.schema_json,
+        layout_json: source.layout_json,
+        metadata: source.metadata,
+        is_default: false,
     })
 }
 
@@ -944,6 +1076,32 @@ pub fn set_node_note_type(
     let changed = conn.execute(
         "UPDATE nodes SET note_type_id = ?1 WHERE id = ?2",
         params![note_type_id, node_id],
+    )?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("Node {} not found", node_id)));
+    }
+    query_single_node(conn, node_id)
+}
+
+pub fn update_node_content(
+    conn: &Connection,
+    node_id: &str,
+    title: String,
+    note_fields: BTreeMap<String, String>,
+    content_data: Option<String>,
+    tags: Vec<String>,
+) -> Result<Node, AppError> {
+    let changed = conn.execute(
+        "UPDATE nodes
+         SET title = ?1, note_fields = ?2, content_data = ?3, tags = ?4
+         WHERE id = ?5",
+        params![
+            title,
+            serde_json::to_string(&note_fields).unwrap_or_else(|_| "{}".to_string()),
+            content_data,
+            serde_json::to_string(&tags).unwrap_or_else(|_| "[]".to_string()),
+            node_id
+        ],
     )?;
     if changed == 0 {
         return Err(AppError::NotFound(format!("Node {} not found", node_id)));
@@ -970,19 +1128,36 @@ fn ensure_default_note_types(conn: &Connection) -> Result<(), AppError> {
         return Ok(());
     }
 
-    insert_note_type(conn, "Basic", vec!["Front".into(), "Back".into()], true)?;
-    insert_note_type(conn, "Cloze", vec!["Text".into(), "Extra".into()], false)?;
-    insert_note_type(
-        conn,
-        "Vocab",
-        vec![
-            "Word".into(),
-            "Reading".into(),
-            "Meaning".into(),
-            "Example".into(),
-        ],
-        false,
-    )?;
+    insert_note_type_with_id(conn, "basic", NoteTypeInput {
+        name: "Basic".into(),
+        world_id: None,
+        base_note_type_id: None,
+        fields: vec!["Front".into(), "Back".into()],
+        schema_json: String::new(),
+        layout_json: String::new(),
+        metadata: "{}".into(),
+        is_default: true,
+    })?;
+    insert_note_type_with_id(conn, "cloze", NoteTypeInput {
+        name: "Cloze".into(),
+        world_id: None,
+        base_note_type_id: None,
+        fields: vec!["Text".into(), "Extra".into()],
+        schema_json: String::new(),
+        layout_json: String::new(),
+        metadata: "{}".into(),
+        is_default: false,
+    })?;
+    insert_note_type_with_id(conn, "vocab", NoteTypeInput {
+        name: "Vocab".into(),
+        world_id: None,
+        base_note_type_id: None,
+        fields: vec!["Word".into(), "Reading".into(), "Meaning".into(), "Example".into()],
+        schema_json: String::new(),
+        layout_json: String::new(),
+        metadata: "{}".into(),
+        is_default: false,
+    })?;
     Ok(())
 }
 
@@ -1027,6 +1202,7 @@ fn default_note_type_layout_json(name: &str, fields: &[String]) -> String {
         "pages": [
             {
                 "id": "content",
+                "kind": "content",
                 "label": format!("{} Content", name),
                 "sections": [
                     {
@@ -1035,6 +1211,24 @@ fn default_note_type_layout_json(name: &str, fields: &[String]) -> String {
                         "items": primary_fields
                     }
                 ]
+            },
+            {
+                "id": "connections",
+                "kind": "built_in",
+                "label": "Connections",
+                "source": "connections"
+            },
+            {
+                "id": "learning",
+                "kind": "built_in",
+                "label": "Learning",
+                "source": "learning"
+            },
+            {
+                "id": "history",
+                "kind": "built_in",
+                "label": "History",
+                "source": "history"
             }
         ]
     })
