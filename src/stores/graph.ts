@@ -1,580 +1,128 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { ConnectionLayer, Layer, Node, NodeProgress, NoteType, NoteTypeInput, RelationKind, ReviewEvent, SchedulerDescriptor, WorldConfig, WorldPackInfo } from '@/bindings'
 import { useTauRPC } from '@/composables/useTauRPC'
 import { useSettings } from '@/composables/useSettings'
+import {
+  createGraphDerivedState,
+  createGraphResourceState,
+  createGraphSessionState,
+  createGraphStatusState,
+  type BufferId,
+} from '@/stores/graph/shared'
+import { createGraphSessionActions } from '@/stores/graph/session'
+import { createGraphResourceActions } from '@/stores/graph/resources'
+import { createGraphWorldActions } from '@/stores/graph/worlds'
 
-export type BufferId = 'none' | 'pinned' | 'map'
-const CONNECTION_LAYER_SELECTION_KEY = 'concept:connection-layer-selection'
-const WORLD_PICKER_SEEN_KEY = 'concept:world-picker-startup-seen'
+export type { BufferId }
 
 export const useGraphStore = defineStore('graph', () => {
   const settings = useSettings()
-  const layers = ref<Layer[]>([])
-  const activeLayerId = ref<string | null>(null)
-  const nodes = ref<Node[]>([])
-  const selectedNodeId = ref<string | null>(null)
-  const noteTypes = ref<NoteType[]>([])
-  const nodeProgress = ref<NodeProgress[]>([])
-  const schedulerAlgorithms = ref<SchedulerDescriptor[]>([])
-  const reviewEvents = ref<ReviewEvent[]>([])
-  const worldConfig = ref<WorldConfig | null>(null)
-  const worldPacks = ref<WorldPackInfo[]>([])
-  const relationKinds = ref<RelationKind[]>([])
-  const connectionLayers = ref<ConnectionLayer[]>([])
-  const activeConnectionLayerIds = ref<string[]>([])
-  const connectionLayerSelectionInitialized = ref(false)
-  const centeredNodePanel = ref(false)
-  const nodeEditorOpen = ref(false)
-  const pinnedNodeIds = ref<string[]>([])
-  const activeBuffer = ref<BufferId>('none')
-  const progressOverlayOpen = ref(false)
-  const worldPickerOpen = ref(false)
-  const focusVersion = ref(0)
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
+  const resources = createGraphResourceState()
+  const session = createGraphSessionState()
+  const status = createGraphStatusState()
+  const derived = createGraphDerivedState(resources.nodes, session.selectedNodeId, session.pinnedNodeIds)
 
-  const selectedNode = computed(() =>
-    selectedNodeId.value ? (nodes.value.find(n => n.id === selectedNodeId.value) ?? null) : null
-  )
-  const pinnedNodes = computed(() => {
-    const set = new Set(pinnedNodeIds.value)
-    return nodes.value.filter(n => set.has(n.id))
+  const sessionActions = createGraphSessionActions(session)
+  const resourceActions = createGraphResourceActions({
+    state: resources,
+    session,
+    status,
+    settings,
   })
-  const dueNodes = computed(() =>
-    nodes.value.filter(n => {
-      if (n.progress_status === 'mastered') {
-        return n.progress_next_review_at ? Number(n.progress_next_review_at) <= Date.now() / 1000 : false
-      }
-      if (n.progress_status === 'new') return true
-      if (!n.progress_next_review_at) return true
-      return Number(n.progress_next_review_at) <= Date.now() / 1000
-    })
-  )
-
-  function selectNode(id: string | null) {
-    selectedNodeId.value = id
-    if (!id) {
-      centeredNodePanel.value = false
-      nodeEditorOpen.value = false
-    }
-  }
-
-  function requestFocus(id: string) {
-    selectedNodeId.value = id
-    focusVersion.value++
-  }
-
-  function toggleCenteredNodePanel() {
-    if (!selectedNodeId.value) return
-    centeredNodePanel.value = !centeredNodePanel.value
-  }
-
-  function openNodeEditor() {
-    if (!selectedNodeId.value) return
-    nodeEditorOpen.value = true
-  }
-
-  function closeNodeEditor() {
-    nodeEditorOpen.value = false
-  }
-
-  function toggleNodeEditor() {
-    if (!selectedNodeId.value) return
-    nodeEditorOpen.value = !nodeEditorOpen.value
-  }
-
-  function isNodePinned(id: string | null | undefined): boolean {
-    if (!id) return false
-    return pinnedNodeIds.value.includes(id)
-  }
-
-  function togglePinNode(id: string) {
-    const idx = pinnedNodeIds.value.indexOf(id)
-    if (idx === -1) pinnedNodeIds.value.push(id)
-    else pinnedNodeIds.value.splice(idx, 1)
-  }
-
-  function unpinNode(id: string) {
-    const idx = pinnedNodeIds.value.indexOf(id)
-    if (idx !== -1) pinnedNodeIds.value.splice(idx, 1)
-  }
-
-  function clearPinnedNodes() {
-    pinnedNodeIds.value = []
-  }
-
-  function closeBuffer() {
-    activeBuffer.value = 'none'
-  }
-
-  function openBuffer(buffer: Exclude<BufferId, 'none'>) {
-    activeBuffer.value = buffer
-  }
-
-  function toggleBuffer(buffer: Exclude<BufferId, 'none'>) {
-    activeBuffer.value = activeBuffer.value === buffer ? 'none' : buffer
-  }
-
-  function openProgressOverlay() {
-    progressOverlayOpen.value = true
-  }
-
-  function closeProgressOverlay() {
-    progressOverlayOpen.value = false
-  }
-
-  function toggleProgressOverlay() {
-    progressOverlayOpen.value = !progressOverlayOpen.value
-  }
-
-  function openWorldPicker() {
-    worldPickerOpen.value = true
-  }
-
-  function closeWorldPicker() {
-    worldPickerOpen.value = false
-    markWorldPickerSeen()
-  }
-
-  function toggleWorldPicker() {
-    worldPickerOpen.value = !worldPickerOpen.value
-    if (!worldPickerOpen.value) markWorldPickerSeen()
-  }
-
-  async function loadLayers() {
-    isLoading.value = true
-    try {
-      layers.value = await useTauRPC().get_layers()
-    } catch (e) {
-      error.value = String(e)
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  async function loadWorldConfig() {
-    try {
-      worldConfig.value = await useTauRPC().get_world_config()
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function loadWorldPacks() {
-    try {
-      worldPacks.value = await useTauRPC().get_world_packs()
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function loadRelationKinds() {
-    try {
-      relationKinds.value = await useTauRPC().get_relation_kinds()
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function loadNoteTypes() {
-    try {
-      noteTypes.value = await useTauRPC().get_note_types()
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function loadNodeProgress() {
-    try {
-      nodeProgress.value = await useTauRPC().get_node_progress()
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function loadSchedulerAlgorithms() {
-    try {
-      schedulerAlgorithms.value = await useTauRPC().get_scheduler_algorithms()
-      if (!schedulerAlgorithms.value.some(x => x.key === settings.learning.defaultSchedulerKey) && schedulerAlgorithms.value[0]) {
-        settings.setDefaultSchedulerKey(schedulerAlgorithms.value[0].key)
-      }
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function loadReviewEvents() {
-    try {
-      reviewEvents.value = await useTauRPC().get_review_events()
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function loadConnectionLayers() {
-    try {
-      connectionLayers.value = await useTauRPC().get_connection_layers()
-      const valid = new Set(connectionLayers.value.map(l => l.id))
-
-      if (!connectionLayerSelectionInitialized.value) {
-        connectionLayerSelectionInitialized.value = true
-        const saved = loadConnectionLayerSelection()
-        if (saved) {
-          activeConnectionLayerIds.value = saved.filter(id => valid.has(id))
-          if (activeConnectionLayerIds.value.length === 0 && connectionLayers.value[0]) {
-            activeConnectionLayerIds.value = [connectionLayers.value[0].id]
-          }
-        } else {
-          // First boot default: only the first connection layer is visible.
-          activeConnectionLayerIds.value = connectionLayers.value[0] ? [connectionLayers.value[0].id] : []
-        }
-      } else {
-        // Preserve explicit user choices, including empty selection.
-        activeConnectionLayerIds.value = activeConnectionLayerIds.value.filter(id => valid.has(id))
-      }
-
-      saveConnectionLayerSelection(activeConnectionLayerIds.value)
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  function toggleConnectionLayer(id: string) {
-    const ids = activeConnectionLayerIds.value
-    const idx = ids.indexOf(id)
-    if (idx === -1) {
-      activeConnectionLayerIds.value = [...ids, id]
-    } else {
-      activeConnectionLayerIds.value = ids.filter(x => x !== id)
-    }
-    saveConnectionLayerSelection(activeConnectionLayerIds.value)
-  }
-
-  function loadConnectionLayerSelection(): string[] | null {
-    try {
-      const raw = localStorage.getItem(CONNECTION_LAYER_SELECTION_KEY)
-      if (!raw) return null
-      const parsed = JSON.parse(raw)
-      if (!Array.isArray(parsed)) return null
-      return parsed.filter((x): x is string => typeof x === 'string')
-    } catch {
-      return null
-    }
-  }
-
-  function saveConnectionLayerSelection(ids: string[]) {
-    try {
-      localStorage.setItem(CONNECTION_LAYER_SELECTION_KEY, JSON.stringify(ids))
-    } catch {
-      // ignore localStorage failures
-    }
-  }
-
-  async function loadNodes(layerId: string) {
-    activeLayerId.value = layerId
-    selectedNodeId.value = null
-    centeredNodePanel.value = false
-    nodeEditorOpen.value = false
-    isLoading.value = true
-    try {
-      nodes.value = await useTauRPC().get_nodes(layerId)
-    } catch (e) {
-      error.value = String(e)
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  async function markLearned(id: string, learned: boolean = true) {
-    try {
-      const updated = await useTauRPC().mark_learned(id, learned)
-      const idx = nodes.value.findIndex(n => n.id === id)
-      if (idx !== -1) nodes.value[idx] = updated
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function updateNodePosition(id: string, x: number, y: number, z: number) {
-    try {
-      await useTauRPC().update_node_position(id, x, y, z)
-    } catch {
-      // Non-critical — don't surface position errors to the user
-    }
-  }
-
-  async function setNodeNoteType(nodeId: string, noteTypeId: string | null) {
-    try {
-      const updated = await useTauRPC().set_node_note_type(nodeId, noteTypeId)
-      const idx = nodes.value.findIndex(n => n.id === nodeId)
-      if (idx !== -1) nodes.value[idx] = updated
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function createNoteType(input: NoteTypeInput) {
-    try {
-      const created = await useTauRPC().create_note_type(input)
-      noteTypes.value.push(created)
-      noteTypes.value.sort((a, b) => a.name.localeCompare(b.name))
-      return created
-    } catch (e) {
-      error.value = String(e)
-      throw e
-    }
-  }
-
-  async function updateNoteType(id: string, input: NoteTypeInput) {
-    try {
-      const updated = await useTauRPC().update_note_type(id, input)
-      const idx = noteTypes.value.findIndex(n => n.id === id)
-      if (idx !== -1) noteTypes.value[idx] = updated
-      return updated
-    } catch (e) {
-      error.value = String(e)
-      throw e
-    }
-  }
-
-  async function duplicateNoteType(sourceId: string, name: string, worldId: string | null = null) {
-    try {
-      const duplicated = await useTauRPC().duplicate_note_type(sourceId, name, worldId)
-      noteTypes.value.push(duplicated)
-      noteTypes.value.sort((a, b) => a.name.localeCompare(b.name))
-      return duplicated
-    } catch (e) {
-      error.value = String(e)
-      throw e
-    }
-  }
-
-  async function updateNodeContent(
-    nodeId: string,
-    title: string,
-    noteFields: Record<string, string>,
-    contentData: string | null,
-    tags: string[]
-  ) {
-    try {
-      const updated = await useTauRPC().update_node_content(nodeId, title, noteFields, contentData, tags)
-      const idx = nodes.value.findIndex(n => n.id === nodeId)
-      if (idx !== -1) nodes.value[idx] = updated
-      return updated
-    } catch (e) {
-      error.value = String(e)
-      throw e
-    }
-  }
-
-  async function setNodeProgressStatus(nodeId: string, status: string) {
-    try {
-      const updated = await useTauRPC().set_node_progress_status(nodeId, status)
-      const idx = nodes.value.findIndex(n => n.id === nodeId)
-      if (idx !== -1) nodes.value[idx] = updated
-      await loadNodeProgress()
-      await loadReviewEvents()
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function reviewNode(nodeId: string, grade: string, schedulerKey: string | null = null) {
-    try {
-      const updated = await useTauRPC().review_node(nodeId, grade, schedulerKey ?? settings.learning.defaultSchedulerKey)
-      const idx = nodes.value.findIndex(n => n.id === nodeId)
-      if (idx !== -1) nodes.value[idx] = updated
-      await loadNodeProgress()
-      await loadReviewEvents()
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function initialize() {
-    await loadWorldPacks()
-    await loadWorldConfig()
-    await loadRelationKinds()
-    await loadConnectionLayers()
-    await loadNoteTypes()
-    await loadSchedulerAlgorithms()
-    await loadNodeProgress()
-    await loadReviewEvents()
-    await loadLayers()
-    if (layers.value[0]) await loadNodes(layers.value[0].id)
-    else nodes.value = []
-    maybeOpenWorldPickerOnStartup()
-  }
+  const worldActions = createGraphWorldActions({
+    resources,
+    session,
+    status,
+    loadWorldPacks: resourceActions.loadWorldPacks,
+    loadWorldConfig: resourceActions.loadWorldConfig,
+    loadRelationKinds: resourceActions.loadRelationKinds,
+    loadConnectionLayers: resourceActions.loadConnectionLayers,
+    loadNoteTypes: resourceActions.loadNoteTypes,
+    loadSchedulerAlgorithms: resourceActions.loadSchedulerAlgorithms,
+    loadNodeProgress: resourceActions.loadNodeProgress,
+    loadReviewEvents: resourceActions.loadReviewEvents,
+    loadLayers: resourceActions.loadLayers,
+    loadNodes: resourceActions.loadNodes,
+    resetInteractiveState: sessionActions.resetInteractiveState,
+  })
 
   async function resetGraphData() {
-    isLoading.value = true
-    try {
-      await useTauRPC().reset_data(true)
-      selectedNodeId.value = null
-      centeredNodePanel.value = false
-      nodeEditorOpen.value = false
-      pinnedNodeIds.value = []
-      await loadWorldPacks()
-      await loadWorldConfig()
-      await loadRelationKinds()
-      await loadConnectionLayers()
-      await loadNoteTypes()
-      await loadSchedulerAlgorithms()
-      await loadNodeProgress()
-      await loadReviewEvents()
-      await loadLayers()
-      if (layers.value[0]) await loadNodes(layers.value[0].id)
-      else nodes.value = []
-    } catch (e) {
-      error.value = String(e)
-    } finally {
-      isLoading.value = false
-    }
+    await worldActions.resetGraphData(() => useTauRPC().reset_data(true))
   }
 
   async function selectWorld(worldId: string) {
-    isLoading.value = true
-    try {
-      await useTauRPC().select_world(worldId)
-      selectedNodeId.value = null
-      centeredNodePanel.value = false
-      nodeEditorOpen.value = false
-      pinnedNodeIds.value = []
-      activeBuffer.value = 'none'
-      worldPickerOpen.value = false
-      markWorldPickerSeen()
-      await loadWorldPacks()
-      await loadWorldConfig()
-      await loadRelationKinds()
-      await loadConnectionLayers()
-      await loadNoteTypes()
-      await loadSchedulerAlgorithms()
-      await loadNodeProgress()
-      await loadReviewEvents()
-      await loadLayers()
-      if (layers.value[0]) await loadNodes(layers.value[0].id)
-      else nodes.value = []
-    } catch (e) {
-      error.value = String(e)
-    } finally {
-      isLoading.value = false
-    }
+    await worldActions.switchWorld((id: string) => useTauRPC().select_world(id), worldId)
   }
 
   async function reloadActiveWorld() {
-    isLoading.value = true
-    try {
-      await useTauRPC().reload_active_world()
-      selectedNodeId.value = null
-      centeredNodePanel.value = false
-      nodeEditorOpen.value = false
-      pinnedNodeIds.value = []
-      activeBuffer.value = 'none'
-      worldPickerOpen.value = false
-      await loadWorldPacks()
-      await loadWorldConfig()
-      await loadRelationKinds()
-      await loadConnectionLayers()
-      await loadNoteTypes()
-      await loadSchedulerAlgorithms()
-      await loadNodeProgress()
-      await loadReviewEvents()
-      await loadLayers()
-      if (layers.value[0]) await loadNodes(layers.value[0].id)
-      else nodes.value = []
-    } catch (e) {
-      error.value = String(e)
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  function maybeOpenWorldPickerOnStartup() {
-    const validCount = worldPacks.value.filter(world => world.valid).length
-    if (validCount <= 1) return
-    try {
-      if (localStorage.getItem(WORLD_PICKER_SEEN_KEY) === '1') return
-    } catch {
-      // ignore storage failures
-    }
-    worldPickerOpen.value = true
-  }
-
-  function markWorldPickerSeen() {
-    try {
-      localStorage.setItem(WORLD_PICKER_SEEN_KEY, '1')
-    } catch {
-      // ignore storage failures
-    }
+    await worldActions.reloadActiveWorld(() => useTauRPC().reload_active_world())
   }
 
   return {
-    layers,
-    activeLayerId,
-    nodes,
-    noteTypes,
-    nodeProgress,
-    schedulerAlgorithms,
-    reviewEvents,
-    worldConfig,
-    worldPacks,
-    relationKinds,
-    connectionLayers,
-    activeConnectionLayerIds,
-    selectedNodeId,
-    centeredNodePanel,
-    nodeEditorOpen,
-    pinnedNodeIds,
-    pinnedNodes,
-    activeBuffer,
-    progressOverlayOpen,
-    worldPickerOpen,
-    selectedNode,
-    dueNodes,
-    isLoading,
-    error,
-    loadLayers,
-    loadNoteTypes,
-    loadSchedulerAlgorithms,
-    loadNodeProgress,
-    loadReviewEvents,
-    loadWorldConfig,
-    loadWorldPacks,
-    loadRelationKinds,
-    loadConnectionLayers,
-    loadNodes,
-    markLearned,
-    updateNodePosition,
-    setNodeNoteType,
-    createNoteType,
-    updateNoteType,
-    duplicateNoteType,
-    updateNodeContent,
-    setNodeProgressStatus,
-    reviewNode,
-    selectNode,
-    toggleCenteredNodePanel,
-    openNodeEditor,
-    closeNodeEditor,
-    toggleNodeEditor,
-    isNodePinned,
-    togglePinNode,
-    unpinNode,
-    clearPinnedNodes,
-    closeBuffer,
-    openBuffer,
-    toggleBuffer,
-    openProgressOverlay,
-    closeProgressOverlay,
-    toggleProgressOverlay,
-    openWorldPicker,
-    closeWorldPicker,
-    toggleWorldPicker,
-    toggleConnectionLayer,
-    focusVersion,
-    requestFocus,
-    initialize,
+    layers: resources.layers,
+    activeLayerId: resources.activeLayerId,
+    nodes: resources.nodes,
+    noteTypes: resources.noteTypes,
+    nodeProgress: resources.nodeProgress,
+    schedulerAlgorithms: resources.schedulerAlgorithms,
+    reviewEvents: resources.reviewEvents,
+    worldConfig: resources.worldConfig,
+    worldPacks: resources.worldPacks,
+    relationKinds: resources.relationKinds,
+    connectionLayers: resources.connectionLayers,
+    activeConnectionLayerIds: resources.activeConnectionLayerIds,
+    selectedNodeId: session.selectedNodeId,
+    centeredNodePanel: session.centeredNodePanel,
+    nodeEditorOpen: session.nodeEditorOpen,
+    pinnedNodeIds: session.pinnedNodeIds,
+    pinnedNodes: derived.pinnedNodes,
+    activeBuffer: session.activeBuffer,
+    progressOverlayOpen: session.progressOverlayOpen,
+    worldPickerOpen: session.worldPickerOpen,
+    selectedNode: derived.selectedNode,
+    dueNodes: derived.dueNodes,
+    isLoading: status.isLoading,
+    error: status.error,
+    loadLayers: resourceActions.loadLayers,
+    loadNoteTypes: resourceActions.loadNoteTypes,
+    loadSchedulerAlgorithms: resourceActions.loadSchedulerAlgorithms,
+    loadNodeProgress: resourceActions.loadNodeProgress,
+    loadReviewEvents: resourceActions.loadReviewEvents,
+    loadWorldConfig: resourceActions.loadWorldConfig,
+    loadWorldPacks: resourceActions.loadWorldPacks,
+    loadRelationKinds: resourceActions.loadRelationKinds,
+    loadConnectionLayers: resourceActions.loadConnectionLayers,
+    loadNodes: resourceActions.loadNodes,
+    markLearned: resourceActions.markLearned,
+    updateNodePosition: resourceActions.updateNodePosition,
+    setNodeNoteType: resourceActions.setNodeNoteType,
+    createNoteType: resourceActions.createNoteType,
+    updateNoteType: resourceActions.updateNoteType,
+    duplicateNoteType: resourceActions.duplicateNoteType,
+    updateNodeContent: resourceActions.updateNodeContent,
+    setNodeProgressStatus: resourceActions.setNodeProgressStatus,
+    reviewNode: resourceActions.reviewNode,
+    selectNode: sessionActions.selectNode,
+    toggleCenteredNodePanel: sessionActions.toggleCenteredNodePanel,
+    openNodeEditor: sessionActions.openNodeEditor,
+    closeNodeEditor: sessionActions.closeNodeEditor,
+    toggleNodeEditor: sessionActions.toggleNodeEditor,
+    isNodePinned: sessionActions.isNodePinned,
+    togglePinNode: sessionActions.togglePinNode,
+    unpinNode: sessionActions.unpinNode,
+    clearPinnedNodes: sessionActions.clearPinnedNodes,
+    closeBuffer: sessionActions.closeBuffer,
+    openBuffer: sessionActions.openBuffer,
+    toggleBuffer: sessionActions.toggleBuffer,
+    openProgressOverlay: sessionActions.openProgressOverlay,
+    closeProgressOverlay: sessionActions.closeProgressOverlay,
+    toggleProgressOverlay: sessionActions.toggleProgressOverlay,
+    openWorldPicker: sessionActions.openWorldPicker,
+    closeWorldPicker: () => sessionActions.closeWorldPicker(worldActions.markWorldPickerSeen),
+    toggleWorldPicker: () => sessionActions.toggleWorldPicker(worldActions.markWorldPickerSeen),
+    toggleConnectionLayer: resourceActions.toggleConnectionLayer,
+    focusVersion: session.focusVersion,
+    requestFocus: sessionActions.requestFocus,
+    initialize: worldActions.initialize,
     resetGraphData,
     selectWorld,
     reloadActiveWorld,
