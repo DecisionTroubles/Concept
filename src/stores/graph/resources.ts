@@ -125,6 +125,12 @@ export function createGraphResourceActions(options: GraphResourceActionsOptions)
     saveConnectionLayerSelection(state.activeConnectionLayerIds.value)
   }
 
+  function setConnectionLayerSelection(ids: string[]) {
+    const valid = new Set(state.connectionLayers.value.map(layer => layer.id))
+    state.activeConnectionLayerIds.value = ids.filter(id => valid.has(id))
+    saveConnectionLayerSelection(state.activeConnectionLayerIds.value)
+  }
+
   async function loadNodes(layerId: string) {
     state.activeLayerId.value = layerId
     session.selectedNodeId.value = null
@@ -281,6 +287,7 @@ export function createGraphResourceActions(options: GraphResourceActionsOptions)
     loadReviewEvents,
     loadConnectionLayers,
     toggleConnectionLayer,
+    setConnectionLayerSelection,
     loadNodes,
     markLearned,
     updateNodePosition,

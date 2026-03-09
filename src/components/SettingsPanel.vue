@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import { useTheme } from '@/composables/useTheme'
 import AuthoringPanel from '@/components/authoring/AuthoringPanel.vue'
@@ -53,6 +53,11 @@ const GLOBAL_ACTIONS: Array<{ key: ActionKey; label: string }> = [
   { key: 'openNode', label: 'Center node panel' },
   { key: 'editNode', label: 'Edit focused node' },
   { key: 'pinNode', label: 'Toggle pin node' },
+  { key: 'focusView', label: 'Toggle focus view' },
+  { key: 'topicLayerPrev', label: 'Previous topic layer' },
+  { key: 'topicLayerNext', label: 'Next topic layer' },
+  { key: 'overlayPrev', label: 'Previous overlay lens' },
+  { key: 'overlayNext', label: 'Next overlay lens' },
   { key: 'progressOverlay', label: 'Progress overview' },
   { key: 'worldPicker', label: 'World picker' },
   { key: 'pinnedBuffer', label: 'Pinned buffer' },
@@ -79,7 +84,9 @@ const GRAPH_ACTIONS: Array<{ key: ActionKey; label: string }> = [
 
 const isOpen = ref(false)
 const listeningAction = ref<ActionKey | null>(null)
-const activeTab = ref<'hotkeys' | 'themes' | 'graphics' | 'learning' | 'worlds' | 'authoring'>('hotkeys')
+const activeTab = ref<'world' | 'hotkeys' | 'themes' | 'graphics' | 'learning' | 'worlds' | 'authoring'>('world')
+const currentWorldId = computed(() => graphStore.worldConfig?.id ?? null)
+const currentWorldSettings = computed(() => settings.getWorldSettings(currentWorldId.value))
 
 function toggle() {
   if (listeningAction.value) return
@@ -116,6 +123,9 @@ function actionAliases(action: ActionKey): string[] {
     const flyKey = displayKey(settings.keys.flyMode)
     if (flyKey.length === 1) return [`${flyKey}${flyKey}`]
   }
+  if (action === 'focusView') {
+    return ['Space']
+  }
   return []
 }
 
@@ -140,6 +150,28 @@ function formatGraphicNumber(value: number, digits: number = 2): string {
 
 function updateDefaultScheduler(event: Event) {
   settings.setDefaultSchedulerKey((event.target as HTMLSelectElement).value)
+}
+
+function updateWorldFocusOverlayMode(event: Event) {
+  const worldId = currentWorldId.value
+  if (!worldId) return
+  settings.updateWorldSettings(worldId, {
+    focusOverlayEntryMode: (event.target as HTMLSelectElement).value as 'inherit' | 'all' | 'none',
+  })
+}
+
+function updateWorldRestoreOverlaySelection(event: Event) {
+  const worldId = currentWorldId.value
+  if (!worldId) return
+  settings.updateWorldSettings(worldId, {
+    restoreOverlaySelectionOnExit: (event.target as HTMLInputElement).checked,
+  })
+}
+
+function resetCurrentWorldSettings() {
+  const worldId = currentWorldId.value
+  if (!worldId) return
+  settings.resetWorldSettings(worldId)
 }
 
 useEventListener(
@@ -229,6 +261,9 @@ useEventListener(
           </div>
 
           <div class="tabs">
+            <button class="tab-btn" :class="{ active: activeTab === 'world' }" @click="activeTab = 'world'">
+              World
+            </button>
             <button class="tab-btn" :class="{ active: activeTab === 'hotkeys' }" @click="activeTab = 'hotkeys'">
               Hotkeys
             </button>
@@ -249,7 +284,49 @@ useEventListener(
             </button>
           </div>
 
-          <div class="tab-content" v-if="activeTab === 'hotkeys'">
+          <div class="tab-content" v-if="activeTab === 'world'">
+            <div class="learning-layout">
+              <section class="graphics-card">
+                <div class="section-title">Active Dataset</div>
+                <div class="world-summary">
+                  <strong>{{ graphStore.worldConfig?.name ?? 'No world loaded' }}</strong>
+                  <span>{{ graphStore.worldConfig?.id ?? 'No active world id' }}</span>
+                </div>
+                <div class="graphics-copy">
+                  These settings are stored per world and only affect the currently loaded dataset.
+                </div>
+                <div class="graphics-actions">
+                  <button class="reset-btn" :disabled="!currentWorldId" @click="resetCurrentWorldSettings">Reset world settings</button>
+                </div>
+              </section>
+
+              <section class="graphics-card">
+                <div class="section-title">Focus View</div>
+                <label class="learning-field">
+                  <span>Overlay selection on entering sublayer view</span>
+                  <select :disabled="!currentWorldId" :value="currentWorldSettings.focusOverlayEntryMode" @change="updateWorldFocusOverlayMode">
+                    <option value="all">Select all overlays</option>
+                    <option value="none">Select no overlays</option>
+                    <option value="inherit">Keep current overlay selection</option>
+                  </select>
+                </label>
+                <label class="toggle-row">
+                  <span>Restore parent overlay selection on exit</span>
+                  <input
+                    type="checkbox"
+                    :disabled="!currentWorldId"
+                    :checked="currentWorldSettings.restoreOverlaySelectionOnExit"
+                    @change="updateWorldRestoreOverlaySelection"
+                  />
+                </label>
+                <div class="graphics-copy">
+                  Focus view keeps its overlay state separate from the parent map. With restore enabled, exiting sublayers returns to the parent selection you had before entering.
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div class="tab-content" v-else-if="activeTab === 'hotkeys'">
             <div class="hotkey-grid">
               <section class="hotkey-card">
                 <div class="section-title">Global</div>

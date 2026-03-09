@@ -1,1350 +1,1126 @@
 {
-    "version":  "2",
-    "world":  {
-                  "id":  "japanese-n5",
-                  "name":  "Japanese N5",
-                  "layout":  {
-                                 "default_mode":  "force3d",
-                                 "anchor_policy":  "sticky"
-                             },
-                  "metadata":  {
-                                   "description":  "Single-layer N5 core map with contextual grouping.",
-                                   "language":  "ja",
-                                   "inter_group_spacing":  26,
-                                   "context_groups":  {
-                                                          "particles":  {
-                                                                            "label":  "Particles",
-                                                                            "style":  {
-                                                                                          "color":  "#ff2f64",
-                                                                                          "emissive":  "#ff2f64",
-                                                                                          "emissive_intensity":  1.45
-                                                                                      },
-                                                                            "layout":  {
-                                                                                           "cohesion":  1.18,
-                                                                                           "intra_spacing":  5.5
-                                                                                       }
-                                                                        },
-                                                          "verbforms":  {
-                                                                            "label":  "Verb Forms",
-                                                                            "style":  {
-                                                                                          "color":  "#31d6ff",
-                                                                                          "emissive":  "#31d6ff",
-                                                                                          "emissive_intensity":  1.42
-                                                                                      },
-                                                                            "layout":  {
-                                                                                           "cohesion":  1.1,
-                                                                                           "intra_spacing":  6.1
-                                                                                       }
-                                                                        },
-                                                          "daily":  {
-                                                                        "label":  "Daily Phrases",
-                                                                        "style":  {
-                                                                                      "color":  "#37ff8f",
-                                                                                      "emissive":  "#37ff8f",
-                                                                                      "emissive_intensity":  1.44
-                                                                                  },
-                                                                        "layout":  {
-                                                                                       "cohesion":  1.08,
-                                                                                       "intra_spacing":  6.3
-                                                                                   }
-                                                                    },
-                                                          "bridge":  {
-                                                                         "label":  "Bridge Concepts",
-                                                                         "style":  {
-                                                                                       "color":  "#ffd84a",
-                                                                                       "emissive":  "#ffd84a",
-                                                                                       "emissive_intensity":  1.48
-                                                                                   },
-                                                                         "layout":  {
-                                                                                        "cohesion":  0.95,
-                                                                                        "intra_spacing":  7.2
-                                                                                    }
-                                                                     }
-                                                      },
-                                   "group_relations":  {
-                                                           "intra":  {
-                                                                         "color":  "#7e8fb3",
-                                                                         "width":  1.7,
-                                                                         "opacity":  0.9
-                                                                     },
-                                                           "bridge":  {
-                                                                          "color":  "#f9bd5c",
-                                                                          "width":  2.15,
-                                                                          "opacity":  0.98,
-                                                                          "dash_size":  0.24,
-                                                                          "gap_size":  0.14
-                                                                      }
-                                                       },
-                                   "visual_defaults":  {
-                                                           "node":  {
-                                                                        "color":  "#6b7ca4",
-                                                                        "emissive":  "#111a40",
-                                                                        "emissive_intensity":  0.7
-                                                                    },
-                                                           "edge":  {
-                                                                        "color":  "#4f5a77",
-                                                                        "width":  1.35
-                                                                    }
-                                                       },
-                                   "node_type_styles":  {
-                                                            "grammar":  {
-                                                                            "color":  "#5b7fe0",
-                                                                            "emissive":  "#1a2580",
-                                                                            "emissive_intensity":  0.8
-                                                                        },
-                                                            "particle":  {
-                                                                             "color":  "#cc5375",
-                                                                             "emissive":  "#3d0f1a",
-                                                                             "emissive_intensity":  0.75
-                                                                         },
-                                                            "vocab":  {
-                                                                          "color":  "#3bbf70",
-                                                                          "emissive":  "#0f3d20",
-                                                                          "emissive_intensity":  0.72
-                                                                      }
-                                                        }
-                               }
+  "version": "2",
+  "world": {
+    "id": "japanese-n5",
+    "name": "Japanese N5",
+    "layout": {
+      "default_mode": "force3d",
+      "anchor_policy": "sticky"
+    },
+    "metadata": {
+      "description": "Single-layer N5 core map with contextual grouping.",
+      "language": "ja",
+      "inter_group_spacing": 26,
+      "context_groups": {
+        "particles": {
+          "label": "Particles",
+          "style": {
+            "color": "#ff2f64",
+            "emissive": "#ff2f64",
+            "emissive_intensity": 1.45
+          },
+          "layout": {
+            "cohesion": 1.18,
+            "intra_spacing": 5.5
+          }
+        },
+        "verbforms": {
+          "label": "Verb Forms",
+          "style": {
+            "color": "#31d6ff",
+            "emissive": "#31d6ff",
+            "emissive_intensity": 1.42
+          },
+          "layout": {
+            "cohesion": 1.1,
+            "intra_spacing": 6.1
+          }
+        },
+        "daily": {
+          "label": "Daily Phrases",
+          "style": {
+            "color": "#37ff8f",
+            "emissive": "#37ff8f",
+            "emissive_intensity": 1.44
+          },
+          "layout": {
+            "cohesion": 1.08,
+            "intra_spacing": 6.3
+          }
+        },
+        "bridge": {
+          "label": "Bridge Concepts",
+          "style": {
+            "color": "#ffd84a",
+            "emissive": "#ffd84a",
+            "emissive_intensity": 1.48
+          },
+          "layout": {
+            "cohesion": 0.95,
+            "intra_spacing": 7.2
+          }
+        }
+      },
+      "group_relations": {
+        "intra": {
+          "color": "#7e8fb3",
+          "width": 1.7,
+          "opacity": 0.9
+        },
+        "bridge": {
+          "color": "#f9bd5c",
+          "width": 2.15,
+          "opacity": 0.98,
+          "dash_size": 0.24,
+          "gap_size": 0.14
+        }
+      },
+      "visual_defaults": {
+        "node": {
+          "color": "#6b7ca4",
+          "emissive": "#111a40",
+          "emissive_intensity": 0.7
+        },
+        "edge": {
+          "color": "#4f5a77",
+          "width": 1.35
+        }
+      },
+      "node_type_styles": {
+        "grammar": {
+          "color": "#5b7fe0",
+          "emissive": "#1a2580",
+          "emissive_intensity": 0.8
+        },
+        "particle": {
+          "color": "#cc5375",
+          "emissive": "#3d0f1a",
+          "emissive_intensity": 0.75
+        },
+        "vocab": {
+          "color": "#3bbf70",
+          "emissive": "#0f3d20",
+          "emissive_intensity": 0.72
+        }
+      }
+    }
+  },
+  "relation_kinds": [
+    {
+      "id": "context",
+      "label": "Context",
+      "directed": false,
+      "default_weight": 1.0,
+      "metadata": {
+        "style": {
+          "color": "#67708d",
+          "width": 1.25
+        }
+      }
+    },
+    {
+      "id": "prerequisite",
+      "label": "Prerequisite",
+      "directed": true,
+      "default_weight": 1.0,
+      "metadata": {
+        "style": {
+          "color": "#5b8fff",
+          "width": 1.6
+        }
+      }
+    },
+    {
+      "id": "semantic",
+      "label": "Semantic",
+      "directed": false,
+      "default_weight": 1.0,
+      "metadata": {
+        "style": {
+          "color": "#8f95aa",
+          "width": 1.15
+        }
+      }
+    },
+    {
+      "id": "userdefined",
+      "label": "UserDefined",
+      "directed": false,
+      "default_weight": 1.0,
+      "metadata": {
+        "style": {
+          "color": "#f59e0b",
+          "width": 1.7
+        }
+      }
+    }
+  ],
+  "layers": [
+    {
+      "id": "core-map",
+      "name": "N5 Core Map",
+      "display_order": 0,
+      "node_filter": {},
+      "edge_filter": {
+        "relation_ids": ["prerequisite", "semantic", "context", "userdefined"]
+      },
+      "metadata": {
+        "node_style": {
+          "color": "#6f86b8",
+          "emissive": "#1a2448",
+          "emissive_intensity": 0.78
+        }
+      }
+    }
+  ],
+  "connection_layers": [
+    {
+      "id": "gradual-links",
+      "name": "Gradual Progression",
+      "display_order": 0,
+      "metadata": {
+        "edge_style": {
+          "color": "#74a2ff",
+          "width": 1.5,
+          "opacity": 0.9
+        }
+      }
+    },
+    {
+      "id": "context-links",
+      "name": "Context Bridges",
+      "display_order": 1,
+      "metadata": {
+        "edge_style": {
+          "color": "#f0ba60",
+          "width": 1.95,
+          "opacity": 0.98,
+          "dash_size": 0.2,
+          "gap_size": 0.12,
+          "animated_flow": false,
+          "flow_speed": 1.0
+        }
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n-wa",
+      "title": "wa",
+      "node_type": "particle",
+      "content_data": "Topic marker.",
+      "tags": ["n5", "particle", "group:particles"],
+      "weight": 1.35,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-particle",
+      "note_fields": {
+        "Term": "wa",
+        "Function": "Topic marker.",
+        "Example": "## Core use\n- wa marks Topic marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi wa gakusei desu.",
+        "Tip": "Compare with nearby particles in the graph to understand the difference.",
+        "Diagram": "/world-assets/jp-particle-map.svg",
+        "DiagramCaption": "Particle position in the sentence and what it highlights."
+      }
+    },
+    {
+      "id": "n-ga",
+      "title": "ga",
+      "node_type": "particle",
+      "content_data": "Subject marker.",
+      "tags": ["n5", "particle", "group:particles"],
+      "weight": 1.3,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-particle",
+      "note_fields": {
+        "Term": "ga",
+        "Function": "Subject marker.",
+        "Example": "## Core use\n- ga marks Subject marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi ga gakusei desu.",
+        "Tip": "Compare with nearby particles in the graph to understand the difference.",
+        "Diagram": "/world-assets/jp-particle-map.svg",
+        "DiagramCaption": "Particle position in the sentence and what it highlights."
+      }
+    },
+    {
+      "id": "n-wo",
+      "title": "wo",
+      "node_type": "particle",
+      "content_data": "Object marker.",
+      "tags": ["n5", "particle", "group:particles"],
+      "weight": 1.2,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-particle",
+      "note_fields": {
+        "Term": "wo",
+        "Function": "Object marker.",
+        "Example": "## Core use\n- wo marks Object marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi wo gakusei desu.",
+        "Tip": "Compare with nearby particles in the graph to understand the difference.",
+        "Diagram": "/world-assets/jp-particle-map.svg",
+        "DiagramCaption": "Particle position in the sentence and what it highlights."
+      }
+    },
+    {
+      "id": "n-ni",
+      "title": "ni",
+      "node_type": "particle",
+      "content_data": "Destination/time marker.",
+      "tags": ["n5", "particle", "group:particles"],
+      "weight": 1.15,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-particle",
+      "note_fields": {
+        "Term": "ni",
+        "Function": "Destination/time marker.",
+        "Example": "## Core use\n- ni marks Destination/time marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi ni gakusei desu.",
+        "Tip": "Compare with nearby particles in the graph to understand the difference.",
+        "Diagram": "/world-assets/jp-particle-map.svg",
+        "DiagramCaption": "Particle position in the sentence and what it highlights."
+      }
+    },
+    {
+      "id": "n-de",
+      "title": "de",
+      "node_type": "particle",
+      "content_data": "Location of action marker.",
+      "tags": ["n5", "particle", "group:particles"],
+      "weight": 1.1,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-particle",
+      "note_fields": {
+        "Term": "de",
+        "Function": "Location of action marker.",
+        "Example": "## Core use\n- de marks Location of action marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi de gakusei desu.",
+        "Tip": "Compare with nearby particles in the graph to understand the difference.",
+        "Diagram": "/world-assets/jp-particle-map.svg",
+        "DiagramCaption": "Particle position in the sentence and what it highlights."
+      }
+    },
+    {
+      "id": "n-masu",
+      "title": "masu-form",
+      "node_type": "grammar",
+      "content_data": "Polite verb form.",
+      "tags": ["n5", "grammar", "group:verbforms", "group:bridge"],
+      "weight": 1.4,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-grammar",
+      "note_fields": {
+        "Pattern": "masu-form",
+        "Meaning": "Polite verb form.",
+        "Example": "Simple usage pattern for masu-form.",
+        "Pitfall": "Check the surrounding context nodes before memorizing in isolation.",
+        "ExampleCode": "masu-form\n# meaning\nPolite verb form.\n# usage\nSimple usage pattern for masu-form.",
+        "Diagram": "/world-assets/jp-grammar-pattern.svg",
+        "DiagramCaption": "Pattern shape, meaning, and common usage direction."
+      }
+    },
+    {
+      "id": "n-te",
+      "title": "te-form",
+      "node_type": "grammar",
+      "content_data": "Connector/request form.",
+      "tags": ["n5", "grammar", "group:verbforms", "group:bridge"],
+      "weight": 1.3,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-grammar",
+      "note_fields": {
+        "Pattern": "te-form",
+        "Meaning": "Connector/request form.",
+        "Example": "Simple usage pattern for te-form.",
+        "Pitfall": "Check the surrounding context nodes before memorizing in isolation.",
+        "ExampleCode": "te-form\n# meaning\nConnector/request form.\n# usage\nSimple usage pattern for te-form.",
+        "Diagram": "/world-assets/jp-grammar-pattern.svg",
+        "DiagramCaption": "Pattern shape, meaning, and common usage direction."
+      }
+    },
+    {
+      "id": "n-nai",
+      "title": "nai-form",
+      "node_type": "grammar",
+      "content_data": "Plain negative form.",
+      "tags": ["n5", "grammar", "group:verbforms"],
+      "weight": 1.15,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-grammar",
+      "note_fields": {
+        "Pattern": "nai-form",
+        "Meaning": "Plain negative form.",
+        "Example": "Simple usage pattern for nai-form.",
+        "Pitfall": "Check the surrounding context nodes before memorizing in isolation.",
+        "ExampleCode": "nai-form\n# meaning\nPlain negative form.\n# usage\nSimple usage pattern for nai-form.",
+        "Diagram": "/world-assets/jp-grammar-pattern.svg",
+        "DiagramCaption": "Pattern shape, meaning, and common usage direction."
+      }
+    },
+    {
+      "id": "n-ta",
+      "title": "ta-form",
+      "node_type": "grammar",
+      "content_data": "Plain past form.",
+      "tags": ["n5", "grammar", "group:verbforms"],
+      "weight": 1.1,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-grammar",
+      "note_fields": {
+        "Pattern": "ta-form",
+        "Meaning": "Plain past form.",
+        "Example": "Simple usage pattern for ta-form.",
+        "Pitfall": "Check the surrounding context nodes before memorizing in isolation.",
+        "ExampleCode": "ta-form\n# meaning\nPlain past form.\n# usage\nSimple usage pattern for ta-form.",
+        "Diagram": "/world-assets/jp-grammar-pattern.svg",
+        "DiagramCaption": "Pattern shape, meaning, and common usage direction."
+      }
+    },
+    {
+      "id": "n-konnichiwa",
+      "title": "konnichiwa",
+      "node_type": "vocab",
+      "content_data": "Daytime greeting.",
+      "tags": ["n5", "expression", "group:daily", "group:bridge"],
+      "weight": 1.1,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-expression",
+      "note_fields": {
+        "Phrase": "konnichiwa",
+        "Meaning": "Daytime greeting.",
+        "When": "## When to use\n- Use **konnichiwa** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+        "Example": "## Example\n- konnichiwa : Daytime greeting.\n- Try opening connected nodes to compare nuance",
+        "Visual": "/world-assets/jp-expression-context.svg",
+        "VisualCaption": "Daily expression floating inside its common context."
+      }
+    },
+    {
+      "id": "n-ohayou",
+      "title": "ohayou",
+      "node_type": "vocab",
+      "content_data": "Morning greeting.",
+      "tags": ["n5", "expression", "group:daily"],
+      "weight": 1.05,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-expression",
+      "note_fields": {
+        "Phrase": "ohayou",
+        "Meaning": "Morning greeting.",
+        "When": "## When to use\n- Use **ohayou** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+        "Example": "## Example\n- ohayou : Morning greeting.\n- Try opening connected nodes to compare nuance",
+        "Visual": "/world-assets/jp-expression-context.svg",
+        "VisualCaption": "Daily expression floating inside its common context."
+      }
+    },
+    {
+      "id": "n-konbanwa",
+      "title": "konbanwa",
+      "node_type": "vocab",
+      "content_data": "Evening greeting.",
+      "tags": ["n5", "expression", "group:daily"],
+      "weight": 1.05,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-expression",
+      "note_fields": {
+        "Phrase": "konbanwa",
+        "Meaning": "Evening greeting.",
+        "When": "## When to use\n- Use **konbanwa** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+        "Example": "## Example\n- konbanwa : Evening greeting.\n- Try opening connected nodes to compare nuance",
+        "Visual": "/world-assets/jp-expression-context.svg",
+        "VisualCaption": "Daily expression floating inside its common context."
+      }
+    },
+    {
+      "id": "n-arigatou",
+      "title": "arigatou",
+      "node_type": "vocab",
+      "content_data": "Thanks.",
+      "tags": ["n5", "expression", "group:daily"],
+      "weight": 1.0,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-expression",
+      "note_fields": {
+        "Phrase": "arigatou",
+        "Meaning": "Thanks.",
+        "When": "## When to use\n- Use **arigatou** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+        "Example": "## Example\n- arigatou : Thanks.\n- Try opening connected nodes to compare nuance",
+        "Visual": "/world-assets/jp-expression-context.svg",
+        "VisualCaption": "Daily expression floating inside its common context."
+      }
+    },
+    {
+      "id": "n-sumimasen",
+      "title": "sumimasen",
+      "node_type": "vocab",
+      "content_data": "Excuse me / sorry.",
+      "tags": ["n5", "expression", "group:daily"],
+      "weight": 1.08,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-expression",
+      "note_fields": {
+        "Phrase": "sumimasen",
+        "Meaning": "Excuse me / sorry.",
+        "When": "## When to use\n- Use **sumimasen** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+        "Example": "## Example\n- sumimasen : Excuse me / sorry.\n- Try opening connected nodes to compare nuance",
+        "Visual": "/world-assets/jp-expression-context.svg",
+        "VisualCaption": "Daily expression floating inside its common context."
+      }
+    },
+    {
+      "id": "n-onegaishimasu",
+      "title": "onegaishimasu",
+      "node_type": "vocab",
+      "content_data": "Polite request phrase.",
+      "tags": ["n5", "expression", "group:daily"],
+      "weight": 1.1,
+      "layer_membership": ["core-map"],
+      "metadata": {},
+      "note_type_id": "jp-expression",
+      "note_fields": {
+        "Phrase": "onegaishimasu",
+        "Meaning": "Polite request phrase.",
+        "When": "## When to use\n- Use **onegaishimasu** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
+        "Example": "## Example\n- onegaishimasu : Polite request phrase.\n- Try opening connected nodes to compare nuance",
+        "Visual": "/world-assets/jp-expression-context.svg",
+        "VisualCaption": "Daily expression floating inside its common context."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-001",
+      "source_id": "n-wa",
+      "target_id": "n-ga",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-002",
+      "source_id": "n-ga",
+      "target_id": "n-wo",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-003",
+      "source_id": "n-wo",
+      "target_id": "n-ni",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-004",
+      "source_id": "n-ni",
+      "target_id": "n-de",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-005",
+      "source_id": "n-de",
+      "target_id": "n-masu",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-006",
+      "source_id": "n-masu",
+      "target_id": "n-te",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-007",
+      "source_id": "n-te",
+      "target_id": "n-nai",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-008",
+      "source_id": "n-nai",
+      "target_id": "n-ta",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-009",
+      "source_id": "n-ta",
+      "target_id": "n-konnichiwa",
+      "relation_id": "context",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-010",
+      "source_id": "n-konnichiwa",
+      "target_id": "n-ohayou",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-011",
+      "source_id": "n-ohayou",
+      "target_id": "n-konbanwa",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-012",
+      "source_id": "n-konbanwa",
+      "target_id": "n-arigatou",
+      "relation_id": "context",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-013",
+      "source_id": "n-arigatou",
+      "target_id": "n-sumimasen",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-014",
+      "source_id": "n-sumimasen",
+      "target_id": "n-onegaishimasu",
+      "relation_id": "context",
+      "connection_layer_membership": ["gradual-links"]
+    },
+    {
+      "id": "e-015",
+      "source_id": "n-wa",
+      "target_id": "n-konnichiwa",
+      "relation_id": "context",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-016",
+      "source_id": "n-ga",
+      "target_id": "n-sumimasen",
+      "relation_id": "context",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-017",
+      "source_id": "n-wo",
+      "target_id": "n-onegaishimasu",
+      "relation_id": "userdefined",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-018",
+      "source_id": "n-ni",
+      "target_id": "n-konbanwa",
+      "relation_id": "context",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-019",
+      "source_id": "n-de",
+      "target_id": "n-arigatou",
+      "relation_id": "context",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-020",
+      "source_id": "n-masu",
+      "target_id": "n-onegaishimasu",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-021",
+      "source_id": "n-te",
+      "target_id": "n-konnichiwa",
+      "relation_id": "context",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-022",
+      "source_id": "n-nai",
+      "target_id": "n-arigatou",
+      "relation_id": "context",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-023",
+      "source_id": "n-ta",
+      "target_id": "n-sumimasen",
+      "relation_id": "context",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-024",
+      "source_id": "n-ohayou",
+      "target_id": "n-arigatou",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-025",
+      "source_id": "n-konbanwa",
+      "target_id": "n-onegaishimasu",
+      "relation_id": "context",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-026",
+      "source_id": "n-ga",
+      "target_id": "n-te",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-027",
+      "source_id": "n-ni",
+      "target_id": "n-masu",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["context-links"]
+    },
+    {
+      "id": "e-028",
+      "source_id": "n-de",
+      "target_id": "n-ta",
+      "relation_id": "semantic",
+      "connection_layer_membership": ["context-links"]
+    }
+  ],
+  "note_types": [
+    {
+      "id": "jp-particle",
+      "name": "Japanese Particle",
+      "base_note_type_id": "basic",
+      "fields": ["Term", "Function", "Example", "Tip", "Diagram", "DiagramCaption"],
+      "schema_json": {
+        "version": 1,
+        "fields": [
+          {
+            "key": "Term",
+            "label": "Term",
+            "type": "string",
+            "widget": "text"
+          },
+          {
+            "key": "Function",
+            "label": "Function",
+            "type": "string",
+            "widget": "long_text"
+          },
+          {
+            "key": "Example",
+            "label": "Example",
+            "type": "string",
+            "widget": "markdown"
+          },
+          {
+            "key": "Tip",
+            "label": "Tip",
+            "type": "string",
+            "widget": "long_text"
+          },
+          {
+            "key": "Diagram",
+            "label": "Diagram",
+            "type": "string",
+            "widget": "image"
+          },
+          {
+            "key": "DiagramCaption",
+            "label": "Diagram Caption",
+            "type": "string",
+            "widget": "text"
+          }
+        ]
+      },
+      "layout_json": {
+        "version": 1,
+        "summary": {
+          "blocks": [
+            {
+              "type": "field_group",
+              "label": "Particle",
+              "fields": ["Term", "Function"],
+              "compact": true
+            },
+            {
+              "type": "callout",
+              "label": "Tip",
+              "field": "Tip",
+              "tone": "tip",
+              "compact": true
+            }
+          ]
+        },
+        "pages": [
+          {
+            "id": "overview",
+            "label": "Overview",
+            "kind": "content",
+            "blocks": [
+              {
+                "type": "field_group",
+                "label": "Particle",
+                "fields": ["Term", "Function"]
               },
-    "relation_kinds":  [
-                           {
-                               "id":  "context",
-                               "label":  "Context",
-                               "directed":  false,
-                               "default_weight":  1.0,
-                               "metadata":  {
-                                                "style":  {
-                                                              "color":  "#67708d",
-                                                              "width":  1.25
-                                                          }
-                                            }
-                           },
-                           {
-                               "id":  "prerequisite",
-                               "label":  "Prerequisite",
-                               "directed":  true,
-                               "default_weight":  1.0,
-                               "metadata":  {
-                                                "style":  {
-                                                              "color":  "#5b8fff",
-                                                              "width":  1.6
-                                                          }
-                                            }
-                           },
-                           {
-                               "id":  "semantic",
-                               "label":  "Semantic",
-                               "directed":  false,
-                               "default_weight":  1.0,
-                               "metadata":  {
-                                                "style":  {
-                                                              "color":  "#8f95aa",
-                                                              "width":  1.15
-                                                          }
-                                            }
-                           },
-                           {
-                               "id":  "userdefined",
-                               "label":  "UserDefined",
-                               "directed":  false,
-                               "default_weight":  1.0,
-                               "metadata":  {
-                                                "style":  {
-                                                              "color":  "#f59e0b",
-                                                              "width":  1.7
-                                                          }
-                                            }
-                           }
-                       ],
-    "layers":  [
-                   {
-                       "id":  "core-map",
-                       "name":  "N5 Core Map",
-                       "display_order":  0,
-                       "node_filter":  {
-
-                                       },
-                       "edge_filter":  {
-                                           "relation_ids":  [
-                                                                "prerequisite",
-                                                                "semantic",
-                                                                "context",
-                                                                "userdefined"
-                                                            ]
-                                       },
-                       "metadata":  {
-                                        "node_style":  {
-                                                           "color":  "#6f86b8",
-                                                           "emissive":  "#1a2448",
-                                                           "emissive_intensity":  0.78
-                                                       }
-                                    }
-                   }
-               ],
-    "connection_layers":  [
-                              {
-                                  "id":  "gradual-links",
-                                  "name":  "Gradual Progression",
-                                  "display_order":  0,
-                                  "metadata":  {
-                                                   "edge_style":  {
-                                                                      "color":  "#74a2ff",
-                                                                      "width":  1.5,
-                                                                      "opacity":  0.9
-                                                                  }
-                                               }
-                              },
-                              {
-                                  "id":  "context-links",
-                                  "name":  "Context Bridges",
-                                  "display_order":  1,
-                                  "metadata":  {
-                                                   "edge_style":  {
-                                                                      "color":  "#f0ba60",
-                                                                      "width":  1.95,
-                                                                      "opacity":  0.98,
-                                                                      "dash_size":  0.2,
-                                                                      "gap_size":  0.12,
-                                                                      "animated_flow":  false,
-                                                                      "flow_speed":  1.0
-                                                                  }
-                                               }
-                              }
-                          ],
-    "nodes":  [
-                  {
-                      "id":  "n-wa",
-                      "title":  "wa",
-                      "node_type":  "particle",
-                      "content_data":  "Topic marker.",
-                      "tags":  [
-                                   "n5",
-                                   "particle",
-                                   "group:particles"
-                               ],
-                      "weight":  1.35,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-particle",
-                      "note_fields":  {
-                                          "Term":  "wa",
-                                          "Function":  "Topic marker.",
-                                          "Example":  "## Core use\n- wa marks Topic marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi wa gakusei desu.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
-                                          "Diagram":  "/world-assets/jp-particle-map.svg",
-                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
-                                      }
-                  },
-                  {
-                      "id":  "n-ga",
-                      "title":  "ga",
-                      "node_type":  "particle",
-                      "content_data":  "Subject marker.",
-                      "tags":  [
-                                   "n5",
-                                   "particle",
-                                   "group:particles"
-                               ],
-                      "weight":  1.3,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-particle",
-                      "note_fields":  {
-                                          "Term":  "ga",
-                                          "Function":  "Subject marker.",
-                                          "Example":  "## Core use\n- ga marks Subject marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi ga gakusei desu.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
-                                          "Diagram":  "/world-assets/jp-particle-map.svg",
-                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
-                                      }
-                  },
-                  {
-                      "id":  "n-wo",
-                      "title":  "wo",
-                      "node_type":  "particle",
-                      "content_data":  "Object marker.",
-                      "tags":  [
-                                   "n5",
-                                   "particle",
-                                   "group:particles"
-                               ],
-                      "weight":  1.2,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-particle",
-                      "note_fields":  {
-                                          "Term":  "wo",
-                                          "Function":  "Object marker.",
-                                          "Example":  "## Core use\n- wo marks Object marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi wo gakusei desu.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
-                                          "Diagram":  "/world-assets/jp-particle-map.svg",
-                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
-                                      }
-                  },
-                  {
-                      "id":  "n-ni",
-                      "title":  "ni",
-                      "node_type":  "particle",
-                      "content_data":  "Destination/time marker.",
-                      "tags":  [
-                                   "n5",
-                                   "particle",
-                                   "group:particles"
-                               ],
-                      "weight":  1.15,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-particle",
-                      "note_fields":  {
-                                          "Term":  "ni",
-                                          "Function":  "Destination/time marker.",
-                                          "Example":  "## Core use\n- ni marks Destination/time marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi ni gakusei desu.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
-                                          "Diagram":  "/world-assets/jp-particle-map.svg",
-                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
-                                      }
-                  },
-                  {
-                      "id":  "n-de",
-                      "title":  "de",
-                      "node_type":  "particle",
-                      "content_data":  "Location of action marker.",
-                      "tags":  [
-                                   "n5",
-                                   "particle",
-                                   "group:particles"
-                               ],
-                      "weight":  1.1,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-particle",
-                      "note_fields":  {
-                                          "Term":  "de",
-                                          "Function":  "Location of action marker.",
-                                          "Example":  "## Core use\n- de marks Location of action marker.\n- Compare it with nearby particles in the world\n\n$Example:$ watashi de gakusei desu.",
-                                          "Tip":  "Compare with nearby particles in the graph to understand the difference.",
-                                          "Diagram":  "/world-assets/jp-particle-map.svg",
-                                          "DiagramCaption":  "Particle position in the sentence and what it highlights."
-                                      }
-                  },
-                  {
-                      "id":  "n-masu",
-                      "title":  "masu-form",
-                      "node_type":  "grammar",
-                      "content_data":  "Polite verb form.",
-                      "tags":  [
-                                   "n5",
-                                   "grammar",
-                                   "group:verbforms",
-                                   "group:bridge"
-                               ],
-                      "weight":  1.4,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-grammar",
-                      "note_fields":  {
-                                          "Pattern":  "masu-form",
-                                          "Meaning":  "Polite verb form.",
-                                          "Example":  "Simple usage pattern for masu-form.",
-                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation.",
-                                          "ExampleCode":  "masu-form\n# meaning\nPolite verb form.\n# usage\nSimple usage pattern for masu-form.",
-                                          "Diagram":  "/world-assets/jp-grammar-pattern.svg",
-                                          "DiagramCaption":  "Pattern shape, meaning, and common usage direction."
-                                      }
-                  },
-                  {
-                      "id":  "n-te",
-                      "title":  "te-form",
-                      "node_type":  "grammar",
-                      "content_data":  "Connector/request form.",
-                      "tags":  [
-                                   "n5",
-                                   "grammar",
-                                   "group:verbforms",
-                                   "group:bridge"
-                               ],
-                      "weight":  1.3,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-grammar",
-                      "note_fields":  {
-                                          "Pattern":  "te-form",
-                                          "Meaning":  "Connector/request form.",
-                                          "Example":  "Simple usage pattern for te-form.",
-                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation.",
-                                          "ExampleCode":  "te-form\n# meaning\nConnector/request form.\n# usage\nSimple usage pattern for te-form.",
-                                          "Diagram":  "/world-assets/jp-grammar-pattern.svg",
-                                          "DiagramCaption":  "Pattern shape, meaning, and common usage direction."
-                                      }
-                  },
-                  {
-                      "id":  "n-nai",
-                      "title":  "nai-form",
-                      "node_type":  "grammar",
-                      "content_data":  "Plain negative form.",
-                      "tags":  [
-                                   "n5",
-                                   "grammar",
-                                   "group:verbforms"
-                               ],
-                      "weight":  1.15,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-grammar",
-                      "note_fields":  {
-                                          "Pattern":  "nai-form",
-                                          "Meaning":  "Plain negative form.",
-                                          "Example":  "Simple usage pattern for nai-form.",
-                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation.",
-                                          "ExampleCode":  "nai-form\n# meaning\nPlain negative form.\n# usage\nSimple usage pattern for nai-form.",
-                                          "Diagram":  "/world-assets/jp-grammar-pattern.svg",
-                                          "DiagramCaption":  "Pattern shape, meaning, and common usage direction."
-                                      }
-                  },
-                  {
-                      "id":  "n-ta",
-                      "title":  "ta-form",
-                      "node_type":  "grammar",
-                      "content_data":  "Plain past form.",
-                      "tags":  [
-                                   "n5",
-                                   "grammar",
-                                   "group:verbforms"
-                               ],
-                      "weight":  1.1,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-grammar",
-                      "note_fields":  {
-                                          "Pattern":  "ta-form",
-                                          "Meaning":  "Plain past form.",
-                                          "Example":  "Simple usage pattern for ta-form.",
-                                          "Pitfall":  "Check the surrounding context nodes before memorizing in isolation.",
-                                          "ExampleCode":  "ta-form\n# meaning\nPlain past form.\n# usage\nSimple usage pattern for ta-form.",
-                                          "Diagram":  "/world-assets/jp-grammar-pattern.svg",
-                                          "DiagramCaption":  "Pattern shape, meaning, and common usage direction."
-                                      }
-                  },
-                  {
-                      "id":  "n-konnichiwa",
-                      "title":  "konnichiwa",
-                      "node_type":  "vocab",
-                      "content_data":  "Daytime greeting.",
-                      "tags":  [
-                                   "n5",
-                                   "expression",
-                                   "group:daily",
-                                   "group:bridge"
-                               ],
-                      "weight":  1.1,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-expression",
-                      "note_fields":  {
-                                          "Phrase":  "konnichiwa",
-                                          "Meaning":  "Daytime greeting.",
-                                          "When":  "## When to use\n- Use **konnichiwa** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
-                                          "Example":  "## Example\n- konnichiwa : Daytime greeting.\n- Try opening connected nodes to compare nuance",
-                                          "Visual":  "/world-assets/jp-expression-context.svg",
-                                          "VisualCaption":  "Daily expression floating inside its common context."
-                                      }
-                  },
-                  {
-                      "id":  "n-ohayou",
-                      "title":  "ohayou",
-                      "node_type":  "vocab",
-                      "content_data":  "Morning greeting.",
-                      "tags":  [
-                                   "n5",
-                                   "expression",
-                                   "group:daily"
-                               ],
-                      "weight":  1.05,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-expression",
-                      "note_fields":  {
-                                          "Phrase":  "ohayou",
-                                          "Meaning":  "Morning greeting.",
-                                          "When":  "## When to use\n- Use **ohayou** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
-                                          "Example":  "## Example\n- ohayou : Morning greeting.\n- Try opening connected nodes to compare nuance",
-                                          "Visual":  "/world-assets/jp-expression-context.svg",
-                                          "VisualCaption":  "Daily expression floating inside its common context."
-                                      }
-                  },
-                  {
-                      "id":  "n-konbanwa",
-                      "title":  "konbanwa",
-                      "node_type":  "vocab",
-                      "content_data":  "Evening greeting.",
-                      "tags":  [
-                                   "n5",
-                                   "expression",
-                                   "group:daily"
-                               ],
-                      "weight":  1.05,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-expression",
-                      "note_fields":  {
-                                          "Phrase":  "konbanwa",
-                                          "Meaning":  "Evening greeting.",
-                                          "When":  "## When to use\n- Use **konbanwa** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
-                                          "Example":  "## Example\n- konbanwa : Evening greeting.\n- Try opening connected nodes to compare nuance",
-                                          "Visual":  "/world-assets/jp-expression-context.svg",
-                                          "VisualCaption":  "Daily expression floating inside its common context."
-                                      }
-                  },
-                  {
-                      "id":  "n-arigatou",
-                      "title":  "arigatou",
-                      "node_type":  "vocab",
-                      "content_data":  "Thanks.",
-                      "tags":  [
-                                   "n5",
-                                   "expression",
-                                   "group:daily"
-                               ],
-                      "weight":  1.0,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-expression",
-                      "note_fields":  {
-                                          "Phrase":  "arigatou",
-                                          "Meaning":  "Thanks.",
-                                          "When":  "## When to use\n- Use **arigatou** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
-                                          "Example":  "## Example\n- arigatou : Thanks.\n- Try opening connected nodes to compare nuance",
-                                          "Visual":  "/world-assets/jp-expression-context.svg",
-                                          "VisualCaption":  "Daily expression floating inside its common context."
-                                      }
-                  },
-                  {
-                      "id":  "n-sumimasen",
-                      "title":  "sumimasen",
-                      "node_type":  "vocab",
-                      "content_data":  "Excuse me / sorry.",
-                      "tags":  [
-                                   "n5",
-                                   "expression",
-                                   "group:daily"
-                               ],
-                      "weight":  1.08,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-expression",
-                      "note_fields":  {
-                                          "Phrase":  "sumimasen",
-                                          "Meaning":  "Excuse me / sorry.",
-                                          "When":  "## When to use\n- Use **sumimasen** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
-                                          "Example":  "## Example\n- sumimasen : Excuse me / sorry.\n- Try opening connected nodes to compare nuance",
-                                          "Visual":  "/world-assets/jp-expression-context.svg",
-                                          "VisualCaption":  "Daily expression floating inside its common context."
-                                      }
-                  },
-                  {
-                      "id":  "n-onegaishimasu",
-                      "title":  "onegaishimasu",
-                      "node_type":  "vocab",
-                      "content_data":  "Polite request phrase.",
-                      "tags":  [
-                                   "n5",
-                                   "expression",
-                                   "group:daily"
-                               ],
-                      "weight":  1.1,
-                      "layer_membership":  [
-                                               "core-map"
-                                           ],
-                      "metadata":  {
-
-                                   },
-                      "note_type_id":  "jp-expression",
-                      "note_fields":  {
-                                          "Phrase":  "onegaishimasu",
-                                          "Meaning":  "Polite request phrase.",
-                                          "When":  "## When to use\n- Use **onegaishimasu** in common daily context\n- Keep the tone natural and lightweight\n- Learn it together with nearby expressions",
-                                          "Example":  "## Example\n- onegaishimasu : Polite request phrase.\n- Try opening connected nodes to compare nuance",
-                                          "Visual":  "/world-assets/jp-expression-context.svg",
-                                          "VisualCaption":  "Daily expression floating inside its common context."
-                                      }
-                  }
-              ],
-    "edges":  [
-                  {
-                      "id":  "e-001",
-                      "source_id":  "n-wa",
-                      "target_id":  "n-ga",
-                      "relation_id":  "prerequisite",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-002",
-                      "source_id":  "n-ga",
-                      "target_id":  "n-wo",
-                      "relation_id":  "prerequisite",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-003",
-                      "source_id":  "n-wo",
-                      "target_id":  "n-ni",
-                      "relation_id":  "prerequisite",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-004",
-                      "source_id":  "n-ni",
-                      "target_id":  "n-de",
-                      "relation_id":  "prerequisite",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-005",
-                      "source_id":  "n-de",
-                      "target_id":  "n-masu",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-006",
-                      "source_id":  "n-masu",
-                      "target_id":  "n-te",
-                      "relation_id":  "prerequisite",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-007",
-                      "source_id":  "n-te",
-                      "target_id":  "n-nai",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-008",
-                      "source_id":  "n-nai",
-                      "target_id":  "n-ta",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-009",
-                      "source_id":  "n-ta",
-                      "target_id":  "n-konnichiwa",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-010",
-                      "source_id":  "n-konnichiwa",
-                      "target_id":  "n-ohayou",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-011",
-                      "source_id":  "n-ohayou",
-                      "target_id":  "n-konbanwa",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-012",
-                      "source_id":  "n-konbanwa",
-                      "target_id":  "n-arigatou",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-013",
-                      "source_id":  "n-arigatou",
-                      "target_id":  "n-sumimasen",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-014",
-                      "source_id":  "n-sumimasen",
-                      "target_id":  "n-onegaishimasu",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "gradual-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-015",
-                      "source_id":  "n-wa",
-                      "target_id":  "n-konnichiwa",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-016",
-                      "source_id":  "n-ga",
-                      "target_id":  "n-sumimasen",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-017",
-                      "source_id":  "n-wo",
-                      "target_id":  "n-onegaishimasu",
-                      "relation_id":  "userdefined",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-018",
-                      "source_id":  "n-ni",
-                      "target_id":  "n-konbanwa",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-019",
-                      "source_id":  "n-de",
-                      "target_id":  "n-arigatou",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-020",
-                      "source_id":  "n-masu",
-                      "target_id":  "n-onegaishimasu",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-021",
-                      "source_id":  "n-te",
-                      "target_id":  "n-konnichiwa",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-022",
-                      "source_id":  "n-nai",
-                      "target_id":  "n-arigatou",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-023",
-                      "source_id":  "n-ta",
-                      "target_id":  "n-sumimasen",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-024",
-                      "source_id":  "n-ohayou",
-                      "target_id":  "n-arigatou",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-025",
-                      "source_id":  "n-konbanwa",
-                      "target_id":  "n-onegaishimasu",
-                      "relation_id":  "context",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-026",
-                      "source_id":  "n-ga",
-                      "target_id":  "n-te",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-027",
-                      "source_id":  "n-ni",
-                      "target_id":  "n-masu",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  },
-                  {
-                      "id":  "e-028",
-                      "source_id":  "n-de",
-                      "target_id":  "n-ta",
-                      "relation_id":  "semantic",
-                      "connection_layer_membership":  [
-                                                          "context-links"
-                                                      ]
-                  }
-              ],
-    "note_types":  [
-                       {
-                           "id":  "jp-particle",
-                           "name":  "Japanese Particle",
-                           "base_note_type_id":  "basic",
-                           "fields":  [
-                                          "Term",
-                                          "Function",
-                                          "Example",
-                                          "Tip",
-                                          "Diagram",
-                                          "DiagramCaption"
-                                      ],
-                           "schema_json":  {
-                                               "version":  1,
-                                               "fields":  [
-                                                              {
-                                                                  "key":  "Term",
-                                                                  "label":  "Term",
-                                                                  "type":  "string",
-                                                                  "widget":  "text"
-                                                              },
-                                                              {
-                                                                  "key":  "Function",
-                                                                  "label":  "Function",
-                                                                  "type":  "string",
-                                                                  "widget":  "long_text"
-                                                              },
-                                                              {
-                                                                  "key":  "Example",
-                                                                  "label":  "Example",
-                                                                  "type":  "string",
-                                                                  "widget":  "markdown"
-                                                              },
-                                                              {
-                                                                  "key":  "Tip",
-                                                                  "label":  "Tip",
-                                                                  "type":  "string",
-                                                                  "widget":  "long_text"
-                                                              },
-                                                              {
-                                                                  "key":  "Diagram",
-                                                                  "label":  "Diagram",
-                                                                  "type":  "string",
-                                                                  "widget":  "image"
-                                                              },
-                                                              {
-                                                                  "key":  "DiagramCaption",
-                                                                  "label":  "Diagram Caption",
-                                                                  "type":  "string",
-                                                                  "widget":  "text"
-                                                              }
-                                                          ]
-                                           },
-                           "layout_json":  {
-                                               "version":  1,
-                                               "summary":  {
-                                                               "blocks":  [
-                                                                              {
-                                                                                  "type":  "field_group",
-                                                                                  "label":  "Particle",
-                                                                                  "fields":  [
-                                                                                                 "Term",
-                                                                                                 "Function"
-                                                                                             ],
-                                                                                  "compact":  true
-                                                                              },
-                                                                              {
-                                                                                  "type":  "callout",
-                                                                                  "label":  "Tip",
-                                                                                  "field":  "Tip",
-                                                                                  "tone":  "tip",
-                                                                                  "compact":  true
-                                                                              }
-                                                                          ]
-                                                           },
-                                               "pages":  [
-                                                             {
-                                                                 "id":  "overview",
-                                                                 "label":  "Overview",
-                                                                 "kind":  "content",
-                                                                 "blocks":  [
-                                                                                {
-                                                                                    "type":  "field_group",
-                                                                                    "label":  "Particle",
-                                                                                    "fields":  [
-                                                                                                   "Term",
-                                                                                                   "Function"
-                                                                                               ]
-                                                                                },
-                                                                                {
-                                                                                    "type":  "image",
-                                                                                    "label":  "Particle Map",
-                                                                                    "field":  "Diagram",
-                                                                                    "caption_field":  "DiagramCaption"
-                                                                                },
-                                                                                {
-                                                                                    "type":  "callout",
-                                                                                    "label":  "Tip",
-                                                                                    "field":  "Tip",
-                                                                                    "tone":  "tip"
-                                                                                }
-                                                                            ]
-                                                             },
-                                                             {
-                                                                 "id":  "usage",
-                                                                 "label":  "Usage",
-                                                                 "kind":  "content",
-                                                                 "blocks":  [
-                                                                                {
-                                                                                    "type":  "markdown",
-                                                                                    "label":  "Example",
-                                                                                    "field":  "Example"
-                                                                                },
-                                                                                {
-                                                                                    "type":  "relations",
-                                                                                    "label":  "Related Nodes"
-                                                                                }
-                                                                            ]
-                                                             },
-                                                             {
-                                                                 "id":  "connections",
-                                                                 "label":  "Connections",
-                                                                 "kind":  "built_in",
-                                                                 "source":  "connections"
-                                                             },
-                                                             {
-                                                                 "id":  "learning",
-                                                                 "label":  "Learning",
-                                                                 "kind":  "built_in",
-                                                                 "source":  "learning"
-                                                             },
-                                                             {
-                                                                 "id":  "history",
-                                                                 "label":  "History",
-                                                                 "kind":  "built_in",
-                                                                 "source":  "history"
-                                                             },
-                                                             {
-                                                                 "id":  "notes",
-                                                                 "label":  "Node Notes",
-                                                                 "kind":  "extension",
-                                                                 "extension_id":  "node-notes"
-                                                             },
-                                                             {
-                                                                 "id":  "assets",
-                                                                 "label":  "Node Assets",
-                                                                 "kind":  "extension",
-                                                                 "extension_id":  "node-assets"
-                                                             }
-                                                         ]
-                                           },
-                           "metadata":  {
-                                            "category":  "language"
-                                        },
-                           "is_default":  false
-                       },
-                       {
-                           "id":  "jp-grammar",
-                           "name":  "Japanese Grammar",
-                           "base_note_type_id":  "basic",
-                           "fields":  [
-                                          "Pattern",
-                                          "Meaning",
-                                          "ExampleCode",
-                                          "Pitfall",
-                                          "Diagram",
-                                          "DiagramCaption"
-                                      ],
-                           "schema_json":  {
-                                               "version":  1,
-                                               "fields":  [
-                                                              {
-                                                                  "key":  "Pattern",
-                                                                  "label":  "Pattern",
-                                                                  "type":  "string",
-                                                                  "widget":  "text"
-                                                              },
-                                                              {
-                                                                  "key":  "Meaning",
-                                                                  "label":  "Meaning",
-                                                                  "type":  "string",
-                                                                  "widget":  "long_text"
-                                                              },
-                                                              {
-                                                                  "key":  "ExampleCode",
-                                                                  "label":  "Pattern Form",
-                                                                  "type":  "string",
-                                                                  "widget":  "code"
-                                                              },
-                                                              {
-                                                                  "key":  "Pitfall",
-                                                                  "label":  "Pitfall",
-                                                                  "type":  "string",
-                                                                  "widget":  "long_text"
-                                                              },
-                                                              {
-                                                                  "key":  "Diagram",
-                                                                  "label":  "Diagram",
-                                                                  "type":  "string",
-                                                                  "widget":  "diagram"
-                                                              },
-                                                              {
-                                                                  "key":  "DiagramCaption",
-                                                                  "label":  "Diagram Caption",
-                                                                  "type":  "string",
-                                                                  "widget":  "text"
-                                                              }
-                                                          ]
-                                           },
-                           "layout_json":  {
-                                               "version":  1,
-                                               "summary":  {
-                                                               "blocks":  [
-                                                                              {
-                                                                                  "type":  "field_group",
-                                                                                  "label":  "Grammar",
-                                                                                  "fields":  [
-                                                                                                 "Pattern",
-                                                                                                 "Meaning"
-                                                                                             ],
-                                                                                  "compact":  true
-                                                                              },
-                                                                              {
-                                                                                  "type":  "code",
-                                                                                  "label":  "Pattern Form",
-                                                                                  "field":  "ExampleCode",
-                                                                                  "language":  "ja-pattern",
-                                                                                  "compact":  true
-                                                                              }
-                                                                          ]
-                                                           },
-                                               "pages":  [
-                                                             {
-                                                                 "id":  "overview",
-                                                                 "label":  "Overview",
-                                                                 "kind":  "content",
-                                                                 "blocks":  [
-                                                                                {
-                                                                                    "type":  "field_group",
-                                                                                    "label":  "Grammar",
-                                                                                    "fields":  [
-                                                                                                   "Pattern",
-                                                                                                   "Meaning"
-                                                                                               ]
-                                                                                },
-                                                                                {
-                                                                                    "type":  "code",
-                                                                                    "label":  "Pattern Form",
-                                                                                    "field":  "ExampleCode",
-                                                                                    "language":  "ja-pattern"
-                                                                                },
-                                                                                {
-                                                                                    "type":  "image",
-                                                                                    "label":  "Grammar Diagram",
-                                                                                    "field":  "Diagram",
-                                                                                    "caption_field":  "DiagramCaption"
-                                                                                },
-                                                                                {
-                                                                                    "type":  "callout",
-                                                                                    "label":  "Pitfall",
-                                                                                    "field":  "Pitfall",
-                                                                                    "tone":  "warning"
-                                                                                }
-                                                                            ]
-                                                             },
-                                                             {
-                                                                 "id":  "practice",
-                                                                 "label":  "Practice",
-                                                                 "kind":  "content",
-                                                                 "blocks":  [
-                                                                                {
-                                                                                    "type":  "relations",
-                                                                                    "label":  "Related Forms"
-                                                                                },
-                                                                                {
-                                                                                    "type":  "callout",
-                                                                                    "label":  "Watch out",
-                                                                                    "field":  "Pitfall",
-                                                                                    "tone":  "warning"
-                                                                                }
-                                                                            ]
-                                                             },
-                                                             {
-                                                                 "id":  "connections",
-                                                                 "label":  "Connections",
-                                                                 "kind":  "built_in",
-                                                                 "source":  "connections"
-                                                             },
-                                                             {
-                                                                 "id":  "learning",
-                                                                 "label":  "Learning",
-                                                                 "kind":  "built_in",
-                                                                 "source":  "learning"
-                                                             },
-                                                             {
-                                                                 "id":  "history",
-                                                                 "label":  "History",
-                                                                 "kind":  "built_in",
-                                                                 "source":  "history"
-                                                             },
-                                                             {
-                                                                 "id":  "notes",
-                                                                 "label":  "Node Notes",
-                                                                 "kind":  "extension",
-                                                                 "extension_id":  "node-notes"
-                                                             }
-                                                         ]
-                                           },
-                           "metadata":  {
-                                            "category":  "language"
-                                        },
-                           "is_default":  false
-                       },
-                       {
-                           "id":  "jp-expression",
-                           "name":  "Japanese Expression",
-                           "base_note_type_id":  "vocab",
-                           "fields":  [
-                                          "Phrase",
-                                          "Meaning",
-                                          "When",
-                                          "Example",
-                                          "Visual",
-                                          "VisualCaption"
-                                      ],
-                           "schema_json":  {
-                                               "version":  1,
-                                               "fields":  [
-                                                              {
-                                                                  "key":  "Phrase",
-                                                                  "label":  "Phrase",
-                                                                  "type":  "string",
-                                                                  "widget":  "text"
-                                                              },
-                                                              {
-                                                                  "key":  "Meaning",
-                                                                  "label":  "Meaning",
-                                                                  "type":  "string",
-                                                                  "widget":  "text"
-                                                              },
-                                                              {
-                                                                  "key":  "When",
-                                                                  "label":  "When to use",
-                                                                  "type":  "string",
-                                                                  "widget":  "markdown"
-                                                              },
-                                                              {
-                                                                  "key":  "Example",
-                                                                  "label":  "Example",
-                                                                  "type":  "string",
-                                                                  "widget":  "markdown"
-                                                              },
-                                                              {
-                                                                  "key":  "Visual",
-                                                                  "label":  "Visual",
-                                                                  "type":  "string",
-                                                                  "widget":  "image"
-                                                              },
-                                                              {
-                                                                  "key":  "VisualCaption",
-                                                                  "label":  "Visual Caption",
-                                                                  "type":  "string",
-                                                                  "widget":  "text"
-                                                              }
-                                                          ]
-                                           },
-                           "layout_json":  {
-                                               "version":  1,
-                                               "summary":  {
-                                                               "blocks":  [
-                                                                              {
-                                                                                  "type":  "field_group",
-                                                                                  "label":  "Expression",
-                                                                                  "fields":  [
-                                                                                                 "Phrase",
-                                                                                                 "Meaning"
-                                                                                             ],
-                                                                                  "compact":  true
-                                                                              },
-                                                                              {
-                                                                                  "type":  "markdown",
-                                                                                  "label":  "When",
-                                                                                  "field":  "When",
-                                                                                  "compact":  true
-                                                                              }
-                                                                          ]
-                                                           },
-                                               "pages":  [
-                                                             {
-                                                                 "id":  "overview",
-                                                                 "label":  "Overview",
-                                                                 "kind":  "content",
-                                                                 "blocks":  [
-                                                                                {
-                                                                                    "type":  "field_group",
-                                                                                    "label":  "Expression",
-                                                                                    "fields":  [
-                                                                                                   "Phrase",
-                                                                                                   "Meaning"
-                                                                                               ]
-                                                                                },
-                                                                                {
-                                                                                    "type":  "markdown",
-                                                                                    "label":  "When to use",
-                                                                                    "field":  "When"
-                                                                                },
-                                                                                {
-                                                                                    "type":  "image",
-                                                                                    "label":  "Context Visual",
-                                                                                    "field":  "Visual",
-                                                                                    "caption_field":  "VisualCaption"
-                                                                                }
-                                                                            ]
-                                                             },
-                                                             {
-                                                                 "id":  "usage",
-                                                                 "label":  "Usage",
-                                                                 "kind":  "content",
-                                                                 "blocks":  [
-                                                                                {
-                                                                                    "type":  "markdown",
-                                                                                    "label":  "Example",
-                                                                                    "field":  "Example"
-                                                                                },
-                                                                                {
-                                                                                    "type":  "relations",
-                                                                                    "label":  "Nearby Expressions"
-                                                                                }
-                                                                            ]
-                                                             },
-                                                             {
-                                                                 "id":  "connections",
-                                                                 "label":  "Connections",
-                                                                 "kind":  "built_in",
-                                                                 "source":  "connections"
-                                                             },
-                                                             {
-                                                                 "id":  "learning",
-                                                                 "label":  "Learning",
-                                                                 "kind":  "built_in",
-                                                                 "source":  "learning"
-                                                             },
-                                                             {
-                                                                 "id":  "history",
-                                                                 "label":  "History",
-                                                                 "kind":  "built_in",
-                                                                 "source":  "history"
-                                                             },
-                                                             {
-                                                                 "id":  "notes",
-                                                                 "label":  "Node Notes",
-                                                                 "kind":  "extension",
-                                                                 "extension_id":  "node-notes"
-                                                             },
-                                                             {
-                                                                 "id":  "assets",
-                                                                 "label":  "Node Assets",
-                                                                 "kind":  "extension",
-                                                                 "extension_id":  "node-assets"
-                                                             }
-                                                         ]
-                                           },
-                           "metadata":  {
-                                            "category":  "language"
-                                        },
-                           "is_default":  true
-                       }
-                   ]
+              {
+                "type": "image",
+                "label": "Particle Map",
+                "field": "Diagram",
+                "caption_field": "DiagramCaption"
+              },
+              {
+                "type": "callout",
+                "label": "Tip",
+                "field": "Tip",
+                "tone": "tip"
+              }
+            ]
+          },
+          {
+            "id": "usage",
+            "label": "Usage",
+            "kind": "content",
+            "blocks": [
+              {
+                "type": "markdown",
+                "label": "Example",
+                "field": "Example"
+              },
+              {
+                "type": "relations",
+                "label": "Related Nodes"
+              }
+            ]
+          },
+          {
+            "id": "connections",
+            "label": "Connections",
+            "kind": "built_in",
+            "source": "connections"
+          },
+          {
+            "id": "learning",
+            "label": "Learning",
+            "kind": "built_in",
+            "source": "learning"
+          },
+          {
+            "id": "history",
+            "label": "History",
+            "kind": "built_in",
+            "source": "history"
+          },
+          {
+            "id": "notes",
+            "label": "Node Notes",
+            "kind": "extension",
+            "extension_id": "node-notes"
+          },
+          {
+            "id": "assets",
+            "label": "Node Assets",
+            "kind": "extension",
+            "extension_id": "node-assets"
+          }
+        ]
+      },
+      "metadata": {
+        "category": "language"
+      },
+      "is_default": false
+    },
+    {
+      "id": "jp-grammar",
+      "name": "Japanese Grammar",
+      "base_note_type_id": "basic",
+      "fields": ["Pattern", "Meaning", "ExampleCode", "Pitfall", "Diagram", "DiagramCaption"],
+      "schema_json": {
+        "version": 1,
+        "fields": [
+          {
+            "key": "Pattern",
+            "label": "Pattern",
+            "type": "string",
+            "widget": "text"
+          },
+          {
+            "key": "Meaning",
+            "label": "Meaning",
+            "type": "string",
+            "widget": "long_text"
+          },
+          {
+            "key": "ExampleCode",
+            "label": "Pattern Form",
+            "type": "string",
+            "widget": "code"
+          },
+          {
+            "key": "Pitfall",
+            "label": "Pitfall",
+            "type": "string",
+            "widget": "long_text"
+          },
+          {
+            "key": "Diagram",
+            "label": "Diagram",
+            "type": "string",
+            "widget": "diagram"
+          },
+          {
+            "key": "DiagramCaption",
+            "label": "Diagram Caption",
+            "type": "string",
+            "widget": "text"
+          }
+        ]
+      },
+      "layout_json": {
+        "version": 1,
+        "summary": {
+          "blocks": [
+            {
+              "type": "field_group",
+              "label": "Grammar",
+              "fields": ["Pattern", "Meaning"],
+              "compact": true
+            },
+            {
+              "type": "code",
+              "label": "Pattern Form",
+              "field": "ExampleCode",
+              "language": "ja-pattern",
+              "compact": true
+            }
+          ]
+        },
+        "pages": [
+          {
+            "id": "overview",
+            "label": "Overview",
+            "kind": "content",
+            "blocks": [
+              {
+                "type": "field_group",
+                "label": "Grammar",
+                "fields": ["Pattern", "Meaning"]
+              },
+              {
+                "type": "code",
+                "label": "Pattern Form",
+                "field": "ExampleCode",
+                "language": "ja-pattern"
+              },
+              {
+                "type": "image",
+                "label": "Grammar Diagram",
+                "field": "Diagram",
+                "caption_field": "DiagramCaption"
+              },
+              {
+                "type": "callout",
+                "label": "Pitfall",
+                "field": "Pitfall",
+                "tone": "warning"
+              }
+            ]
+          },
+          {
+            "id": "practice",
+            "label": "Practice",
+            "kind": "content",
+            "blocks": [
+              {
+                "type": "relations",
+                "label": "Related Forms"
+              },
+              {
+                "type": "callout",
+                "label": "Watch out",
+                "field": "Pitfall",
+                "tone": "warning"
+              }
+            ]
+          },
+          {
+            "id": "connections",
+            "label": "Connections",
+            "kind": "built_in",
+            "source": "connections"
+          },
+          {
+            "id": "learning",
+            "label": "Learning",
+            "kind": "built_in",
+            "source": "learning"
+          },
+          {
+            "id": "history",
+            "label": "History",
+            "kind": "built_in",
+            "source": "history"
+          },
+          {
+            "id": "notes",
+            "label": "Node Notes",
+            "kind": "extension",
+            "extension_id": "node-notes"
+          }
+        ]
+      },
+      "metadata": {
+        "category": "language"
+      },
+      "is_default": false
+    },
+    {
+      "id": "jp-expression",
+      "name": "Japanese Expression",
+      "base_note_type_id": "vocab",
+      "fields": ["Phrase", "Meaning", "When", "Example", "Visual", "VisualCaption"],
+      "schema_json": {
+        "version": 1,
+        "fields": [
+          {
+            "key": "Phrase",
+            "label": "Phrase",
+            "type": "string",
+            "widget": "text"
+          },
+          {
+            "key": "Meaning",
+            "label": "Meaning",
+            "type": "string",
+            "widget": "text"
+          },
+          {
+            "key": "When",
+            "label": "When to use",
+            "type": "string",
+            "widget": "markdown"
+          },
+          {
+            "key": "Example",
+            "label": "Example",
+            "type": "string",
+            "widget": "markdown"
+          },
+          {
+            "key": "Visual",
+            "label": "Visual",
+            "type": "string",
+            "widget": "image"
+          },
+          {
+            "key": "VisualCaption",
+            "label": "Visual Caption",
+            "type": "string",
+            "widget": "text"
+          }
+        ]
+      },
+      "layout_json": {
+        "version": 1,
+        "summary": {
+          "blocks": [
+            {
+              "type": "field_group",
+              "label": "Expression",
+              "fields": ["Phrase", "Meaning"],
+              "compact": true
+            },
+            {
+              "type": "markdown",
+              "label": "When",
+              "field": "When",
+              "compact": true
+            }
+          ]
+        },
+        "pages": [
+          {
+            "id": "overview",
+            "label": "Overview",
+            "kind": "content",
+            "blocks": [
+              {
+                "type": "field_group",
+                "label": "Expression",
+                "fields": ["Phrase", "Meaning"]
+              },
+              {
+                "type": "markdown",
+                "label": "When to use",
+                "field": "When"
+              },
+              {
+                "type": "image",
+                "label": "Context Visual",
+                "field": "Visual",
+                "caption_field": "VisualCaption"
+              }
+            ]
+          },
+          {
+            "id": "usage",
+            "label": "Usage",
+            "kind": "content",
+            "blocks": [
+              {
+                "type": "markdown",
+                "label": "Example",
+                "field": "Example"
+              },
+              {
+                "type": "relations",
+                "label": "Nearby Expressions"
+              }
+            ]
+          },
+          {
+            "id": "connections",
+            "label": "Connections",
+            "kind": "built_in",
+            "source": "connections"
+          },
+          {
+            "id": "learning",
+            "label": "Learning",
+            "kind": "built_in",
+            "source": "learning"
+          },
+          {
+            "id": "history",
+            "label": "History",
+            "kind": "built_in",
+            "source": "history"
+          },
+          {
+            "id": "notes",
+            "label": "Node Notes",
+            "kind": "extension",
+            "extension_id": "node-notes"
+          },
+          {
+            "id": "assets",
+            "label": "Node Assets",
+            "kind": "extension",
+            "extension_id": "node-assets"
+          }
+        ]
+      },
+      "metadata": {
+        "category": "language"
+      },
+      "is_default": true
+    }
+  ]
 }
+

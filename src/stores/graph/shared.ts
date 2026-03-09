@@ -53,6 +53,8 @@ export interface GraphSessionState {
   centeredNodePanel: Ref<boolean>
   nodeEditorOpen: Ref<boolean>
   pinnedNodeIds: Ref<string[]>
+  focusViewActive: Ref<boolean>
+  focusRootNodeId: Ref<string | null>
   activeBuffer: Ref<BufferId>
   progressOverlayOpen: Ref<boolean>
   worldPickerOpen: Ref<boolean>
@@ -65,6 +67,8 @@ export function createGraphSessionState(): GraphSessionState {
     centeredNodePanel: ref(false),
     nodeEditorOpen: ref(false),
     pinnedNodeIds: ref<string[]>([]),
+    focusViewActive: ref(false),
+    focusRootNodeId: ref<string | null>(null),
     activeBuffer: ref<BufferId>('none'),
     progressOverlayOpen: ref(false),
     worldPickerOpen: ref(false),

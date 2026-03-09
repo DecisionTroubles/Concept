@@ -9,6 +9,11 @@ export interface Keybindings {
   openNode:   string
   editNode:   string
   pinNode:    string
+  focusView: string
+  topicLayerPrev: string
+  topicLayerNext: string
+  overlayPrev: string
+  overlayNext: string
   progressOverlay: string
   worldPicker: string
   pinnedBuffer: string
@@ -43,6 +48,13 @@ export interface LearningSettings {
   defaultSchedulerKey: string
 }
 
+export type FocusOverlayEntryMode = 'inherit' | 'all' | 'none'
+
+export interface WorldSettings {
+  focusOverlayEntryMode: FocusOverlayEntryMode
+  restoreOverlaySelectionOnExit: boolean
+}
+
 const DEFAULT_KEYBINDINGS: Keybindings = {
   flyMode:    'f',
   graphMode:  'g',
@@ -52,6 +64,11 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
   openNode:   'e',
   editNode:   'x',
   pinNode:    'p',
+  focusView: 'c',
+  topicLayerPrev: '[',
+  topicLayerNext: ']',
+  overlayPrev: ',',
+  overlayNext: '.',
   progressOverlay: 'n',
   worldPicker: 'o',
   pinnedBuffer: 'b',
@@ -73,6 +90,12 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
 const STORAGE_KEY = 'concept:keybindings'
 const GRAPHICS_STORAGE_KEY = 'concept:graphics-settings'
 const LEARNING_STORAGE_KEY = 'concept:learning-settings'
+const WORLD_SETTINGS_STORAGE_KEY = 'concept:world-settings'
+
+const DEFAULT_WORLD_SETTINGS: WorldSettings = {
+  focusOverlayEntryMode: 'all',
+  restoreOverlaySelectionOnExit: true,
+}
 
 const GRAPHICS_PRESETS: Record<'low' | 'medium' | 'high', Omit<GraphicsSettings, 'qualityPreset'>> = {
   low: {
@@ -206,10 +229,37 @@ function loadLearningFromStorage(): LearningSettings {
   return { defaultSchedulerKey: 'basic-v1' }
 }
 
+function sanitizeWorldSettings(input: Partial<WorldSettings> | null | undefined): WorldSettings {
+  return {
+    focusOverlayEntryMode:
+      input?.focusOverlayEntryMode === 'inherit' || input?.focusOverlayEntryMode === 'none'
+        ? input.focusOverlayEntryMode
+        : 'all',
+    restoreOverlaySelectionOnExit: input?.restoreOverlaySelectionOnExit ?? true,
+  }
+}
+
+function loadWorldSettingsFromStorage(): Record<string, WorldSettings> {
+  try {
+    const raw = localStorage.getItem(WORLD_SETTINGS_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, Partial<WorldSettings>>
+    const out: Record<string, WorldSettings> = {}
+    for (const [worldId, settings] of Object.entries(parsed ?? {})) {
+      if (typeof worldId !== 'string' || worldId.trim().length === 0) continue
+      out[worldId] = sanitizeWorldSettings(settings)
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
 // Module-level singleton — shared across all useSettings() calls
 const keys = reactive<Keybindings>(loadFromStorage())
 const graphics = reactive<GraphicsSettings>(loadGraphicsFromStorage())
 const learning = reactive<LearningSettings>(loadLearningFromStorage())
+const worldSettingsById = reactive<Record<string, WorldSettings>>(loadWorldSettingsFromStorage())
 
 function saveToStorage() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...keys }))
@@ -221,6 +271,10 @@ function saveGraphicsToStorage() {
 
 function saveLearningToStorage() {
   localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify({ ...learning }))
+}
+
+function saveWorldSettingsToStorage() {
+  localStorage.setItem(WORLD_SETTINGS_STORAGE_KEY, JSON.stringify({ ...worldSettingsById }))
 }
 
 export function useSettings() {
@@ -257,15 +311,40 @@ export function useSettings() {
     saveLearningToStorage()
   }
 
+  function getWorldSettings(worldId: string | null | undefined): WorldSettings {
+    if (!worldId) return { ...DEFAULT_WORLD_SETTINGS }
+    const existing = worldSettingsById[worldId]
+    if (existing) return existing
+    const created = sanitizeWorldSettings(undefined)
+    worldSettingsById[worldId] = created
+    saveWorldSettingsToStorage()
+    return created
+  }
+
+  function updateWorldSettings(worldId: string, patch: Partial<WorldSettings>) {
+    const current = getWorldSettings(worldId)
+    worldSettingsById[worldId] = sanitizeWorldSettings({ ...current, ...patch })
+    saveWorldSettingsToStorage()
+  }
+
+  function resetWorldSettings(worldId: string) {
+    worldSettingsById[worldId] = { ...DEFAULT_WORLD_SETTINGS }
+    saveWorldSettingsToStorage()
+  }
+
   return {
     keys,
     graphics,
     learning,
+    worldSettingsById,
     rebind,
     resetToDefaults,
     applyGraphicsPreset,
     updateGraphics,
     resetGraphicsToDefaults,
     setDefaultSchedulerKey,
+    getWorldSettings,
+    updateWorldSettings,
+    resetWorldSettings,
   }
 }

@@ -1,0 +1,968 @@
+{
+  "version": "2",
+  "world": {
+    "id": "odin-language-core",
+    "name": "Odin Language Core",
+    "layout": {
+      "default_mode": "force3d",
+      "anchor_policy": "sticky"
+    },
+    "metadata": {
+      "description": "A compact Odin language world pack for testing layered graph exploration.",
+      "language": "en",
+      "inter_group_spacing": 28,
+      "focus_view": {
+        "default_on_select": false,
+        "rings": 2,
+        "ring_radius": 8.5,
+        "max_neighbors": 18,
+        "relation_ids": [
+          "prerequisite",
+          "conceptual"
+        ]
+      },
+      "context_groups": {
+        "syntax": {
+          "label": "Syntax",
+          "style": {
+            "color": "#ff5a76",
+            "emissive": "#ff5a76",
+            "emissive_intensity": 1.42
+          },
+          "layout": {
+            "cohesion": 1.15,
+            "intra_spacing": 5.6
+          }
+        },
+        "declarations": {
+          "label": "Declarations",
+          "style": {
+            "color": "#4fd2ff",
+            "emissive": "#4fd2ff",
+            "emissive_intensity": 1.36
+          },
+          "layout": {
+            "cohesion": 1.08,
+            "intra_spacing": 6
+          }
+        },
+        "data": {
+          "label": "Data Shapes",
+          "style": {
+            "color": "#3cff98",
+            "emissive": "#3cff98",
+            "emissive_intensity": 1.4
+          },
+          "layout": {
+            "cohesion": 1.1,
+            "intra_spacing": 6.1
+          }
+        },
+        "runtime": {
+          "label": "Runtime Patterns",
+          "style": {
+            "color": "#ffd84f",
+            "emissive": "#ffd84f",
+            "emissive_intensity": 1.45
+          },
+          "layout": {
+            "cohesion": 0.98,
+            "intra_spacing": 6.8
+          }
+        }
+      },
+      "group_relations": {
+        "intra": {
+          "color": "#6d87a8",
+          "width": 1.6,
+          "opacity": 0.9
+        },
+        "bridge": {
+          "color": "#ffbe62",
+          "width": 2,
+          "opacity": 0.98,
+          "dash_size": 0.22,
+          "gap_size": 0.12
+        }
+      },
+      "visual_defaults": {
+        "node": {
+          "color": "#6c7a96",
+          "emissive": "#182438",
+          "emissive_intensity": 0.88
+        },
+        "edge": {
+          "color": "#4c5870",
+          "width": 1.25
+        }
+      },
+      "node_type_styles": {
+        "root": {
+          "color": "#8fd8ff",
+          "emissive": "#8fd8ff",
+          "emissive_intensity": 1.2
+        },
+        "concept": {
+          "color": "#91a8ff",
+          "emissive": "#273766",
+          "emissive_intensity": 0.95
+        },
+        "grammar": {
+          "color": "#f58ab1",
+          "emissive": "#5b2340",
+          "emissive_intensity": 1
+        }
+      }
+    }
+  },
+  "relation_kinds": [
+    {
+      "id": "prerequisite",
+      "label": "Prerequisite",
+      "directed": true,
+      "default_weight": 1,
+      "metadata": {
+        "style": {
+          "color": "#73a8ff",
+          "width": 1.7
+        }
+      }
+    },
+    {
+      "id": "conceptual",
+      "label": "Conceptual",
+      "directed": false,
+      "default_weight": 1,
+      "metadata": {
+        "style": {
+          "color": "#7e8fb3",
+          "width": 1.25
+        }
+      }
+    },
+    {
+      "id": "usage",
+      "label": "Usage",
+      "directed": false,
+      "default_weight": 1,
+      "metadata": {
+        "style": {
+          "color": "#f7ba5f",
+          "width": 1.85
+        }
+      }
+    }
+  ],
+  "layers": [
+    {
+      "id": "core-map",
+      "name": "Odin World",
+      "display_order": 0,
+      "node_filter": {},
+      "edge_filter": {
+        "relation_ids": [
+          "prerequisite",
+          "conceptual",
+          "usage"
+        ]
+      },
+      "metadata": {
+        "index": 1
+      }
+    }
+  ],
+  "connection_layers": [
+    {
+      "id": "gradual-links",
+      "name": "Gradual Path",
+      "display_order": 0,
+      "metadata": {
+        "edge_style": {
+          "color": "#74a8ff",
+          "width": 1.55,
+          "opacity": 0.92,
+          "shape": "straight"
+        },
+        "index": 1
+      }
+    },
+    {
+      "id": "conceptual-links",
+      "name": "Conceptual Mesh",
+      "display_order": 1,
+      "metadata": {
+        "edge_style": {
+          "color": "#8ea0c4",
+          "width": 1.3,
+          "opacity": 0.82,
+          "shape": "arc",
+          "arc_height": 0.78
+        },
+        "index": 2
+      }
+    },
+    {
+      "id": "usage-links",
+      "name": "Usage Patterns",
+      "display_order": 2,
+      "metadata": {
+        "edge_style": {
+          "color": "#ffc864",
+          "width": 1.95,
+          "opacity": 0.98,
+          "shape": "wave",
+          "arc_height": 1.18,
+          "dash_size": 0.2,
+          "gap_size": 0.12
+        },
+        "index": 3
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "odin-root",
+      "title": "Odin Overview",
+      "node_type": "root",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Odin is a systems language world centered on explicit declarations, structured data, and pragmatic runtime patterns.",
+        "Why": "This root node anchors the first-pass learning route through the world.",
+        "Example": "Use this as the entry point before branching into declarations, data layout, and runtime ideas.",
+        "Pitfall": "Do not treat every edge as equal. The connection layers intentionally mean different things.",
+        "Signals": "Gradual = learning order. Conceptual = mental model. Usage = common co-usage."
+      },
+      "content_data": "Root overview for the Odin language dataset.",
+      "tags": [
+        "group:syntax"
+      ],
+      "weight": 1.55,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "package",
+      "title": "package",
+      "node_type": "grammar",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Declares the package scope for a file.",
+        "Why": "Package layout is one of the first structural ideas to understand.",
+        "Example": "package core",
+        "Pitfall": "Mixing package intent and import intent makes the module boundary harder to reason about.",
+        "Signals": "Usually appears with import and top-level declarations."
+      },
+      "content_data": "Package declaration in Odin.",
+      "tags": [
+        "group:syntax"
+      ],
+      "weight": 1.25,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "import",
+      "title": "import",
+      "node_type": "grammar",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Brings external packages or modules into scope.",
+        "Why": "Imports are where package boundaries become useful rather than abstract.",
+        "Example": "import fmt",
+        "Pitfall": "A learner can read import syntax without yet understanding why package boundaries matter.",
+        "Signals": "Connects strongly to package and procedure-level usage."
+      },
+      "content_data": "Import statement and package access.",
+      "tags": [
+        "group:syntax",
+        "group:runtime"
+      ],
+      "weight": 1.18,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "declaration",
+      "title": "declaration",
+      "node_type": "concept",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Top-level declarations introduce named entities such as variables, constants, procedures, and types.",
+        "Why": "It is the bridge from syntax into the rest of the language surface.",
+        "Example": "A file typically contains a package line, imports, then declarations.",
+        "Pitfall": "Thinking in isolated syntax forms instead of one declaration space makes the map harder to navigate.",
+        "Signals": "This is a bridge node between the syntax and declarations groups."
+      },
+      "content_data": "Top-level declaration model.",
+      "tags": [
+        "group:syntax",
+        "group:declarations"
+      ],
+      "weight": 1.32,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "variable",
+      "title": "variable",
+      "node_type": "concept",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "A mutable named value.",
+        "Why": "Variables are usually the first declaration learners reach for.",
+        "Example": "count := 0",
+        "Pitfall": "Do not collapse variables and constants into the same mental slot.",
+        "Signals": "Variable usage often appears near procedures and pointers."
+      },
+      "content_data": "Mutable storage in Odin.",
+      "tags": [
+        "group:declarations"
+      ],
+      "weight": 1.15,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "constant",
+      "title": "constant",
+      "node_type": "concept",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "An immutable named value.",
+        "Why": "Constants separate stable compile-time intent from mutable runtime state.",
+        "Example": "MAX_ITEMS :: 64",
+        "Pitfall": "Overusing variables where a constant communicates intent more clearly.",
+        "Signals": "Frequently connects conceptually to enum and declaration."
+      },
+      "content_data": "Immutable declaration in Odin.",
+      "tags": [
+        "group:declarations"
+      ],
+      "weight": 1.1,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "proc",
+      "title": "proc",
+      "node_type": "grammar",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Procedure declaration and callable behavior unit.",
+        "Why": "Procedures are where declarations become active behavior.",
+        "Example": "main :: proc() { }",
+        "Pitfall": "Reading proc only as syntax instead of as the center of runtime patterns.",
+        "Signals": "Strong bridge node into runtime and usage links."
+      },
+      "content_data": "Procedure declaration and execution unit.",
+      "tags": [
+        "group:declarations",
+        "group:runtime"
+      ],
+      "weight": 1.28,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "struct",
+      "title": "struct",
+      "node_type": "concept",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Structured product type for named fields.",
+        "Why": "Structs are central to data layout and procedure interaction.",
+        "Example": "User :: struct { id: int, name: string }",
+        "Pitfall": "Seeing struct only as storage instead of as a design boundary used by procedures and pointers.",
+        "Signals": "Strongly related to pointer and proc."
+      },
+      "content_data": "Structured data type in Odin.",
+      "tags": [
+        "group:data"
+      ],
+      "weight": 1.2,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "enum",
+      "title": "enum",
+      "node_type": "concept",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Finite named set of values.",
+        "Why": "Enums tighten state expression and work well with constants and switches.",
+        "Example": "State :: enum { Idle, Busy, Failed }",
+        "Pitfall": "Treating enum values like unstructured literals reduces clarity.",
+        "Signals": "Often conceptually near constants."
+      },
+      "content_data": "Finite named states.",
+      "tags": [
+        "group:data",
+        "group:declarations"
+      ],
+      "weight": 1.05,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "array",
+      "title": "array",
+      "node_type": "concept",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Fixed-length contiguous sequence.",
+        "Why": "Arrays establish the data-layout baseline before slices.",
+        "Example": "[4]int{1, 2, 3, 4}",
+        "Pitfall": "Jumping to slices before understanding the fixed container underneath them.",
+        "Signals": "Gradual links should reach slice from here."
+      },
+      "content_data": "Fixed-size collection.",
+      "tags": [
+        "group:data"
+      ],
+      "weight": 1.12,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "slice",
+      "title": "slice",
+      "node_type": "concept",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Dynamic view over sequential data.",
+        "Why": "Slices are common in real code and link data layout to procedure usage.",
+        "Example": "items[1:]",
+        "Pitfall": "Using slices fluently without a clear model of the underlying data.",
+        "Signals": "Connects to array conceptually and proc by usage."
+      },
+      "content_data": "Dynamic sequence view.",
+      "tags": [
+        "group:data",
+        "group:runtime"
+      ],
+      "weight": 1.16,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "pointer",
+      "title": "pointer",
+      "node_type": "concept",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Reference to a memory location or value.",
+        "Why": "Pointers are a key test for data-model and runtime edges in the graph.",
+        "Example": "^User",
+        "Pitfall": "Learning pointer syntax without understanding its relationship to structs and procedures.",
+        "Signals": "Pairs with struct conceptually and with variable by usage."
+      },
+      "content_data": "Pointer semantics in Odin.",
+      "tags": [
+        "group:data",
+        "group:runtime"
+      ],
+      "weight": 1.14,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "defer",
+      "title": "defer",
+      "node_type": "grammar",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Schedules a cleanup action for scope exit.",
+        "Why": "This is a clear usage-pattern node rather than a pure syntax node.",
+        "Example": "defer close(handle)",
+        "Pitfall": "Treating defer as isolated syntax instead of a runtime management pattern.",
+        "Signals": "Strong usage edge with proc."
+      },
+      "content_data": "Deferred cleanup pattern.",
+      "tags": [
+        "group:runtime"
+      ],
+      "weight": 1.08,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "context",
+      "title": "context",
+      "node_type": "concept",
+      "note_type_id": "odin-concept",
+      "note_fields": {
+        "Summary": "Ambient execution state passed through runtime flow.",
+        "Why": "Good test node for non-linear runtime links.",
+        "Example": "A procedure may access contextual execution state instead of receiving every dependency explicitly.",
+        "Pitfall": "Using context without a clear boundary around what belongs there.",
+        "Signals": "Conceptual and usage links should both point toward proc."
+      },
+      "content_data": "Ambient execution context.",
+      "tags": [
+        "group:runtime"
+      ],
+      "weight": 1.06,
+      "layer_membership": [
+        "core-map"
+      ],
+      "metadata": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "g-001",
+      "source_id": "odin-root",
+      "target_id": "package",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-002",
+      "source_id": "package",
+      "target_id": "import",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-003",
+      "source_id": "import",
+      "target_id": "declaration",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-004",
+      "source_id": "declaration",
+      "target_id": "variable",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-005",
+      "source_id": "declaration",
+      "target_id": "constant",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-006",
+      "source_id": "declaration",
+      "target_id": "proc",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-007",
+      "source_id": "declaration",
+      "target_id": "struct",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-008",
+      "source_id": "declaration",
+      "target_id": "enum",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-009",
+      "source_id": "struct",
+      "target_id": "array",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-010",
+      "source_id": "array",
+      "target_id": "slice",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-011",
+      "source_id": "slice",
+      "target_id": "pointer",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-012",
+      "source_id": "proc",
+      "target_id": "defer",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "g-013",
+      "source_id": "defer",
+      "target_id": "context",
+      "relation_id": "prerequisite",
+      "connection_layer_membership": [
+        "gradual-links"
+      ]
+    },
+    {
+      "id": "c-001",
+      "source_id": "package",
+      "target_id": "declaration",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-002",
+      "source_id": "variable",
+      "target_id": "constant",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-003",
+      "source_id": "constant",
+      "target_id": "enum",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-004",
+      "source_id": "struct",
+      "target_id": "pointer",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-005",
+      "source_id": "array",
+      "target_id": "slice",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-006",
+      "source_id": "proc",
+      "target_id": "struct",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-007",
+      "source_id": "proc",
+      "target_id": "context",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-008",
+      "source_id": "import",
+      "target_id": "package",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-009",
+      "source_id": "declaration",
+      "target_id": "proc",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-010",
+      "source_id": "declaration",
+      "target_id": "struct",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-011",
+      "source_id": "slice",
+      "target_id": "pointer",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "c-012",
+      "source_id": "variable",
+      "target_id": "proc",
+      "relation_id": "conceptual",
+      "connection_layer_membership": [
+        "conceptual-links"
+      ]
+    },
+    {
+      "id": "u-001",
+      "source_id": "import",
+      "target_id": "proc",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-002",
+      "source_id": "proc",
+      "target_id": "slice",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-003",
+      "source_id": "proc",
+      "target_id": "pointer",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-004",
+      "source_id": "proc",
+      "target_id": "defer",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-005",
+      "source_id": "proc",
+      "target_id": "context",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-006",
+      "source_id": "variable",
+      "target_id": "pointer",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-007",
+      "source_id": "package",
+      "target_id": "import",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-008",
+      "source_id": "struct",
+      "target_id": "pointer",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-009",
+      "source_id": "slice",
+      "target_id": "context",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-010",
+      "source_id": "constant",
+      "target_id": "enum",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    },
+    {
+      "id": "u-011",
+      "source_id": "proc",
+      "target_id": "struct",
+      "relation_id": "usage",
+      "connection_layer_membership": [
+        "usage-links"
+      ]
+    }
+  ],
+  "note_types": [
+    {
+      "id": "odin-concept",
+      "name": "Odin Concept Card",
+      "world_id": "odin-language-core",
+      "base_note_type_id": "basic",
+      "fields": [
+        "Summary",
+        "Why",
+        "Example",
+        "Pitfall",
+        "Signals"
+      ],
+      "schema_json": {
+        "version": 1,
+        "fields": [
+          {
+            "key": "Summary",
+            "label": "Summary",
+            "type": "string",
+            "widget": "long_text"
+          },
+          {
+            "key": "Why",
+            "label": "Why",
+            "type": "string",
+            "widget": "long_text"
+          },
+          {
+            "key": "Example",
+            "label": "Example",
+            "type": "string",
+            "widget": "long_text"
+          },
+          {
+            "key": "Pitfall",
+            "label": "Pitfall",
+            "type": "string",
+            "widget": "long_text"
+          },
+          {
+            "key": "Signals",
+            "label": "Signals",
+            "type": "string",
+            "widget": "long_text"
+          }
+        ]
+      },
+      "layout_json": {
+        "version": 1,
+        "pages": [
+          {
+            "id": "overview",
+            "label": "Overview",
+            "kind": "content",
+            "sections": [
+              {
+                "id": "main",
+                "label": "Main",
+                "items": [
+                  {
+                    "field": "Summary"
+                  },
+                  {
+                    "field": "Why"
+                  },
+                  {
+                    "field": "Pitfall"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "examples",
+            "label": "Examples",
+            "kind": "content",
+            "sections": [
+              {
+                "id": "example-block",
+                "label": "Examples",
+                "items": [
+                  {
+                    "field": "Example"
+                  },
+                  {
+                    "field": "Signals"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "connections",
+            "label": "Connections",
+            "kind": "built_in",
+            "source": "connections"
+          }
+        ]
+      },
+      "metadata": {},
+      "is_default": true
+    }
+  ]
+}

@@ -102,7 +102,7 @@ declare global {
   export type { PositionedNode, ClusterLayoutOptions, ForceLayoutOptions } from './src/composables/useForceLayout'
   import('./src/composables/useForceLayout')
   // @ts-ignore
-  export type { Keybindings, GraphicsSettings, LearningSettings } from './src/composables/useSettings'
+  export type { Keybindings, GraphicsSettings, LearningSettings, FocusOverlayEntryMode, WorldSettings } from './src/composables/useSettings'
   import('./src/composables/useSettings')
   // @ts-ignore
   export type { BufferId } from './src/stores/graph'

@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { Html, Line2, OrbitControls } from '@tresjs/cientos'
 import { useTres } from '@tresjs/core'
-import { useRafFn } from '@vueuse/core'
+import { useEventListener, useRafFn } from '@vueuse/core'
 import * as THREE from 'three'
 import { computed, onMounted, shallowRef, watch, ref } from 'vue'
 import { useForceLayout, type PositionedNode } from '@/composables/useForceLayout'
@@ -22,14 +22,22 @@ const editorMode = useEditorMode()
 
 // в”Ђв”Ђ Settings (configurable keybindings) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const settings = useSettings()
+const focusOverlayParentSelection = ref<string[] | null>(null)
 
 // в”Ђв”Ђ Fly key tracking (only active in fly mode) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const activeKeys = new Set<string>()
+type CameraFocusTarget = { target: THREE.Vector3; position: THREE.Vector3 }
 
 // Sync mode when node deselected from outside (X button, layer switch, etc.)
 watch(
   () => graphStore.selectedNodeId,
-  id => editorMode.onNodeSelected(id)
+  id => {
+    editorMode.onNodeSelected(id)
+    if (!id) return
+    if (focusViewConfig.value.defaultOnSelect && !graphStore.focusViewActive) {
+      graphStore.openFocusView(id)
+    }
+  }
 )
 
 // Clear stuck fly keys when leaving fly mode
@@ -44,8 +52,38 @@ watch(
 const neighborIds = computed<Set<string>>(() => {
   const sel = graphStore.selectedNode
   if (!sel) return new Set()
-  return new Set(sel.connections.map(c => c.target_id))
+  const displaySet = new Set(displayedNodes.value.map(node => node.id))
+  return new Set(
+    sel.connections
+      .filter(conn => isConnectionVisible(conn) && displaySet.has(conn.target_id))
+      .map(conn => conn.target_id)
+  )
 })
+
+useEventListener(
+  document,
+  'keydown',
+  (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement)?.tagName
+    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
+    if (isInput || graphStore.activeBuffer !== 'none' || !graphStore.focusViewActive || !graphStore.selectedNodeId) return
+
+    const key = e.key.toLowerCase()
+    if (e.key === 'Escape' && !graphStore.centeredNodePanel) {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      graphStore.closeFocusView()
+      return
+    }
+
+    if (key === settings.keys.openNode || e.key === 'Enter') {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      graphStore.toggleCenteredNodePanel()
+    }
+  },
+  { capture: true }
+)
 
 // Focus camera when search requests focus (even for the same node re-selected)
 watch(
@@ -53,8 +91,8 @@ watch(
   () => {
     const id = graphStore.selectedNodeId
     if (id) {
-      const t = positionedNodes.value.find(n => n.id === id)
-      if (t) focusTarget.value = new THREE.Vector3(t.x, t.y, t.z)
+      const t = displayedNodes.value.find(n => n.id === id)
+      if (t) focusNode(t)
     }
   }
 )
@@ -69,6 +107,8 @@ onMounted(() => {
     const tag = (e.target as HTMLElement)?.tagName
     const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
     const key = e.key.toLowerCase()
+    const isSpaceFocusKey = e.key === ' '
+    const overlayCycleAliasActive = !graphStore.focusViewActive && (key === 'q' || key === 'e')
 
     if (!isInput && key === settings.keys.pinnedBuffer) {
       e.preventDefault()
@@ -119,6 +159,7 @@ onMounted(() => {
       return
     }
     if (!isInput && graphStore.selectedNodeId && key === settings.keys.openNode) {
+      if (overlayCycleAliasActive) return
       e.preventDefault()
       graphStore.toggleCenteredNodePanel()
       return
@@ -126,6 +167,27 @@ onMounted(() => {
     if (!isInput && graphStore.selectedNodeId && key === settings.keys.pinNode) {
       e.preventDefault()
       graphStore.togglePinNode(graphStore.selectedNodeId)
+      return
+    }
+    if (!isInput && graphStore.selectedNodeId && (key === settings.keys.focusView || isSpaceFocusKey)) {
+      e.preventDefault()
+      graphStore.toggleFocusView(graphStore.selectedNodeId)
+      return
+    }
+
+    if (
+      !isInput &&
+      graphStore.focusViewActive &&
+      graphStore.selectedNodeId &&
+      (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')
+    ) {
+      e.preventDefault()
+      const id = moveFocusSelection(e.key)
+      if (id) {
+        graphStore.selectNode(id)
+        const t = displayedNodes.value.find(n => n.id === id)
+        if (t) focusNode(t)
+      }
       return
     }
 
@@ -186,8 +248,8 @@ onMounted(() => {
         const id = e.shiftKey ? editorMode.tabPrev() : editorMode.tabNext()
         if (id) {
           graphStore.selectNode(id)
-          const t = positionedNodes.value.find(n => n.id === id)
-          if (t) focusTarget.value = new THREE.Vector3(t.x, t.y, t.z)
+          const t = displayedNodes.value.find(n => n.id === id)
+          if (t) focusNode(t)
         }
         return
       }
@@ -197,20 +259,21 @@ onMounted(() => {
         const id = editorMode.jumpToNeighbor(num)
         if (id) {
           graphStore.selectNode(id)
-          const t = positionedNodes.value.find(n => n.id === id)
-          if (t) focusTarget.value = new THREE.Vector3(t.x, t.y, t.z)
+          const t = displayedNodes.value.find(n => n.id === id)
+          if (t) focusNode(t)
         }
       }
     }
 
     // jump back (works in any non-fly mode)
     if (!isInput && key === settings.keys.jumpBack && editorMode.mode.value !== 'fly') {
+      if (overlayCycleAliasActive) return
       e.preventDefault()
       const id = editorMode.jumpBack()
       if (id) {
         graphStore.selectNode(id)
-        const t = positionedNodes.value.find(n => n.id === id)
-        if (t) focusTarget.value = new THREE.Vector3(t.x, t.y, t.z)
+        const t = displayedNodes.value.find(n => n.id === id)
+        if (t) focusNode(t)
       } else {
         editorMode.escapeFromCurrentMode()
       }
@@ -248,7 +311,7 @@ watch(
 )
 
 // в”Ђв”Ђ Camera focus animation в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-const focusTarget = shallowRef<THREE.Vector3 | null>(null)
+const focusTarget = shallowRef<CameraFocusTarget | null>(null)
 
 const _fwd = new THREE.Vector3()
 const _right = new THREE.Vector3()
@@ -258,6 +321,10 @@ const _camLerpTarget = new THREE.Vector3()
 const _orbitLerpTarget = new THREE.Vector3()
 const _orbitOffset = new THREE.Vector3()
 const _orbitSpherical = new THREE.Spherical()
+const _focusBox = new THREE.Box3()
+const _focusSize = new THREE.Vector3()
+const _focusCenter = new THREE.Vector3()
+const _focusDirection = new THREE.Vector3()
 
 // Pulse state for the core light
 let pulseT = 0
@@ -299,8 +366,8 @@ useRafFn(({ delta }) => {
 
   // Camera lerp toward selected node
   if (focusTarget.value) {
-    _camLerpTarget.set(focusTarget.value.x, focusTarget.value.y + 3, focusTarget.value.z + 11)
-    _orbitLerpTarget.copy(focusTarget.value)
+    _camLerpTarget.copy(focusTarget.value.position)
+    _orbitLerpTarget.copy(focusTarget.value.target)
 
     cam.position.lerp(_camLerpTarget, 0.06)
     controls.target.lerp(_orbitLerpTarget, 0.06)
@@ -325,13 +392,13 @@ useRafFn(({ delta }) => {
 
   // Compass projection (graph mode only)
   if (editorMode.mode.value === 'graph' && graphStore.selectedNodeId) {
-    const sel = positionedNodes.value.find(n => n.id === graphStore.selectedNodeId)
+    const sel = displayedNodes.value.find(n => n.id === graphStore.selectedNodeId)
     if (sel) {
       _ndcVec.set(sel.x, sel.y, sel.z).project(cam)
       const sx = ((_ndcVec.x + 1) / 2) * window.innerWidth
       const sy = ((-_ndcVec.y + 1) / 2) * window.innerHeight
       const center = { x: sx, y: sy }
-      const nodeMap = new Map(positionedNodes.value.map(n => [n.id, n]))
+      const nodeMap = new Map(displayedNodes.value.map(n => [n.id, n]))
       // Deduplicate by target_id (same neighbor can appear via both an outgoing
       // and an incoming edge after the bidirectional query), then filter to
       // nodes present in this layer, so indices are always sequential 1, 2, 3вЂ¦
@@ -339,16 +406,7 @@ useRafFn(({ delta }) => {
       const validConns = sel.connections
         .filter(conn => {
           if (!nodeMap.has(conn.target_id) || seen.has(conn.target_id)) return false
-          if (
-            graphStore.connectionLayers.length > 0 &&
-            (
-              graphStore.activeConnectionLayerIds.length === 0 ||
-              conn.connection_layer_ids.length === 0 ||
-              !conn.connection_layer_ids.some(id => graphStore.activeConnectionLayerIds.includes(id))
-            )
-          ) {
-            return false
-          }
+          if (!isConnectionVisible(conn)) return false
           seen.add(conn.target_id)
           return true
         })
@@ -397,6 +455,13 @@ const hoveredNodeId = ref<string | null>(null)
 type JsonObject = Record<string, unknown>
 type GroupStyleConfig = { color: string; emissive: string; emissiveIntensity: number }
 type GroupLayoutConfig = { cohesion: number; intraSpacing: number }
+type FocusViewConfig = {
+  defaultOnSelect: boolean
+  rings: number
+  ringRadius: number
+  maxNeighbors: number
+  relationIds: string[]
+}
 type GroupRelationStyleConfig = {
   color: string
   width: number
@@ -431,10 +496,27 @@ function boolOr(obj: JsonObject, key: string, fallback: boolean): boolean {
 }
 
 const worldRoot = computed(() => parseJsonObject(graphStore.worldConfig?.config_json))
+const currentWorldId = computed(() => graphStore.worldConfig?.id ?? null)
+const currentWorldSettings = computed(() => settings.getWorldSettings(currentWorldId.value))
 
 const worldMetadata = computed<JsonObject>(() => {
   const metadata = worldRoot.value.metadata
   return metadata && typeof metadata === 'object' ? (metadata as JsonObject) : {}
+})
+
+const focusViewConfig = computed<FocusViewConfig>(() => {
+  const raw = worldMetadata.value.focus_view
+  const obj = raw && typeof raw === 'object' ? (raw as JsonObject) : {}
+  const relationIdsRaw = Array.isArray(obj.relation_ids)
+    ? obj.relation_ids.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    : []
+  return {
+    defaultOnSelect: boolOr(obj, 'default_on_select', false),
+    rings: Math.max(1, Math.min(3, Math.round(numOr(obj, 'rings', 1)))),
+    ringRadius: Math.max(5, numOr(obj, 'ring_radius', 8.5)),
+    maxNeighbors: Math.max(6, Math.min(48, Math.round(numOr(obj, 'max_neighbors', 18)))),
+    relationIds: relationIdsRaw,
+  }
 })
 
 const contextGroups = computed(() => {
@@ -616,6 +698,193 @@ const { positionedNodes } = useForceLayout(
     }
   }
 )
+
+const activeConnectionLayerSet = computed(() => new Set(graphStore.activeConnectionLayerIds))
+
+function isConnectionVisible(conn: { connection_layer_ids: string[] }): boolean {
+  if (graphStore.connectionLayers.length === 0) return true
+  if (activeConnectionLayerSet.value.size === 0) return false
+  if (conn.connection_layer_ids.length === 0) return false
+  return conn.connection_layer_ids.some(id => activeConnectionLayerSet.value.has(id))
+}
+
+function isFocusConnectionEligible(conn: { relation_id: string | null }): boolean {
+  if (focusViewConfig.value.relationIds.length === 0) return true
+  if (!conn.relation_id) return false
+  return focusViewConfig.value.relationIds.includes(conn.relation_id)
+}
+
+const displayedNodes = computed(() => {
+  if (!graphStore.focusViewActive || !graphStore.focusRootNodeId) return positionedNodes.value
+
+  const root = positionedNodes.value.find(node => node.id === graphStore.focusRootNodeId)
+  if (!root) return positionedNodes.value
+
+  const nodeMap = new Map(positionedNodes.value.map(node => [node.id, node]))
+  const seen = new Set<string>([root.id])
+  const byRing: PositionedNode[][] = []
+  let frontier = [root]
+
+  for (let ringIndex = 0; ringIndex < focusViewConfig.value.rings; ringIndex++) {
+    const next: PositionedNode[] = []
+    for (const node of frontier) {
+      for (const conn of node.connections) {
+        if (!isFocusConnectionEligible(conn) || seen.has(conn.target_id)) continue
+        const target = nodeMap.get(conn.target_id)
+        if (!target) continue
+        seen.add(target.id)
+        next.push(target)
+        if (seen.size >= focusViewConfig.value.maxNeighbors + 1) break
+      }
+      if (seen.size >= focusViewConfig.value.maxNeighbors + 1) break
+    }
+    if (next.length === 0) break
+    byRing.push(next)
+    frontier = next
+  }
+
+  const result: PositionedNode[] = [{ ...root }]
+  const rootBase = new THREE.Vector3(root.x, root.y, root.z)
+  const baseVec = new THREE.Vector3()
+  const fallbackAngleStep = Math.PI * (3 - Math.sqrt(5))
+
+  byRing.forEach((ringNodes, ringIndex) => {
+    const radius = focusViewConfig.value.ringRadius * (ringIndex + 1)
+    const items = [...ringNodes]
+    items.sort((a, b) => {
+      baseVec.set(a.x - rootBase.x, 0, a.z - rootBase.z)
+      const angleA = baseVec.lengthSq() > 0.0001 ? Math.atan2(baseVec.z, baseVec.x) : ringIndex + fallbackAngleStep
+      baseVec.set(b.x - rootBase.x, 0, b.z - rootBase.z)
+      const angleB = baseVec.lengthSq() > 0.0001 ? Math.atan2(baseVec.z, baseVec.x) : ringIndex + fallbackAngleStep
+      return angleA - angleB
+    })
+
+    const step = (2 * Math.PI) / Math.max(items.length, 1)
+    items.forEach((node, itemIndex) => {
+      const angle = items.length === 1 ? -Math.PI / 2 : -Math.PI / 2 + itemIndex * step
+      result.push({
+        ...node,
+        x: root.x + Math.cos(angle) * radius,
+        y: root.y + (ringIndex === 0 ? 0.8 : 0.4) + Math.sin(angle * 2) * 0.9,
+        z: root.z + Math.sin(angle) * radius,
+      })
+    })
+  })
+
+  return result
+})
+
+function moveFocusSelection(directionKey: 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown'): string | null {
+  const selectedId = graphStore.selectedNodeId
+  if (!selectedId) return null
+
+  const current = displayedNodes.value.find(node => node.id === selectedId)
+  if (!current) return null
+
+  const candidates = displayedNodes.value.filter(node => node.id !== selectedId)
+  if (candidates.length === 0) return null
+
+  const desired =
+    directionKey === 'ArrowLeft'
+      ? new THREE.Vector2(-1, 0)
+      : directionKey === 'ArrowRight'
+        ? new THREE.Vector2(1, 0)
+        : directionKey === 'ArrowUp'
+          ? new THREE.Vector2(0, -1)
+          : new THREE.Vector2(0, 1)
+
+  let best: { id: string; score: number } | null = null
+  for (const node of candidates) {
+    const delta = new THREE.Vector2(node.x - current.x, node.z - current.z)
+    const distance = delta.length()
+    if (distance < 0.001) continue
+    delta.normalize()
+    const alignment = delta.dot(desired)
+    if (alignment <= 0.15) continue
+    const score = alignment * 10 - distance
+    if (!best || score > best.score) {
+      best = { id: node.id, score }
+    }
+  }
+
+  return best?.id ?? null
+}
+
+function currentCameraDirection(): THREE.Vector3 {
+  const rawControls = controlsRef.value
+  const controls = rawControls?.instance ?? rawControls
+  const cam = controls?.object as THREE.PerspectiveCamera | undefined
+  if (controls?.target && cam) {
+    _focusDirection.copy(cam.position).sub(controls.target)
+    if (_focusDirection.lengthSq() > 0.001) {
+      if (Math.abs(_focusDirection.y) < 3.5) {
+        _focusDirection.y = _focusDirection.y >= 0 ? 3.5 : -3.5
+      }
+      return _focusDirection.normalize()
+    }
+  }
+  return _focusDirection.set(0.1, 0.34, 1).normalize()
+}
+
+function buildSingleNodeFocus(target: THREE.Vector3): CameraFocusTarget {
+  const direction = currentCameraDirection().clone()
+  const rawControls = controlsRef.value
+  const controls = rawControls?.instance ?? rawControls
+  const cam = controls?.object as THREE.PerspectiveCamera | undefined
+  const currentDistance =
+    controls?.target && cam ? cam.position.distanceTo(controls.target) : 15
+  const distance = Math.max(12, Math.min(36, currentDistance))
+  const position = target.clone().addScaledVector(direction, distance)
+  position.y = Math.max(position.y, target.y + 4)
+  return { target, position }
+}
+
+function buildClusterFocus(nodes: PositionedNode[]): CameraFocusTarget {
+  if (nodes.length === 0) {
+    return buildSingleNodeFocus(new THREE.Vector3())
+  }
+
+  _focusBox.makeEmpty()
+  for (const node of nodes) {
+    _focusBox.expandByPoint(new THREE.Vector3(node.x, node.y, node.z))
+  }
+  _focusBox.getCenter(_focusCenter)
+  _focusBox.getSize(_focusSize)
+
+  const rawControls = controlsRef.value
+  const controls = rawControls?.instance ?? rawControls
+  const cam = controls?.object as THREE.PerspectiveCamera | undefined
+  const direction = currentCameraDirection().clone()
+  const radius = Math.max(7.5, _focusSize.length() * 0.5)
+  const vFov = THREE.MathUtils.degToRad(cam?.fov ?? 60)
+  const aspect = cam?.aspect && cam.aspect > 0 ? cam.aspect : Math.max(window.innerWidth / Math.max(window.innerHeight, 1), 1)
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect)
+  const fitDistance = Math.max(
+    radius / Math.tan(vFov / 2),
+    radius / Math.tan(hFov / 2),
+  )
+  const distance = Math.max(focusViewConfig.value.ringRadius * 3.2, Math.min(90, fitDistance * 1.18))
+  const position = _focusCenter.clone().addScaledVector(direction, distance)
+  position.y = Math.max(position.y, _focusCenter.y + radius * 0.45 + 4)
+
+  return {
+    target: _focusCenter.clone(),
+    position,
+  }
+}
+
+function focusNode(node: PositionedNode) {
+  focusTarget.value = graphStore.focusViewActive
+    ? buildClusterFocus(displayedNodes.value)
+    : buildSingleNodeFocus(new THREE.Vector3(node.x, node.y, node.z))
+}
+
+function focusOverlaySelectionForEntry(): string[] {
+  const mode = currentWorldSettings.value.focusOverlayEntryMode
+  if (mode === 'inherit') return [...graphStore.activeConnectionLayerIds]
+  if (mode === 'none') return []
+  return graphStore.connectionLayers.map(layer => layer.id)
+}
 
 // в”Ђв”Ђ Node helpers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function nodeRadius(node: PositionedNode): number {
@@ -821,6 +1090,8 @@ function resolvedEdgeStyle(
   gapSize: number
   animatedFlow: boolean
   flowSpeed: number
+  shape: 'straight' | 'arc' | 'wave'
+  arcHeight: number
 } {
   const defaultEdge =
     worldVisual.value.edge && typeof worldVisual.value.edge === 'object' ? (worldVisual.value.edge as JsonObject) : {}
@@ -832,8 +1103,15 @@ function resolvedEdgeStyle(
     .filter((v): v is { order: number; style: JsonObject } => Boolean(v))
     .sort((a, b) => b.order - a.order)
   const topLayerStyle = candidates[0]?.style ?? {}
+  const topLayerId = conn.connection_layer_ids.find(id => activeConnectionLayerSet.has(id))?.toLowerCase() ?? ''
   const groupStyle = isBridge ? groupRelationStyles.value.bridge : groupRelationStyles.value.intra
   const groupStyleObj = (groupStyle ?? {}) as JsonObject
+  const shapeRaw = strOr(
+    topLayerStyle,
+    'shape',
+    topLayerId.includes('usage') ? 'wave' : topLayerId.includes('concept') ? 'arc' : 'straight'
+  )
+  const shape = shapeRaw === 'wave' || shapeRaw === 'arc' ? shapeRaw : 'straight'
 
   return {
     color: strOr(
@@ -861,15 +1139,16 @@ function resolvedEdgeStyle(
       'flow_speed',
       numOr(relationStyle, 'flow_speed', numOr(defaultEdge, 'flow_speed', 1))
     ),
+    shape,
+    arcHeight: numOr(topLayerStyle, 'arc_height', shape === 'wave' ? 1.05 : shape === 'arc' ? 0.72 : 0.3),
   }
 }
 
 // в”Ђв”Ђ Edge list for cientos Line2 component в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const edges = computed(() => {
-  const nodeMap = new Map<string, PositionedNode>(positionedNodes.value.map(n => [n.id, n]))
-  const activeConnectionLayerSet = new Set(graphStore.activeConnectionLayerIds)
+  const nodeMap = new Map<string, PositionedNode>(displayedNodes.value.map(n => [n.id, n]))
   const hasConnectionLayers = graphStore.connectionLayers.length > 0
-  const selectedCount = activeConnectionLayerSet.size
+  const selectedCount = activeConnectionLayerSet.value.size
   const result: {
     id: string
     points: [number, number, number][]
@@ -880,6 +1159,8 @@ const edges = computed(() => {
     dashSize: number
     gapSize: number
     dashScale: number
+    shape: 'straight' | 'arc' | 'wave'
+    arcHeight: number
   }[] = []
   const seenEdgeIds = new Set<string>()
   const edgeRows: {
@@ -893,10 +1174,12 @@ const edges = computed(() => {
     dashSize: number
     gapSize: number
     dashScale: number
+    shape: 'straight' | 'arc' | 'wave'
+    arcHeight: number
     pairKey: string
   }[] = []
 
-  for (const node of positionedNodes.value) {
+  for (const node of displayedNodes.value) {
     for (const conn of node.connections) {
       if (seenEdgeIds.has(conn.id)) continue
       seenEdgeIds.add(conn.id)
@@ -906,7 +1189,7 @@ const edges = computed(() => {
         (
           selectedCount === 0 ||
           conn.connection_layer_ids.length === 0 ||
-          !conn.connection_layer_ids.some(id => activeConnectionLayerSet.has(id))
+          !conn.connection_layer_ids.some(id => activeConnectionLayerSet.value.has(id))
         )
       ) {
         continue
@@ -914,7 +1197,7 @@ const edges = computed(() => {
 
       const target = nodeMap.get(conn.target_id)
       if (!target) continue
-      const style = resolvedEdgeStyle(conn, activeConnectionLayerSet, isBridgeEdge(node, target))
+      const style = resolvedEdgeStyle(conn, activeConnectionLayerSet.value, isBridgeEdge(node, target))
 
       const a = node.id < conn.target_id ? node.id : conn.target_id
       const b = node.id < conn.target_id ? conn.target_id : node.id
@@ -929,6 +1212,8 @@ const edges = computed(() => {
         dashSize: style.dashSize > 0 ? style.dashSize : 0.22,
         gapSize: style.gapSize > 0 ? style.gapSize : 0.14,
         dashScale: style.flowSpeed > 0 ? style.flowSpeed : 1,
+        shape: style.shape,
+        arcHeight: style.arcHeight,
         pairKey: `${a}::${b}`,
       })
     }
@@ -956,13 +1241,24 @@ const edges = computed(() => {
       const src = row.source
       const tgt = row.target
 
-      if (count > 1 && lane !== 0) {
-        dir.set(tgt.x - src.x, tgt.y - src.y, tgt.z - src.z)
-        if (dir.lengthSq() < 1e-6) continue
-        dir.normalize()
-        normal.crossVectors(dir, up)
-        if (normal.lengthSq() < 1e-6) normal.crossVectors(dir, xAxis)
-        normal.normalize().multiplyScalar(offsetStrength * lane)
+      dir.set(tgt.x - src.x, tgt.y - src.y, tgt.z - src.z)
+      if (dir.lengthSq() < 1e-6) continue
+      dir.normalize()
+      normal.crossVectors(dir, up)
+      if (normal.lengthSq() < 1e-6) normal.crossVectors(dir, xAxis)
+      normal.normalize()
+
+      const shapeOffset =
+        row.shape === 'wave'
+          ? row.arcHeight * 1.65
+          : row.shape === 'arc'
+            ? row.arcHeight
+            : 0
+      const laneOffset = count > 1 && lane !== 0 ? offsetStrength * lane : 0
+      const totalOffset = shapeOffset + laneOffset
+
+      if (totalOffset !== 0) {
+        normal.multiplyScalar(totalOffset)
         mid.set((src.x + tgt.x) / 2, (src.y + tgt.y) / 2, (src.z + tgt.z) / 2).add(normal)
 
         result.push({
@@ -1054,7 +1350,7 @@ function nodeProgressLabel(node: PositionedNode): string {
 function onNodeClick(node: PositionedNode, event: { stopPropagation?: () => void }) {
   event.stopPropagation?.()
   graphStore.selectNode(node.id)
-  focusTarget.value = new THREE.Vector3(node.x, node.y, node.z)
+  focusNode(node)
   editorMode.onNodeSelected(node.id)
 }
 
@@ -1074,6 +1370,38 @@ watch(
   () => {
     focusTarget.value = null
     hoveredNodeId.value = null
+    graphStore.closeFocusView()
+  }
+)
+
+watch(
+  () => [
+    graphStore.focusViewActive,
+    graphStore.focusRootNodeId,
+    displayedNodes.value.map(node => node.id).join('|'),
+  ],
+  ([focusActive]) => {
+    if (!focusActive || displayedNodes.value.length === 0) return
+    focusTarget.value = buildClusterFocus(displayedNodes.value)
+  }
+)
+
+watch(
+  () => graphStore.focusViewActive,
+  (active, wasActive) => {
+    if (active === wasActive) return
+
+    if (active) {
+      focusOverlayParentSelection.value = [...graphStore.activeConnectionLayerIds]
+      graphStore.setConnectionLayerSelection(focusOverlaySelectionForEntry())
+      return
+    }
+
+    const previous = focusOverlayParentSelection.value
+    focusOverlayParentSelection.value = null
+    if (currentWorldSettings.value.restoreOverlaySelectionOnExit && previous) {
+      graphStore.setConnectionLayerSelection(previous)
+    }
   }
 )
 </script>
@@ -1115,7 +1443,7 @@ watch(
 
   <!-- в”Ђв”Ђ Nodes в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ -->
   <TresMesh
-    v-for="node in positionedNodes"
+    v-for="node in displayedNodes"
     :key="node.id"
     :position="[node.x, node.y, node.z]"
     :scale="nodeScale(node)"
@@ -1145,7 +1473,7 @@ watch(
 
   <!-- Soft group halo per node (distance-readable, low clutter) -->
   <TresMesh
-    v-for="node in positionedNodes"
+    v-for="node in displayedNodes"
     :key="`halo-${node.id}`"
     :position="[node.x, node.y, node.z]"
     :scale="nodeScale(node) * 1.05"
@@ -1161,7 +1489,7 @@ watch(
 
   <!-- в”Ђв”Ђ Node labels (all nodes, distance-faded) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ -->
   <Html
-    v-for="node in positionedNodes"
+    v-for="node in displayedNodes"
     :key="`label-${node.id}`"
     :position="[node.x, node.y + nodeRadius(node) + 0.7, node.z]"
     center
@@ -1185,7 +1513,7 @@ watch(
   </Html>
 
   <Html
-    v-for="node in positionedNodes.filter(n => graphStore.isNodePinned(n.id))"
+    v-for="node in displayedNodes.filter(n => graphStore.isNodePinned(n.id))"
     :key="`pin-tag-${node.id}`"
     :position="[node.x, node.y + nodeRadius(node) + 1.3, node.z]"
     center

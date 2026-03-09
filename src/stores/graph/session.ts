@@ -7,6 +7,8 @@ export function createGraphSessionActions(session: GraphSessionState) {
     if (!id) {
       session.centeredNodePanel.value = false
       session.nodeEditorOpen.value = false
+      session.focusViewActive.value = false
+      session.focusRootNodeId.value = null
     }
   }
 
@@ -54,6 +56,28 @@ export function createGraphSessionActions(session: GraphSessionState) {
     session.pinnedNodeIds.value = []
   }
 
+  function openFocusView(rootId?: string | null) {
+    const id = rootId ?? session.selectedNodeId.value
+    if (!id) return
+    session.focusViewActive.value = true
+    session.focusRootNodeId.value = id
+  }
+
+  function closeFocusView() {
+    session.focusViewActive.value = false
+    session.focusRootNodeId.value = null
+  }
+
+  function toggleFocusView(rootId?: string | null) {
+    const id = rootId ?? session.selectedNodeId.value
+    if (!id) return
+    if (session.focusViewActive.value && session.focusRootNodeId.value === id) {
+      closeFocusView()
+      return
+    }
+    openFocusView(id)
+  }
+
   function closeBuffer() {
     session.activeBuffer.value = 'none'
   }
@@ -97,6 +121,8 @@ export function createGraphSessionActions(session: GraphSessionState) {
     session.centeredNodePanel.value = false
     session.nodeEditorOpen.value = false
     session.pinnedNodeIds.value = []
+    session.focusViewActive.value = false
+    session.focusRootNodeId.value = null
     session.activeBuffer.value = 'none'
   }
 
@@ -111,6 +137,9 @@ export function createGraphSessionActions(session: GraphSessionState) {
     togglePinNode,
     unpinNode,
     clearPinnedNodes,
+    openFocusView,
+    closeFocusView,
+    toggleFocusView,
     closeBuffer,
     openBuffer,
     toggleBuffer,

@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { X, Tag, ArrowRight, CheckCircle2, Pin, Crosshair, Clock3, History, ChevronLeft, ChevronRight, PanelsTopLeft, Shapes, Pencil } from 'lucide-vue-next'
+import { X, Tag, ArrowRight, CheckCircle2, Pin, Crosshair, Clock3, History, ChevronLeft, ChevronRight, PanelsTopLeft, Shapes, Pencil, Orbit } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import OverlayShell from '@/components/ui/OverlayShell.vue'
@@ -49,6 +49,7 @@ const activePageIndex = ref(0)
 const node = computed(() => graphStore.selectedNode)
 const isCentered = computed(() => graphStore.centeredNodePanel)
 const isPinned = computed(() => graphStore.isNodePinned(node.value?.id))
+const isFocusView = computed(() => graphStore.focusViewActive)
 
 const progressStatus = computed<ProgressStatus>(() => {
   const raw = node.value?.progress_status
@@ -280,6 +281,11 @@ function openNodeEditor() {
   graphStore.openNodeEditor()
 }
 
+function toggleFocusView() {
+  if (!node.value) return
+  graphStore.toggleFocusView(node.value.id)
+}
+
 async function onNoteTypeChange(e: Event) {
   if (!node.value) return
   const target = e.target as HTMLSelectElement
@@ -314,6 +320,10 @@ useEventListener(
       cyclePage(e.ctrlKey || e.shiftKey ? -1 : 1)
     }
 
+    if (graphStore.focusViewActive && (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      return
+    }
+
     if (e.key === 'ArrowRight') {
       e.preventDefault()
       e.stopImmediatePropagation()
@@ -333,7 +343,7 @@ useEventListener(
 <template>
   <template v-if="node">
     <Transition name="panel">
-      <div v-if="!isCentered" class="detail-panel is-side" @click.stop>
+      <div v-if="!isCentered" :key="`side-${node.id}`" class="detail-panel is-side" @click.stop>
         <div class="panel-header">
           <div class="title-wrap">
             <div class="panel-title">{{ node.title }}</div>
@@ -363,6 +373,14 @@ useEventListener(
             >
               <Pencil :size="13" />
             </button>
+            <button
+              v-if="isFocusView"
+              class="icon-btn active"
+              @click="toggleFocusView"
+              aria-label="Exit focus view"
+            >
+              <Orbit :size="13" />
+            </button>
             <button class="close-btn" @click="onClose" aria-label="Close">
               <X :size="14" />
             </button>
@@ -376,64 +394,70 @@ useEventListener(
             <span :class="['progress-chip', STATUS_META[progressStatus].className]">{{ STATUS_META[progressStatus].label }}</span>
             <span class="meta-chip">{{ node.connections.length }} links</span>
             <span class="meta-chip">{{ noteTypeName }}</span>
+            <span v-if="isFocusView" class="meta-chip meta-chip-focus">Focus</span>
           </div>
 
-          <NodeSummaryRenderer :node="node" :note-type="activeNoteType" />
+          <NodeSummaryRenderer :key="`summary-${node.id}`" :node="node" :note-type="activeNoteType" />
 
-          <div class="compact-block">
-            <div class="section-label">
-              <Clock3 :size="12" />
-              <span>Learning</span>
+          <template v-if="!isFocusView">
+            <div class="compact-block">
+              <div class="section-label">
+                <Clock3 :size="12" />
+                <span>Learning</span>
+              </div>
+              <div class="compact-fact-row">
+                <span>Next review</span>
+                <strong>{{ formatSchedule(node.progress_next_review_at) }}</strong>
+              </div>
+              <div class="compact-fact-row">
+                <span>Reviews</span>
+                <strong>{{ node.progress_review_count }}</strong>
+              </div>
             </div>
-            <div class="compact-fact-row">
-              <span>Next review</span>
-              <strong>{{ formatSchedule(node.progress_next_review_at) }}</strong>
-            </div>
-            <div class="compact-fact-row">
-              <span>Reviews</span>
-              <strong>{{ node.progress_review_count }}</strong>
-            </div>
-          </div>
 
-          <div class="compact-block">
-            <div class="section-label">
-              <ArrowRight :size="12" />
-              <span>Connections</span>
+            <div class="compact-block">
+              <div class="section-label">
+                <ArrowRight :size="12" />
+                <span>Connections</span>
+              </div>
+              <ul class="connections-list compact-connections">
+                <li
+                  v-for="conn in node.connections.slice(0, 6)"
+                  :key="conn.id"
+                  class="connection-item"
+                  @click="graphStore.selectNode(conn.target_id)"
+                >
+                  <span class="conn-target">{{ connectedNodeTitle(conn.target_id) }}</span>
+                  <span :class="['conn-badge', edgeBadgeClass(conn.edge_type)]">{{ edgeLabel(conn.edge_type) }}</span>
+                </li>
+              </ul>
             </div>
-            <ul class="connections-list compact-connections">
-              <li
-                v-for="conn in node.connections.slice(0, 6)"
-                :key="conn.id"
-                class="connection-item"
-                @click="graphStore.selectNode(conn.target_id)"
-              >
-                <span class="conn-target">{{ connectedNodeTitle(conn.target_id) }}</span>
-                <span :class="['conn-badge', edgeBadgeClass(conn.edge_type)]">{{ edgeLabel(conn.edge_type) }}</span>
-              </li>
-            </ul>
-          </div>
+          </template>
         </div>
 
-        <div class="panel-divider" />
+        <template v-if="!isFocusView">
+          <div class="panel-divider" />
 
-        <div class="panel-footer">
-          <button class="pin-btn" :class="{ active: isPinned }" @click="togglePinned">
-            <Pin :size="13" />
-            <span>{{ isPinned ? 'Unpin node' : 'Pin node' }} ({{ settings.keys.pinNode.toUpperCase() }})</span>
-          </button>
-          <button class="workspace-btn" @click="toggleCentered">
-            <PanelsTopLeft :size="13" />
-            <span>Open viewer ({{ settings.keys.openNode.toUpperCase() }})</span>
-          </button>
-          <button class="workspace-btn" @click="openNodeEditor">
-            <Pencil :size="13" />
-            <span>Edit node ({{ settings.keys.editNode.toUpperCase() }})</span>
-          </button>
-        </div>
+          <div class="panel-footer">
+            <button class="pin-btn" :class="{ active: isPinned }" @click="togglePinned">
+              <Pin :size="13" />
+              <span>{{ isPinned ? 'Unpin node' : 'Pin node' }} ({{ settings.keys.pinNode.toUpperCase() }})</span>
+            </button>
+            <button class="workspace-btn" @click="toggleCentered">
+              <PanelsTopLeft :size="13" />
+              <span>Open viewer ({{ settings.keys.openNode.toUpperCase() }})</span>
+            </button>
+            <button class="workspace-btn" @click="openNodeEditor">
+              <Pencil :size="13" />
+              <span>Edit node ({{ settings.keys.editNode.toUpperCase() }})</span>
+            </button>
+          </div>
+        </template>
       </div>
     </Transition>
 
     <OverlayShell
+      :key="`centered-${node.id}`"
       :open="isCentered"
       :title="node.title"
       :subtitle="`${node.node_type} · ${noteTypeName}`"
@@ -484,7 +508,7 @@ useEventListener(
                 <Shapes :size="12" />
                 <span>{{ currentPage.label }}</span>
               </div>
-              <NoteTypePageRenderer :node="node" :note-type="activeNoteType" :active-page-id="currentPage.pageId" />
+              <NoteTypePageRenderer :key="`page-${node.id}-${currentPage.pageId}`" :node="node" :note-type="activeNoteType" :active-page-id="currentPage.pageId" />
             </article>
           </section>
 
@@ -621,7 +645,7 @@ useEventListener(
                   <PanelsTopLeft :size="12" />
                   <span>Extension slots</span>
                 </div>
-                <NodeExtensionOutlet :node="node" slot="learning.secondary" />
+                <NodeExtensionOutlet :key="`learning-extension-${node.id}`" :node="node" slot="learning.secondary" />
               </article>
             </div>
           </section>
@@ -654,7 +678,7 @@ useEventListener(
                   <PanelsTopLeft :size="12" />
                   <span>Extension slots</span>
                 </div>
-                <NodeExtensionOutlet :node="node" slot="history.secondary" />
+                <NodeExtensionOutlet :key="`history-extension-${node.id}`" :node="node" slot="history.secondary" />
               </article>
             </div>
           </section>
@@ -666,7 +690,7 @@ useEventListener(
                   <PanelsTopLeft :size="12" />
                   <span>{{ currentPage.label }}</span>
                 </div>
-                <NodeExtensionOutlet :node="node" slot="extensions.primary" :extension-id="currentPage.extensionId" />
+                <NodeExtensionOutlet :key="`extension-${node.id}-${currentPage.extensionId}`" :node="node" slot="extensions.primary" :extension-id="currentPage.extensionId" />
               </article>
             </div>
           </section>
@@ -795,6 +819,12 @@ useEventListener(
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.meta-chip-focus {
+  color: var(--app-accent);
+  background: color-mix(in srgb, var(--app-accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--app-accent) 26%, transparent);
+}
+
 .compact-block {
   display: flex;
   flex-direction: column;
@@ -919,6 +949,18 @@ useEventListener(
   background: linear-gradient(180deg, rgba(12, 16, 28, 0) 0%, rgba(12, 16, 28, 0.95) 28%);
   backdrop-filter: blur(8px);
 }
+
+.focus-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.focus-hint {
+  font-size: 11px;
+  color: var(--app-text-secondary);
+}
+
 
 .pin-btn,
 .workspace-btn,
@@ -1342,5 +1384,3 @@ useEventListener(
   }
 }
 </style>
-
-
