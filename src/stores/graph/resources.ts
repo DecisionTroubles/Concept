@@ -127,7 +127,10 @@ export function createGraphResourceActions(options: GraphResourceActionsOptions)
 
   function setConnectionLayerSelection(ids: string[]) {
     const valid = new Set(state.connectionLayers.value.map(layer => layer.id))
-    state.activeConnectionLayerIds.value = ids.filter(id => valid.has(id))
+    const next = ids.filter(id => valid.has(id))
+    const current = state.activeConnectionLayerIds.value
+    if (next.length === current.length && next.every((id, index) => id === current[index])) return
+    state.activeConnectionLayerIds.value = next
     saveConnectionLayerSelection(state.activeConnectionLayerIds.value)
   }
 

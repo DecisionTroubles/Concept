@@ -22,6 +22,10 @@ const dragStartCenterX = ref(0)
 const dragStartCenterZ = ref(0)
 const BUFFER_ORDER: Array<Exclude<typeof graphStore.activeBuffer.value, 'none'>> = ['pinned', 'map']
 
+function isSublayerNode(node: { parent_node_id: string | null }): boolean {
+  return typeof node.parent_node_id === 'string' && node.parent_node_id.length > 0
+}
+
 type MapEdge = {
   id: string
   source: string
@@ -57,7 +61,7 @@ type MapDrawEdge = {
 }
 
 const quickMap = computed(() => {
-  const items = graphStore.nodes
+  const items = graphStore.nodes.filter(node => !isSublayerNode(node))
   if (items.length === 0) return { nodes: [] as MapDrawNode[], edges: [] as MapDrawEdge[] }
 
   const fallbackR = Math.max(10, items.length * 0.9)

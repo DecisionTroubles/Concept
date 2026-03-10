@@ -292,6 +292,7 @@ input[type='range']::-moz-range-thumb {
   --z-node-search: 300;
   --z-node-detail: 420;
   --z-buffer-modal: 910;
+  --z-tooltip: 1200;
 
   --app-canvas-bg: #080b14;
   --app-overlay-bg: rgba(10, 13, 24, 0.96);

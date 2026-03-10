@@ -14,6 +14,10 @@ const inputRef = ref<HTMLInputElement | null>(null)
 
 let lastFTime = 0
 
+function isSublayerNode(node: { parent_node_id: string | null }): boolean {
+  return typeof node.parent_node_id === 'string' && node.parent_node_id.length > 0
+}
+
 function open() {
   isOpen.value = true
   insertMode.value = false   // start in NORMAL mode, no autofocus
@@ -36,9 +40,10 @@ function selectResult(id: string) {
 }
 
 const results = computed(() => {
+  const visibleNodes = graphStore.nodes.filter(node => !isSublayerNode(node))
   const q = query.value.toLowerCase().trim()
-  if (!q) return graphStore.nodes.slice(0, 20)
-  return graphStore.nodes
+  if (!q) return visibleNodes.slice(0, 20)
+  return visibleNodes
     .filter(n =>
       n.title.toLowerCase().includes(q) ||
       n.tags.some(t => t.toLowerCase().includes(q))

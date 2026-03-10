@@ -228,7 +228,7 @@
       "note_fields": {
         "Summary": "Odin is a systems language world centered on explicit declarations, structured data, and pragmatic runtime patterns.",
         "Why": "This root node anchors the first-pass learning route through the world.",
-        "Example": "Use this as the entry point before branching into declarations, data layout, and runtime ideas.",
+        "Example": "package main\n\nimport \"core:fmt\"\n\nmain :: proc() {\n    state := State.Idle\n    fmt.println(state)\n}",
         "Pitfall": "Do not treat every edge as equal. The connection layers intentionally mean different things.",
         "Signals": "Gradual = learning order. Conceptual = mental model. Usage = common co-usage."
       },
@@ -240,7 +240,31 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "odin-root-frame",
+          "title": "World reading frame",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "The Odin root is not syntax itself. It is the map legend for how to read the three connection lenses.",
+            "Why": "If the learner misses this, the graph turns into one undifferentiated mesh.",
+            "Example": "Start here, then switch between gradual for order and conceptual for understanding.",
+            "Pitfall": "Treating all edges as if they mean the same thing.",
+            "Signals": "Parent = Odin Overview."
+          },
+          "content_data": "Sublayer note for reading the world itself.",
+          "tags": [
+            "group:syntax"
+          ],
+          "weight": 0.84,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "package",
@@ -262,7 +286,31 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "package-boundary-cue",
+          "title": "Package boundary cue",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "The package line tells you what logical space the file belongs to before any declaration is read.",
+            "Why": "It frames every later name as belonging to a module boundary.",
+            "Example": "Read package first, then ask what declarations live inside it.",
+            "Pitfall": "Seeing package as a decorative header instead of a scope decision.",
+            "Signals": "Parent = package."
+          },
+          "content_data": "Sublayer note for package.",
+          "tags": [
+            "group:syntax"
+          ],
+          "weight": 0.82,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "import",
@@ -272,7 +320,7 @@
       "note_fields": {
         "Summary": "Brings external packages or modules into scope.",
         "Why": "Imports are where package boundaries become useful rather than abstract.",
-        "Example": "import fmt",
+        "Example": "import \"core:fmt\"\nimport math \"core:math\"",
         "Pitfall": "A learner can read import syntax without yet understanding why package boundaries matter.",
         "Signals": "Connects strongly to package and procedure-level usage."
       },
@@ -285,7 +333,32 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "import-dependency-entry",
+          "title": "Dependency entry point",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "Import is the moment external capability crosses into the file.",
+            "Why": "It explains where later procedure calls or types actually come from.",
+            "Example": "When you see import fmt, read later fmt usage as crossing a package boundary.",
+            "Pitfall": "Memorizing syntax without tracking dependency origin.",
+            "Signals": "Parent = import."
+          },
+          "content_data": "Sublayer note for import.",
+          "tags": [
+            "group:syntax",
+            "group:runtime"
+          ],
+          "weight": 0.82,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "declaration",
@@ -295,7 +368,7 @@
       "note_fields": {
         "Summary": "Top-level declarations introduce named entities such as variables, constants, procedures, and types.",
         "Why": "It is the bridge from syntax into the rest of the language surface.",
-        "Example": "A file typically contains a package line, imports, then declarations.",
+        "Example": "State :: enum {\n    Idle,\n    Busy,\n    Failed,\n}\n\nmain :: proc() {\n    current := State.Idle\n}",
         "Pitfall": "Thinking in isolated syntax forms instead of one declaration space makes the map harder to navigate.",
         "Signals": "This is a bridge node between the syntax and declarations groups."
       },
@@ -308,7 +381,32 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "declaration-name-surface",
+          "title": "Name introduction surface",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "Declaration is the shared surface where names enter the file and become available to the rest of the graph.",
+            "Why": "This is the hinge between syntax and meaningful language objects.",
+            "Example": "Variables, constants, procedures, and types are all declaration outcomes.",
+            "Pitfall": "Thinking each form is isolated instead of seeing one declaration space.",
+            "Signals": "Parent = declaration."
+          },
+          "content_data": "Sublayer note for declaration.",
+          "tags": [
+            "group:syntax",
+            "group:declarations"
+          ],
+          "weight": 0.84,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "variable",
@@ -318,7 +416,7 @@
       "note_fields": {
         "Summary": "A mutable named value.",
         "Why": "Variables are usually the first declaration learners reach for.",
-        "Example": "count := 0",
+        "Example": "count := 0\ncount += 1",
         "Pitfall": "Do not collapse variables and constants into the same mental slot.",
         "Signals": "Variable usage often appears near procedures and pointers."
       },
@@ -330,7 +428,31 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "variable-mutation-pressure",
+          "title": "Mutation pressure",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "A variable is the point where runtime change is allowed to enter the design.",
+            "Why": "It is useful because it separates changing state from fixed intent.",
+            "Example": "Use a variable when later procedure steps are expected to rewrite the value.",
+            "Pitfall": "Choosing variable by habit instead of because change is required.",
+            "Signals": "Parent = variable."
+          },
+          "content_data": "Sublayer note for variable.",
+          "tags": [
+            "group:declarations"
+          ],
+          "weight": 0.8,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "constant",
@@ -340,7 +462,7 @@
       "note_fields": {
         "Summary": "An immutable named value.",
         "Why": "Constants separate stable compile-time intent from mutable runtime state.",
-        "Example": "MAX_ITEMS :: 64",
+        "Example": "MAX_ITEMS :: 64\nDEFAULT_STATE :: State.Idle",
         "Pitfall": "Overusing variables where a constant communicates intent more clearly.",
         "Signals": "Frequently connects conceptually to enum and declaration."
       },
@@ -352,7 +474,31 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "constant-intent-lock",
+          "title": "Intent lock",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "A constant says the value itself is part of the design intent, not part of runtime churn.",
+            "Why": "That makes later enum or switch logic easier to read.",
+            "Example": "A fixed size or sentinel value reads more clearly as a constant.",
+            "Pitfall": "Using mutable storage for values that should communicate stability.",
+            "Signals": "Parent = constant."
+          },
+          "content_data": "Sublayer note for constant.",
+          "tags": [
+            "group:declarations"
+          ],
+          "weight": 0.8,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "proc",
@@ -362,7 +508,7 @@
       "note_fields": {
         "Summary": "Procedure declaration and callable behavior unit.",
         "Why": "Procedures are where declarations become active behavior.",
-        "Example": "main :: proc() { }",
+        "Example": "main :: proc() {\n    fmt.println(\"hello\")\n}",
         "Pitfall": "Reading proc only as syntax instead of as the center of runtime patterns.",
         "Signals": "Strong bridge node into runtime and usage links."
       },
@@ -375,7 +521,32 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "proc-behavior-center",
+          "title": "Behavior center",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "Procedure nodes are where the rest of the graph becomes active behavior instead of static structure.",
+            "Why": "Many usage relationships radiate from here.",
+            "Example": "Imports, data shapes, context, and cleanup all become meaningful inside procedures.",
+            "Pitfall": "Reading proc as just syntax punctuation.",
+            "Signals": "Parent = proc."
+          },
+          "content_data": "Sublayer note for proc.",
+          "tags": [
+            "group:declarations",
+            "group:runtime"
+          ],
+          "weight": 0.84,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "struct",
@@ -385,7 +556,7 @@
       "note_fields": {
         "Summary": "Structured product type for named fields.",
         "Why": "Structs are central to data layout and procedure interaction.",
-        "Example": "User :: struct { id: int, name: string }",
+        "Example": "User :: struct {\n    id: int,\n    name: string,\n}",
         "Pitfall": "Seeing struct only as storage instead of as a design boundary used by procedures and pointers.",
         "Signals": "Strongly related to pointer and proc."
       },
@@ -397,7 +568,31 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "struct-shape-contract",
+          "title": "Shape and contract",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "A struct is not only stored data. It is a contract for how procedures expect data to be shaped.",
+            "Why": "That is why structs bridge data and runtime patterns.",
+            "Example": "A User struct is meaningful because procedures consume or mutate that shape.",
+            "Pitfall": "Treating struct as a bag of fields with no behavioral boundary.",
+            "Signals": "Parent = struct."
+          },
+          "content_data": "Sublayer note for struct.",
+          "tags": [
+            "group:data"
+          ],
+          "weight": 0.82,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "enum",
@@ -407,7 +602,7 @@
       "note_fields": {
         "Summary": "Finite named set of values.",
         "Why": "Enums tighten state expression and work well with constants and switches.",
-        "Example": "State :: enum { Idle, Busy, Failed }",
+        "Example": "State :: enum {\n    Idle,\n    Busy,\n    Failed,\n}",
         "Pitfall": "Treating enum values like unstructured literals reduces clarity.",
         "Signals": "Often conceptually near constants."
       },
@@ -420,7 +615,32 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "enum-state-vocabulary",
+          "title": "State vocabulary",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "An enum defines the allowed named states so the rest of the program stops speaking in loose literals.",
+            "Why": "It gives state changes a disciplined vocabulary.",
+            "Example": "Idle, Busy, and Failed read as a designed state space instead of random strings or numbers.",
+            "Pitfall": "Using ad hoc literals where an explicit state set is the real concept.",
+            "Signals": "Parent = enum."
+          },
+          "content_data": "Sublayer note for enum.",
+          "tags": [
+            "group:data",
+            "group:declarations"
+          ],
+          "weight": 0.82,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "array",
@@ -430,7 +650,7 @@
       "note_fields": {
         "Summary": "Fixed-length contiguous sequence.",
         "Why": "Arrays establish the data-layout baseline before slices.",
-        "Example": "[4]int{1, 2, 3, 4}",
+        "Example": "values := [4]int{1, 2, 3, 4}",
         "Pitfall": "Jumping to slices before understanding the fixed container underneath them.",
         "Signals": "Gradual links should reach slice from here."
       },
@@ -442,7 +662,31 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "array-fixed-layout",
+          "title": "Fixed layout intuition",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "Array is the stable memory-layout picture behind later sequence abstractions.",
+            "Why": "If this stays clear, slices become easier to reason about.",
+            "Example": "Think contiguous fixed slots first, then add views over them.",
+            "Pitfall": "Jumping straight to slice convenience with no memory model.",
+            "Signals": "Parent = array."
+          },
+          "content_data": "Sublayer note for array.",
+          "tags": [
+            "group:data"
+          ],
+          "weight": 0.8,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "slice",
@@ -452,7 +696,7 @@
       "note_fields": {
         "Summary": "Dynamic view over sequential data.",
         "Why": "Slices are common in real code and link data layout to procedure usage.",
-        "Example": "items[1:]",
+        "Example": "window := values[1:3]",
         "Pitfall": "Using slices fluently without a clear model of the underlying data.",
         "Signals": "Connects to array conceptually and proc by usage."
       },
@@ -465,7 +709,32 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "slice-view-owner",
+          "title": "View, not owner",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "A slice is a dynamic view over sequence data, not the underlying storage itself.",
+            "Why": "That distinction explains why array intuition still matters.",
+            "Example": "Read a slice operation as selecting a window over existing sequential data.",
+            "Pitfall": "Thinking the slice replaces the underlying layout model.",
+            "Signals": "Parent = slice."
+          },
+          "content_data": "Sublayer note for slice.",
+          "tags": [
+            "group:data",
+            "group:runtime"
+          ],
+          "weight": 0.8,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "pointer",
@@ -475,7 +744,7 @@
       "note_fields": {
         "Summary": "Reference to a memory location or value.",
         "Why": "Pointers are a key test for data-model and runtime edges in the graph.",
-        "Example": "^User",
+        "Example": "user := User{ id = 1, name = \"Ana\" }\nuser_ptr := &user",
         "Pitfall": "Learning pointer syntax without understanding its relationship to structs and procedures.",
         "Signals": "Pairs with struct conceptually and with variable by usage."
       },
@@ -488,7 +757,32 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "pointer-indirect-access",
+          "title": "Indirect access warning",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "Pointer use means the code is now reasoning through indirection instead of directly through values.",
+            "Why": "That shifts how structs and mutation should be read.",
+            "Example": "A pointer to User means the procedure is working with a referenced shape, not a copied one.",
+            "Pitfall": "Learning pointer syntax before understanding what changed semantically.",
+            "Signals": "Parent = pointer."
+          },
+          "content_data": "Sublayer note for pointer.",
+          "tags": [
+            "group:data",
+            "group:runtime"
+          ],
+          "weight": 0.82,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "defer",
@@ -498,7 +792,7 @@
       "note_fields": {
         "Summary": "Schedules a cleanup action for scope exit.",
         "Why": "This is a clear usage-pattern node rather than a pure syntax node.",
-        "Example": "defer close(handle)",
+        "Example": "file := open_file()\ndefer close_file(file)",
         "Pitfall": "Treating defer as isolated syntax instead of a runtime management pattern.",
         "Signals": "Strong usage edge with proc."
       },
@@ -510,7 +804,31 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "defer-cleanup-timing",
+          "title": "Cleanup timing",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "Defer is really about when cleanup is guaranteed to happen relative to scope exit.",
+            "Why": "That makes it a runtime timing pattern, not just a keyword.",
+            "Example": "Open resource now, schedule cleanup immediately, then continue with the body.",
+            "Pitfall": "Reading defer as isolated syntax instead of execution ordering.",
+            "Signals": "Parent = defer."
+          },
+          "content_data": "Sublayer note for defer.",
+          "tags": [
+            "group:runtime"
+          ],
+          "weight": 0.8,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     },
     {
       "id": "context",
@@ -520,7 +838,7 @@
       "note_fields": {
         "Summary": "Ambient execution state passed through runtime flow.",
         "Why": "Good test node for non-linear runtime links.",
-        "Example": "A procedure may access contextual execution state instead of receiving every dependency explicitly.",
+        "Example": "render :: proc() {\n    theme := context.theme\n    _ = theme\n}",
         "Pitfall": "Using context without a clear boundary around what belongs there.",
         "Signals": "Conceptual and usage links should both point toward proc."
       },
@@ -532,7 +850,31 @@
       "layer_membership": [
         "core-map"
       ],
-      "metadata": {}
+      "metadata": {},
+      "sublayer_nodes": [
+        {
+          "id": "context-ambient-boundary",
+          "title": "Ambient boundary",
+          "node_type": "concept",
+          "note_type_id": "odin-concept",
+          "note_fields": {
+            "Summary": "Context should carry only ambient execution state that belongs to the surrounding flow.",
+            "Why": "Without that boundary, context becomes an unstructured dependency dump.",
+            "Example": "Use context for execution-scoped state, not as a place to hide every parameter.",
+            "Pitfall": "Treating context as a bag for anything inconvenient to pass explicitly.",
+            "Signals": "Parent = context."
+          },
+          "content_data": "Sublayer note for context.",
+          "tags": [
+            "group:runtime"
+          ],
+          "weight": 0.8,
+          "layer_membership": [
+            "core-map"
+          ],
+          "metadata": {}
+        }
+      ]
     }
   ],
   "edges": [
@@ -547,7 +889,7 @@
     },
     {
       "id": "g-002",
-      "source_id": "package",
+      "source_id": "odin-root",
       "target_id": "import",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -556,7 +898,7 @@
     },
     {
       "id": "g-003",
-      "source_id": "import",
+      "source_id": "odin-root",
       "target_id": "declaration",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -565,7 +907,7 @@
     },
     {
       "id": "g-004",
-      "source_id": "declaration",
+      "source_id": "odin-root",
       "target_id": "variable",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -574,7 +916,7 @@
     },
     {
       "id": "g-005",
-      "source_id": "declaration",
+      "source_id": "odin-root",
       "target_id": "constant",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -583,7 +925,7 @@
     },
     {
       "id": "g-006",
-      "source_id": "declaration",
+      "source_id": "odin-root",
       "target_id": "proc",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -592,7 +934,7 @@
     },
     {
       "id": "g-007",
-      "source_id": "declaration",
+      "source_id": "odin-root",
       "target_id": "struct",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -601,7 +943,7 @@
     },
     {
       "id": "g-008",
-      "source_id": "declaration",
+      "source_id": "odin-root",
       "target_id": "enum",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -610,7 +952,7 @@
     },
     {
       "id": "g-009",
-      "source_id": "struct",
+      "source_id": "odin-root",
       "target_id": "array",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -619,7 +961,7 @@
     },
     {
       "id": "g-010",
-      "source_id": "array",
+      "source_id": "odin-root",
       "target_id": "slice",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -628,7 +970,7 @@
     },
     {
       "id": "g-011",
-      "source_id": "slice",
+      "source_id": "odin-root",
       "target_id": "pointer",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -637,7 +979,7 @@
     },
     {
       "id": "g-012",
-      "source_id": "proc",
+      "source_id": "odin-root",
       "target_id": "defer",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -646,7 +988,7 @@
     },
     {
       "id": "g-013",
-      "source_id": "defer",
+      "source_id": "odin-root",
       "target_id": "context",
       "relation_id": "prerequisite",
       "connection_layer_membership": [
@@ -879,21 +1221,21 @@
         "fields": [
           {
             "key": "Summary",
-            "label": "Summary",
+            "label": "Core Idea",
             "type": "string",
             "widget": "long_text"
           },
           {
             "key": "Why",
-            "label": "Why",
+            "label": "Why It Matters",
             "type": "string",
             "widget": "long_text"
           },
           {
             "key": "Example",
-            "label": "Example",
+            "label": "Odin Example",
             "type": "string",
-            "widget": "long_text"
+            "widget": "code"
           },
           {
             "key": "Pitfall",
@@ -903,7 +1245,7 @@
           },
           {
             "key": "Signals",
-            "label": "Signals",
+            "label": "Map Signals",
             "type": "string",
             "widget": "long_text"
           }
@@ -911,51 +1253,88 @@
       },
       "layout_json": {
         "version": 1,
+        "summary": {
+          "blocks": [
+            {
+              "type": "callout",
+              "label": "Core idea",
+              "field": "Summary",
+              "tone": "info"
+            },
+            {
+              "type": "field_group",
+              "label": "Why it matters",
+              "fields": [
+                "Why"
+              ],
+              "compact": true
+            },
+            {
+              "type": "callout",
+              "label": "Common pitfall",
+              "field": "Pitfall",
+              "tone": "warning",
+              "compact": true
+            }
+          ]
+        },
         "pages": [
           {
             "id": "overview",
             "label": "Overview",
             "kind": "content",
-            "sections": [
+            "blocks": [
               {
-                "id": "main",
-                "label": "Main",
-                "items": [
-                  {
-                    "field": "Summary"
-                  },
-                  {
-                    "field": "Why"
-                  },
-                  {
-                    "field": "Pitfall"
-                  }
+                "type": "callout",
+                "label": "Core idea",
+                "field": "Summary",
+                "tone": "info"
+              },
+              {
+                "type": "field_group",
+                "label": "Why this matters",
+                "fields": [
+                  "Why",
+                  "Signals"
                 ]
+              },
+              {
+                "type": "code",
+                "label": "Odin in code",
+                "field": "Example",
+                "language": "odin"
+              },
+              {
+                "type": "callout",
+                "label": "Common pitfall",
+                "field": "Pitfall",
+                "tone": "warning"
               }
             ]
           },
           {
-            "id": "examples",
-            "label": "Examples",
+            "id": "reading-path",
+            "label": "Reading Path",
             "kind": "content",
-            "sections": [
+            "blocks": [
               {
-                "id": "example-block",
-                "label": "Examples",
-                "items": [
-                  {
-                    "field": "Example"
-                  },
-                  {
-                    "field": "Signals"
-                  }
+                "type": "field_group",
+                "label": "How to read this node",
+                "fields": [
+                  "Summary",
+                  "Why",
+                  "Signals"
                 ]
+              },
+              {
+                "type": "relations",
+                "label": "Jump to related nodes"
               }
             ]
           },
           {
             "id": "connections",
-            "label": "Connections",
+            "label": "Map",
             "kind": "built_in",
             "source": "connections"
           }

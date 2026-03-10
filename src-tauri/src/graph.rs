@@ -85,6 +85,7 @@ pub struct Node {
     pub id: String,
     pub title: String,
     pub layer_id: String,
+    pub parent_node_id: Option<String>,
     pub node_type: String,
     pub note_type_id: Option<String>,
     pub note_fields: BTreeMap<String, String>,
@@ -103,6 +104,7 @@ pub struct Node {
     pub pos_x: Option<f64>,
     pub pos_y: Option<f64>,
     pub pos_z: Option<f64>,
+    pub metadata: String,
     /// Outgoing edges — loaded in the same call, no second IPC round-trip needed.
     pub connections: Vec<EdgeRef>,
     pub created_at: String,
@@ -112,6 +114,7 @@ pub struct Node {
 pub struct CreateNodeInput {
     pub title: String,
     pub layer_id: String,
+    pub parent_node_id: Option<String>,
     pub node_type: String,
     pub note_type_id: Option<String>,
     pub note_fields: Option<BTreeMap<String, String>>,
@@ -332,6 +335,7 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
         id: String,
         title: String,
         layer_id: String,
+        parent_node_id: Option<String>,
         node_type: String,
         note_type_id: Option<String>,
         note_fields_json: String,
@@ -350,11 +354,12 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
         pos_x: Option<f64>,
         pos_y: Option<f64>,
         pos_z: Option<f64>,
+        metadata: String,
         created_at: String,
     }
 
     let mut stmt = conn.prepare(
-        "SELECT n.id, n.title, n.layer_id, n.node_type, n.note_type_id, n.note_fields, n.content_type, n.content_data,
+        "SELECT n.id, n.title, n.layer_id, n.parent_node_id, n.node_type, n.note_type_id, n.note_fields, n.content_type, n.content_data,
                  n.tags, n.learned,
                  COALESCE(np.status, 'new'),
                  COALESCE(np.review_count, 0),
@@ -363,7 +368,7 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
                  np.next_review_at,
                  COALESCE(np.scheduler_key, 'basic-v1'),
                  COALESCE(np.scheduler_state, '{}'),
-                 n.weight, n.pos_x, n.pos_y, n.pos_z, n.created_at
+                 n.weight, n.pos_x, n.pos_y, n.pos_z, n.metadata, n.created_at
          FROM nodes n
          LEFT JOIN node_progress np ON np.node_id = n.id
          WHERE n.layer_id = ?1
@@ -380,25 +385,27 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
                 id: row.get(0)?,
                 title: row.get(1)?,
                 layer_id: row.get(2)?,
-                node_type: row.get(3)?,
-                note_type_id: row.get(4)?,
-                note_fields_json: row.get(5)?,
-                content_type: row.get(6)?,
-                content_data: row.get(7)?,
-                tags_json: row.get(8)?,
-                learned: row.get::<_, i32>(9)? != 0,
-                progress_status: row.get(10)?,
-                progress_review_count: row.get(11)?,
-                progress_streak: row.get(12)?,
-                progress_last_reviewed_at: row.get(13)?,
-                progress_next_review_at: row.get(14)?,
-                progress_scheduler_key: row.get(15)?,
-                progress_scheduler_state: row.get(16)?,
-                weight: row.get(17)?,
-                pos_x: row.get(18)?,
-                pos_y: row.get(19)?,
-                pos_z: row.get(20)?,
-                created_at: row.get(21)?,
+                parent_node_id: row.get(3)?,
+                node_type: row.get(4)?,
+                note_type_id: row.get(5)?,
+                note_fields_json: row.get(6)?,
+                content_type: row.get(7)?,
+                content_data: row.get(8)?,
+                tags_json: row.get(9)?,
+                learned: row.get::<_, i32>(10)? != 0,
+                progress_status: row.get(11)?,
+                progress_review_count: row.get(12)?,
+                progress_streak: row.get(13)?,
+                progress_last_reviewed_at: row.get(14)?,
+                progress_next_review_at: row.get(15)?,
+                progress_scheduler_key: row.get(16)?,
+                progress_scheduler_state: row.get(17)?,
+                weight: row.get(18)?,
+                pos_x: row.get(19)?,
+                pos_y: row.get(20)?,
+                pos_z: row.get(21)?,
+                metadata: row.get(22)?,
+                created_at: row.get(23)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -413,6 +420,7 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
             id: row.id,
             title: row.title,
             layer_id: row.layer_id,
+            parent_node_id: row.parent_node_id,
             node_type: row.node_type,
             note_type_id: row.note_type_id,
             note_fields,
@@ -431,6 +439,7 @@ pub fn query_nodes(conn: &Connection, layer_id: &str) -> Result<Vec<Node>, AppEr
             pos_x: row.pos_x,
             pos_y: row.pos_y,
             pos_z: row.pos_z,
+            metadata: row.metadata,
             connections,
             created_at: row.created_at,
         });
@@ -442,6 +451,7 @@ pub fn insert_node(conn: &Connection, input: CreateNodeInput) -> Result<Node, Ap
     let CreateNodeInput {
         title,
         layer_id,
+        parent_node_id,
         node_type,
         note_type_id,
         note_fields,
@@ -459,12 +469,13 @@ pub fn insert_node(conn: &Connection, input: CreateNodeInput) -> Result<Node, Ap
 
     conn.execute(
         "INSERT INTO nodes
-             (id, title, layer_id, node_type, note_type_id, note_fields, content_type, content_data, tags, learned, weight, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'text', ?7, ?8, 0, ?9, ?10)",
+             (id, title, layer_id, parent_node_id, node_type, note_type_id, note_fields, content_type, content_data, tags, learned, weight, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'text', ?8, ?9, 0, ?10, ?11)",
         params![
             id,
             title,
             layer_id,
+            parent_node_id,
             node_type,
             note_type_id,
             note_fields_json,
@@ -492,6 +503,7 @@ pub fn insert_node(conn: &Connection, input: CreateNodeInput) -> Result<Node, Ap
         id,
         title,
         layer_id,
+        parent_node_id,
         node_type,
         note_type_id,
         note_fields,
@@ -510,6 +522,7 @@ pub fn insert_node(conn: &Connection, input: CreateNodeInput) -> Result<Node, Ap
         pos_x: None,
         pos_y: None,
         pos_z: None,
+        metadata: "{}".to_string(),
         connections: vec![],
         created_at,
     })
@@ -561,6 +574,7 @@ pub fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> 
     struct NodeData {
         title: String,
         layer_id: String,
+        parent_node_id: Option<String>,
         node_type: String,
         note_type_id: Option<String>,
         note_fields_json: String,
@@ -579,12 +593,13 @@ pub fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> 
         pos_x: Option<f64>,
         pos_y: Option<f64>,
         pos_z: Option<f64>,
+        metadata: String,
         created_at: String,
     }
 
     let data = conn
         .query_row(
-            "SELECT n.title, n.layer_id, n.node_type, n.note_type_id, n.note_fields, n.content_type, n.content_data,
+            "SELECT n.title, n.layer_id, n.parent_node_id, n.node_type, n.note_type_id, n.note_fields, n.content_type, n.content_data,
                     n.tags, n.learned,
                     COALESCE(np.status, 'new'),
                     COALESCE(np.review_count, 0),
@@ -593,7 +608,7 @@ pub fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> 
                     np.next_review_at,
                     COALESCE(np.scheduler_key, 'basic-v1'),
                     COALESCE(np.scheduler_state, '{}'),
-                    n.weight, n.pos_x, n.pos_y, n.pos_z, n.created_at
+                    n.weight, n.pos_x, n.pos_y, n.pos_z, n.metadata, n.created_at
              FROM nodes n
              LEFT JOIN node_progress np ON np.node_id = n.id
              WHERE n.id = ?1",
@@ -602,25 +617,27 @@ pub fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> 
                 Ok(NodeData {
                     title: row.get(0)?,
                     layer_id: row.get(1)?,
-                    node_type: row.get(2)?,
-                    note_type_id: row.get(3)?,
-                    note_fields_json: row.get(4)?,
-                    content_type: row.get(5)?,
-                    content_data: row.get(6)?,
-                    tags_json: row.get(7)?,
-                    learned: row.get::<_, i32>(8)? != 0,
-                    progress_status: row.get(9)?,
-                    progress_review_count: row.get(10)?,
-                    progress_streak: row.get(11)?,
-                    progress_last_reviewed_at: row.get(12)?,
-                    progress_next_review_at: row.get(13)?,
-                    progress_scheduler_key: row.get(14)?,
-                    progress_scheduler_state: row.get(15)?,
-                    weight: row.get(16)?,
-                    pos_x: row.get(17)?,
-                    pos_y: row.get(18)?,
-                    pos_z: row.get(19)?,
-                    created_at: row.get(20)?,
+                    parent_node_id: row.get(2)?,
+                    node_type: row.get(3)?,
+                    note_type_id: row.get(4)?,
+                    note_fields_json: row.get(5)?,
+                    content_type: row.get(6)?,
+                    content_data: row.get(7)?,
+                    tags_json: row.get(8)?,
+                    learned: row.get::<_, i32>(9)? != 0,
+                    progress_status: row.get(10)?,
+                    progress_review_count: row.get(11)?,
+                    progress_streak: row.get(12)?,
+                    progress_last_reviewed_at: row.get(13)?,
+                    progress_next_review_at: row.get(14)?,
+                    progress_scheduler_key: row.get(15)?,
+                    progress_scheduler_state: row.get(16)?,
+                    weight: row.get(17)?,
+                    pos_x: row.get(18)?,
+                    pos_y: row.get(19)?,
+                    pos_z: row.get(20)?,
+                    metadata: row.get(21)?,
+                    created_at: row.get(22)?,
                 })
             },
         )
@@ -640,6 +657,7 @@ pub fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> 
         id: id.to_string(),
         title: data.title,
         layer_id: data.layer_id,
+        parent_node_id: data.parent_node_id,
         node_type: data.node_type,
         note_type_id: data.note_type_id,
         note_fields,
@@ -658,6 +676,7 @@ pub fn query_single_node(conn: &Connection, id: &str) -> Result<Node, AppError> 
         pos_x: data.pos_x,
         pos_y: data.pos_y,
         pos_z: data.pos_z,
+        metadata: data.metadata,
         connections,
         created_at: data.created_at,
     })

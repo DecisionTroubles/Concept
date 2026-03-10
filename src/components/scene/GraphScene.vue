@@ -23,6 +23,7 @@ const editorMode = useEditorMode()
 // в”Ђв”Ђ Settings (configurable keybindings) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const settings = useSettings()
 const focusOverlayParentSelection = ref<string[] | null>(null)
+const focusCursorNodeId = ref<string | null>(null)
 
 // в”Ђв”Ђ Fly key tracking (only active in fly mode) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const activeKeys = new Set<string>()
@@ -48,9 +49,17 @@ watch(
   }
 )
 
-// IDs of nodes directly connected to the selected node
+const activeSceneNodeId = computed(() =>
+  graphStore.focusViewActive
+    ? (focusCursorNodeId.value ?? graphStore.focusRootNodeId ?? graphStore.selectedNodeId)
+    : graphStore.selectedNodeId
+)
+
+// IDs of nodes directly connected to the active scene node
 const neighborIds = computed<Set<string>>(() => {
-  const sel = graphStore.selectedNode
+  const sel = activeSceneNodeId.value
+    ? (graphStore.nodes.find(node => node.id === activeSceneNodeId.value) ?? null)
+    : null
   if (!sel) return new Set()
   const displaySet = new Set(displayedNodes.value.map(node => node.id))
   return new Set(
@@ -89,10 +98,30 @@ useEventListener(
 watch(
   () => graphStore.focusVersion,
   () => {
-    const id = graphStore.selectedNodeId
+    const id = activeSceneNodeId.value
     if (id) {
       const t = displayedNodes.value.find(n => n.id === id)
       if (t) focusNode(t)
+    }
+  }
+)
+
+watch(
+  () => [graphStore.focusViewActive, graphStore.focusRootNodeId] as const,
+  ([active, rootId]) => {
+    const next = active ? (rootId ?? null) : null
+    if (focusCursorNodeId.value !== next) focusCursorNodeId.value = next
+  },
+  { immediate: true }
+)
+
+watch(
+  () => graphStore.selectedNodeId,
+  id => {
+    if (!graphStore.focusViewActive) return
+    if (!id) return
+    if (displayedNodes.value.some(node => node.id === id)) {
+      if (focusCursorNodeId.value !== id) focusCursorNodeId.value = id
     }
   }
 )
@@ -108,8 +137,6 @@ onMounted(() => {
     const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
     const key = e.key.toLowerCase()
     const isSpaceFocusKey = e.key === ' '
-    const overlayCycleAliasActive = !graphStore.focusViewActive && (key === 'q' || key === 'e')
-
     if (!isInput && key === settings.keys.pinnedBuffer) {
       e.preventDefault()
       graphStore.toggleBuffer('pinned')
@@ -158,8 +185,7 @@ onMounted(() => {
       editorMode.enterGraph()
       return
     }
-    if (!isInput && graphStore.selectedNodeId && key === settings.keys.openNode) {
-      if (overlayCycleAliasActive) return
+    if (!isInput && graphStore.selectedNodeId && (key === settings.keys.openNode || e.key === 'Enter')) {
       e.preventDefault()
       graphStore.toggleCenteredNodePanel()
       return
@@ -178,12 +204,13 @@ onMounted(() => {
     if (
       !isInput &&
       graphStore.focusViewActive &&
-      graphStore.selectedNodeId &&
+      activeSceneNodeId.value &&
       (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')
     ) {
       e.preventDefault()
       const id = moveFocusSelection(e.key)
       if (id) {
+        focusCursorNodeId.value = id
         graphStore.selectNode(id)
         const t = displayedNodes.value.find(n => n.id === id)
         if (t) focusNode(t)
@@ -247,6 +274,7 @@ onMounted(() => {
         e.preventDefault()
         const id = e.shiftKey ? editorMode.tabPrev() : editorMode.tabNext()
         if (id) {
+          if (graphStore.focusViewActive) focusCursorNodeId.value = id
           graphStore.selectNode(id)
           const t = displayedNodes.value.find(n => n.id === id)
           if (t) focusNode(t)
@@ -258,6 +286,7 @@ onMounted(() => {
         e.preventDefault()
         const id = editorMode.jumpToNeighbor(num)
         if (id) {
+          if (graphStore.focusViewActive) focusCursorNodeId.value = id
           graphStore.selectNode(id)
           const t = displayedNodes.value.find(n => n.id === id)
           if (t) focusNode(t)
@@ -267,7 +296,6 @@ onMounted(() => {
 
     // jump back (works in any non-fly mode)
     if (!isInput && key === settings.keys.jumpBack && editorMode.mode.value !== 'fly') {
-      if (overlayCycleAliasActive) return
       e.preventDefault()
       const id = editorMode.jumpBack()
       if (id) {
@@ -391,8 +419,8 @@ useRafFn(({ delta }) => {
   }
 
   // Compass projection (graph mode only)
-  if (editorMode.mode.value === 'graph' && graphStore.selectedNodeId) {
-    const sel = displayedNodes.value.find(n => n.id === graphStore.selectedNodeId)
+  if (editorMode.mode.value === 'graph' && activeSceneNodeId.value) {
+    const sel = displayedNodes.value.find(n => n.id === activeSceneNodeId.value)
     if (sel) {
       _ndcVec.set(sel.x, sel.y, sel.z).project(cam)
       const sx = ((_ndcVec.x + 1) / 2) * window.innerWidth
@@ -478,6 +506,14 @@ function parseJsonObject(raw: string | null | undefined): JsonObject {
   } catch {
     return {}
   }
+}
+
+function isSublayerNode(node: { parent_node_id: string | null }): boolean {
+  return typeof node.parent_node_id === 'string' && node.parent_node_id.length > 0
+}
+
+function focusParentId(node: { parent_node_id: string | null } | null | undefined): string | null {
+  return node?.parent_node_id ?? null
 }
 
 function strOr(obj: JsonObject, key: string, fallback: string): string {
@@ -714,33 +750,29 @@ function isFocusConnectionEligible(conn: { relation_id: string | null }): boolea
   return focusViewConfig.value.relationIds.includes(conn.relation_id)
 }
 
+const worldNodes = computed(() => positionedNodes.value.filter(node => !isSublayerNode(node)))
+
 const displayedNodes = computed(() => {
-  if (!graphStore.focusViewActive || !graphStore.focusRootNodeId) return positionedNodes.value
+  if (!graphStore.focusViewActive || !graphStore.focusRootNodeId) return worldNodes.value
 
-  const root = positionedNodes.value.find(node => node.id === graphStore.focusRootNodeId)
-  if (!root) return positionedNodes.value
+  const root = worldNodes.value.find(node => node.id === graphStore.focusRootNodeId)
+  if (!root) return worldNodes.value
 
-  const nodeMap = new Map(positionedNodes.value.map(node => [node.id, node]))
-  const seen = new Set<string>([root.id])
+  const focusChildren = positionedNodes.value
+    .filter(node => focusParentId(node) === root.id)
+    .slice(0, focusViewConfig.value.maxNeighbors)
+
+  const directNeighbors: PositionedNode[] =
+    focusChildren
+
   const byRing: PositionedNode[][] = []
-  let frontier = [root]
-
-  for (let ringIndex = 0; ringIndex < focusViewConfig.value.rings; ringIndex++) {
-    const next: PositionedNode[] = []
-    for (const node of frontier) {
-      for (const conn of node.connections) {
-        if (!isFocusConnectionEligible(conn) || seen.has(conn.target_id)) continue
-        const target = nodeMap.get(conn.target_id)
-        if (!target) continue
-        seen.add(target.id)
-        next.push(target)
-        if (seen.size >= focusViewConfig.value.maxNeighbors + 1) break
-      }
-      if (seen.size >= focusViewConfig.value.maxNeighbors + 1) break
-    }
-    if (next.length === 0) break
-    byRing.push(next)
-    frontier = next
+  if (directNeighbors.length > 0) {
+    const ringCount = Math.max(1, Math.min(focusViewConfig.value.rings, directNeighbors.length))
+    const buckets: PositionedNode[][] = Array.from({ length: ringCount }, () => [])
+    directNeighbors.forEach((neighbor, index) => {
+      buckets[index % ringCount].push(neighbor)
+    })
+    byRing.push(...buckets.filter(bucket => bucket.length > 0))
   }
 
   const result: PositionedNode[] = [{ ...root }]
@@ -774,8 +806,14 @@ const displayedNodes = computed(() => {
   return result
 })
 
+function isFocusVisibleEdge(nodeId: string, conn: { target_id: string }): boolean {
+  if (!graphStore.focusViewActive || !graphStore.focusRootNodeId) return true
+  const rootId = graphStore.focusRootNodeId
+  return nodeId === rootId || conn.target_id === rootId
+}
+
 function moveFocusSelection(directionKey: 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown'): string | null {
-  const selectedId = graphStore.selectedNodeId
+  const selectedId = activeSceneNodeId.value
   if (!selectedId) return null
 
   const current = displayedNodes.value.find(node => node.id === selectedId)
@@ -968,7 +1006,7 @@ function nodeBaseByGroup(node: PositionedNode): GroupStyleConfig | null {
 }
 
 const focusedGroupSet = computed<Set<string>>(() => {
-  const baseId = hoveredNodeId.value ?? graphStore.selectedNodeId
+  const baseId = hoveredNodeId.value ?? activeSceneNodeId.value
   if (!baseId) return new Set()
   const groups = nodeGroupsById.value.get(baseId) ?? []
   return new Set(groups)
@@ -999,8 +1037,8 @@ function resolvedNodeBase(node: PositionedNode): { color: string; emissive: stri
 
 function nodeColor(node: PositionedNode): string {
   const base = resolvedNodeBase(node)
-  if (graphStore.selectedNodeId === node.id && graphStore.isNodePinned(node.id)) return '#ffcf66'
-  if (graphStore.selectedNodeId === node.id) return '#ffffff'
+  if (activeSceneNodeId.value === node.id && graphStore.isNodePinned(node.id)) return '#ffcf66'
+  if (activeSceneNodeId.value === node.id) return '#ffffff'
   if (graphStore.isNodePinned(node.id)) return '#ff9f1a'
   if (neighborIds.value.has(node.id)) {
     return new THREE.Color(base.color).lerp(new THREE.Color('#8fd4ff'), 0.55).getStyle()
@@ -1016,8 +1054,8 @@ function nodeColor(node: PositionedNode): string {
 
 function nodeEmissive(node: PositionedNode): string {
   const base = resolvedNodeBase(node)
-  if (graphStore.selectedNodeId === node.id && graphStore.isNodePinned(node.id)) return '#7a4a00'
-  if (graphStore.selectedNodeId === node.id) return '#7f8fff'
+  if (activeSceneNodeId.value === node.id && graphStore.isNodePinned(node.id)) return '#7a4a00'
+  if (activeSceneNodeId.value === node.id) return '#7f8fff'
   if (graphStore.isNodePinned(node.id)) return '#6a3f00'
   if (neighborIds.value.has(node.id)) return '#1a4aee'
   if (node.learned) return '#1a6644'
@@ -1026,7 +1064,7 @@ function nodeEmissive(node: PositionedNode): string {
 
 function nodeEmissiveIntensity(node: PositionedNode): number {
   const base = resolvedNodeBase(node)
-  if (graphStore.selectedNodeId === node.id) return 2.15
+  if (activeSceneNodeId.value === node.id) return 2.15
   if (graphStore.isNodePinned(node.id)) return 1.0
   if (neighborIds.value.has(node.id)) return 1.1
   if (node.learned) return 0.8
@@ -1183,6 +1221,7 @@ const edges = computed(() => {
     for (const conn of node.connections) {
       if (seenEdgeIds.has(conn.id)) continue
       seenEdgeIds.add(conn.id)
+      if (!isFocusVisibleEdge(node.id, conn)) continue
 
       if (
         hasConnectionLayers &&
@@ -1312,7 +1351,7 @@ function isPriorityLabelNode(node: PositionedNode): boolean {
 function nodeLabelOpacity(node: PositionedNode): number {
   // make opacity recompute only on sampled camera updates
   void labelTick.value
-  if (hoveredNodeId.value === node.id || graphStore.selectedNodeId === node.id) return 1
+  if (hoveredNodeId.value === node.id || activeSceneNodeId.value === node.id) return 1
   const dx = cameraPos.x - node.x
   const dy = cameraPos.y - node.y
   const dz = cameraPos.z - node.z
@@ -1349,6 +1388,12 @@ function nodeProgressLabel(node: PositionedNode): string {
 // в”Ђв”Ђ Event handlers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function onNodeClick(node: PositionedNode, event: { stopPropagation?: () => void }) {
   event.stopPropagation?.()
+  if (graphStore.focusViewActive) {
+    focusCursorNodeId.value = node.id
+    graphStore.selectNode(node.id)
+    focusNode(node)
+    return
+  }
   graphStore.selectNode(node.id)
   focusNode(node)
   editorMode.onNodeSelected(node.id)
@@ -1399,6 +1444,12 @@ watch(
 
     const previous = focusOverlayParentSelection.value
     focusOverlayParentSelection.value = null
+    const selected = graphStore.selectedNode
+    const parentId = focusParentId(selected)
+    if (selected && isSublayerNode(selected) && parentId) {
+      if (graphStore.selectedNodeId !== parentId) graphStore.selectNode(parentId)
+      if (focusCursorNodeId.value !== parentId) focusCursorNodeId.value = parentId
+    }
     if (currentWorldSettings.value.restoreOverlaySelectionOnExit && previous) {
       graphStore.setConnectionLayerSelection(previous)
     }

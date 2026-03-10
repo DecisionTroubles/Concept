@@ -59,8 +59,8 @@ const compactOverlayItems = computed(() =>
   })
 )
 
-const overlayPrevDisplayKey = computed(() => (graphStore.focusViewActive ? settings.keys.overlayPrev : 'q'))
-const overlayNextDisplayKey = computed(() => (graphStore.focusViewActive ? settings.keys.overlayNext : 'e'))
+const overlayPrevDisplayKey = computed(() => (graphStore.focusViewActive || graphStore.selectedNodeId ? settings.keys.overlayPrev : 'q'))
+const overlayNextDisplayKey = computed(() => (graphStore.focusViewActive || graphStore.selectedNodeId ? settings.keys.overlayNext : 'e'))
 
 function connectionLayerPreviewStyle(layer: { id: string; metadata: string }): Record<string, string> {
   const md = parseJson(layer.metadata)
@@ -136,8 +136,8 @@ useEventListener(document, 'keydown', (e: KeyboardEvent) => {
       return
     }
   }
-  const overlayPrevKey = graphStore.focusViewActive ? settings.keys.overlayPrev : 'q'
-  const overlayNextKey = graphStore.focusViewActive ? settings.keys.overlayNext : 'e'
+  const overlayPrevKey = graphStore.focusViewActive || graphStore.selectedNodeId ? settings.keys.overlayPrev : 'q'
+  const overlayNextKey = graphStore.focusViewActive || graphStore.selectedNodeId ? settings.keys.overlayNext : 'e'
   if (key === settings.keys.topicLayerPrev) {
     e.preventDefault()
     e.stopPropagation()

@@ -128,9 +128,9 @@ const fallbackBlocks = computed(() => inferFallbackBlocks(props.node, fieldByKey
 }
 
 .note-block-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .note-section {
@@ -149,5 +149,24 @@ const fallbackBlocks = computed(() => inferFallbackBlocks(props.node, fieldByKey
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.note-block-list :deep(.node-block) {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 980px) {
+  .note-block-list :deep(.node-block-callout) {
+    grid-column: span 4;
+  }
+
+  .note-block-list :deep(.node-block-field_group) {
+    grid-column: span 8;
+  }
+
+  .note-block-list :deep(.node-block-code),
+  .note-block-list :deep(.node-block-relations) {
+    grid-column: 1 / -1;
+  }
 }
 </style>

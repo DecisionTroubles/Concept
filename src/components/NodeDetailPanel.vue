@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { X, Tag, ArrowRight, CheckCircle2, Pin, Crosshair, Clock3, History, ChevronLeft, ChevronRight, PanelsTopLeft, Shapes, Pencil, Orbit } from 'lucide-vue-next'
+import { X, Tag, ArrowRight, CheckCircle2, Pin, Clock3, History, ChevronLeft, ChevronRight, PanelsTopLeft, Shapes, Pencil, Orbit } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import OverlayShell from '@/components/ui/OverlayShell.vue'
@@ -83,6 +83,12 @@ const activeNoteType = computed(() => {
   return graphStore.noteTypes.find(n => n.id === id) ?? null
 })
 
+const relationKindsById = computed(() => {
+  const map = new Map<string, string>()
+  for (const relation of graphStore.relationKinds) map.set(relation.id, relation.label)
+  return map
+})
+
 function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   if (!raw) return fallback
   try {
@@ -91,6 +97,13 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
     return fallback
   }
 }
+
+const parentNode = computed(() => {
+  const parentId = node.value?.parent_node_id
+  if (!parentId) return null
+  return graphStore.nodes.find(candidate => candidate.id === parentId) ?? null
+})
+const parentContextLabel = computed(() => (parentNode.value ? `Child of ${parentNode.value.title}` : null))
 
 const contentPages = computed<LayoutPage[]>(() => {
   if (activeNoteType.value) {
@@ -210,6 +223,55 @@ const nodeHistory = computed(() =>
     .slice(0, 16)
 )
 
+const connectionBuckets = computed(() => {
+  if (!node.value) return { next: [], related: [], supporting: [] } as {
+    next: Array<{ id: string; title: string; edgeType: string; relationLabel: string; targetId: string }>
+    related: Array<{ id: string; title: string; edgeType: string; relationLabel: string; targetId: string }>
+    supporting: Array<{ id: string; title: string; edgeType: string; relationLabel: string; targetId: string }>
+  }
+
+  const decorated = node.value.connections.map(conn => ({
+    id: conn.id,
+    title: connectedNodeTitle(conn.target_id),
+    edgeType: conn.edge_type,
+    relationLabel: relationKindsById.value.get(conn.relation_id ?? '') ?? edgeLabel(conn.edge_type),
+    targetId: conn.target_id,
+  }))
+
+  return {
+    next: decorated.filter(conn => conn.edgeType === 'Prerequisite' || conn.edgeType === 'Context'),
+    related: decorated.filter(conn => conn.edgeType === 'Semantic'),
+    supporting: decorated.filter(conn => conn.edgeType === 'UserDefined'),
+  }
+})
+
+const connectionFacts = computed(() => {
+  if (!node.value) return []
+  return [
+    { label: 'Status', value: STATUS_META[progressStatus.value].label },
+    { label: 'Links', value: String(node.value.connections.length) },
+    { label: 'Note type', value: noteTypeName.value },
+    { label: 'Next review', value: formatSchedule(node.value.progress_next_review_at) },
+  ]
+})
+
+const currentPageDescription = computed(() => {
+  switch (currentPage.value?.kind) {
+    case 'content':
+      return 'Read the core idea first, then use the next pages for examples, links, and review state.'
+    case 'connections':
+      return 'Use this page to decide what to visit next and how this node fits into the surrounding map.'
+    case 'learning':
+      return 'This page is for scheduling, grading, and checking current memory state.'
+    case 'history':
+      return 'Recent review events and extension history for this node live here.'
+    case 'extension':
+      return 'This page is provided by a node extension registered in the workspace.'
+    default:
+      return 'Use the arrows or Tab to move between pages.'
+  }
+})
+
 function edgeLabel(type: string): string {
   switch (type) {
     case 'Prerequisite':
@@ -286,6 +348,11 @@ function toggleFocusView() {
   graphStore.toggleFocusView(node.value.id)
 }
 
+function openParentNode() {
+  if (!parentNode.value) return
+  graphStore.selectNode(parentNode.value.id)
+}
+
 async function onNoteTypeChange(e: Event) {
   if (!node.value) return
   const target = e.target as HTMLSelectElement
@@ -347,41 +414,62 @@ useEventListener(
         <div class="panel-header">
           <div class="title-wrap">
             <div class="panel-title">{{ node.title }}</div>
-            <div class="panel-subtitle">{{ node.node_type }} · {{ STATUS_META[progressStatus].label }}</div>
+            <div class="panel-subtitle">
+              {{ node.node_type }} · {{ STATUS_META[progressStatus].label }}
+              <template v-if="parentContextLabel"> · {{ parentContextLabel }}</template>
+            </div>
           </div>
           <div class="header-actions">
+            <button
+              v-if="parentNode"
+              class="header-link-btn"
+              @click="openParentNode"
+              :aria-label="`Open parent node (${parentNode.title})`"
+              :title="`Open parent node (${parentNode.title})`"
+            >
+              Parent
+            </button>
+
             <button
               class="icon-btn"
               :class="{ active: isCentered }"
               @click="toggleCentered"
               :aria-label="`Open viewer (${settings.keys.openNode.toUpperCase()})`"
+              :title="`Open viewer (${settings.keys.openNode.toUpperCase()})`"
             >
-              <Crosshair :size="13" />
+              <PanelsTopLeft :size="13" />
             </button>
+
             <button
               class="icon-btn"
               :class="{ active: isPinned }"
               @click="togglePinned"
-              :aria-label="`Toggle pin (${settings.keys.pinNode.toUpperCase()})`"
+              :aria-label="`${isPinned ? 'Unpin' : 'Pin'} node (${settings.keys.pinNode.toUpperCase()})`"
+              :title="`${isPinned ? 'Unpin node' : 'Pin node'} (${settings.keys.pinNode.toUpperCase()})`"
             >
               <Pin :size="13" />
             </button>
+
             <button
               class="icon-btn"
               @click="openNodeEditor"
               :aria-label="`Edit node (${settings.keys.editNode.toUpperCase()})`"
+              :title="`Edit node (${settings.keys.editNode.toUpperCase()})`"
             >
               <Pencil :size="13" />
             </button>
+
             <button
               v-if="isFocusView"
               class="icon-btn active"
               @click="toggleFocusView"
               aria-label="Exit focus view"
+              title="Exit focus view"
             >
               <Orbit :size="13" />
             </button>
-            <button class="close-btn" @click="onClose" aria-label="Close">
+
+            <button class="close-btn" @click="onClose" aria-label="Close" title="Close">
               <X :size="14" />
             </button>
           </div>
@@ -434,25 +522,6 @@ useEventListener(
             </div>
           </template>
         </div>
-
-        <template v-if="!isFocusView">
-          <div class="panel-divider" />
-
-          <div class="panel-footer">
-            <button class="pin-btn" :class="{ active: isPinned }" @click="togglePinned">
-              <Pin :size="13" />
-              <span>{{ isPinned ? 'Unpin node' : 'Pin node' }} ({{ settings.keys.pinNode.toUpperCase() }})</span>
-            </button>
-            <button class="workspace-btn" @click="toggleCentered">
-              <PanelsTopLeft :size="13" />
-              <span>Open viewer ({{ settings.keys.openNode.toUpperCase() }})</span>
-            </button>
-            <button class="workspace-btn" @click="openNodeEditor">
-              <Pencil :size="13" />
-              <span>Edit node ({{ settings.keys.editNode.toUpperCase() }})</span>
-            </button>
-          </div>
-        </template>
       </div>
     </Transition>
 
@@ -460,14 +529,16 @@ useEventListener(
       :key="`centered-${node.id}`"
       :open="isCentered"
       :title="node.title"
-      :subtitle="`${node.node_type} · ${noteTypeName}`"
+      :subtitle="`${node.node_type} · ${noteTypeName}${parentNode ? ` · Child of ${parentNode.title}` : ''}`"
       width-class="node-workspace-shell"
       height-class="node-workspace-shell"
       @close="toggleCentered"
     >
       <template #actions>
-        <span class="page-counter">{{ safePageIndex + 1 }} / {{ viewerPages.length }}</span>
         <span :class="['progress-chip', STATUS_META[progressStatus].className]">{{ STATUS_META[progressStatus].label }}</span>
+        <button v-if="parentNode" class="workspace-link-btn" @click="openParentNode">
+          Parent
+        </button>
         <button class="workspace-icon-btn" @click="openNodeEditor">
           <Pencil :size="14" />
         </button>
@@ -477,20 +548,34 @@ useEventListener(
       </template>
 
       <div class="viewer-layout">
-        <div class="viewer-toolbar">
-          <button class="viewer-nav-btn" @click="cyclePage(-1)" :disabled="viewerPages.length <= 1" aria-label="Previous page">
-            <ChevronLeft :size="16" />
-          </button>
-          <div class="viewer-page-meta">
-            <div class="viewer-page-label">{{ currentPage?.label }}</div>
-            <div class="viewer-page-subtitle">Use the arrows or `Tab` to move between pages.</div>
+        <div class="viewer-topbar">
+          <div class="viewer-tabs">
+            <button
+              v-for="(page, index) in viewerPages"
+              :key="page.id"
+              class="viewer-tab-chip"
+              :class="{ active: index === safePageIndex }"
+              @click="activePageIndex = index"
+            >
+              {{ page.label }}
+            </button>
           </div>
-          <button class="viewer-nav-btn" @click="cyclePage(1)" :disabled="viewerPages.length <= 1" aria-label="Next page">
-            <ChevronRight :size="16" />
-          </button>
+          <div v-if="viewerPages.length > 1" class="viewer-nav-inline">
+            <button class="viewer-nav-btn viewer-nav-btn-inline" @click="cyclePage(-1)" :disabled="viewerPages.length <= 1" aria-label="Previous page">
+              <ChevronLeft :size="15" />
+            </button>
+            <span class="viewer-page-count">{{ safePageIndex + 1 }} / {{ viewerPages.length }}</span>
+            <button class="viewer-nav-btn viewer-nav-btn-inline" @click="cyclePage(1)" :disabled="viewerPages.length <= 1" aria-label="Next page">
+              <ChevronRight :size="15" />
+            </button>
+          </div>
         </div>
 
-        <div class="viewer-dots">
+        <div v-if="currentPageDescription && currentPage?.kind !== 'content'" class="viewer-kicker">
+          {{ currentPageDescription }}
+        </div>
+
+        <div class="viewer-dots viewer-dots-minimal">
           <button
             v-for="(page, index) in viewerPages"
             :key="page.id"
@@ -504,33 +589,20 @@ useEventListener(
         <div class="viewer-stage">
           <section v-if="currentPage?.kind === 'content'" class="viewer-page viewer-page-content">
             <article class="viewer-card viewer-card-main">
-              <div class="section-label">
-                <Shapes :size="12" />
-                <span>{{ currentPage.label }}</span>
-              </div>
               <NoteTypePageRenderer :key="`page-${node.id}-${currentPage.pageId}`" :node="node" :note-type="activeNoteType" :active-page-id="currentPage.pageId" />
             </article>
           </section>
 
           <section v-else-if="currentPage?.kind === 'connections'" class="viewer-page">
             <div class="viewer-grid">
-              <article class="viewer-card">
+              <article class="viewer-card viewer-card-accent">
                 <div class="section-label">
                   <Tag :size="12" />
-                  <span>Structure</span>
+                  <span>At a glance</span>
                 </div>
                 <div class="facts-grid">
-                  <div class="fact-cell">
-                    <span>Note type</span><strong>{{ noteTypeName }}</strong>
-                  </div>
-                  <div class="fact-cell">
-                    <span>Weight</span><strong>{{ node.weight.toFixed(2) }}</strong>
-                  </div>
-                  <div class="fact-cell">
-                    <span>Context</span><strong>{{ connectionSummary.context }}</strong>
-                  </div>
-                  <div class="fact-cell">
-                    <span>Prereq</span><strong>{{ connectionSummary.prerequisite }}</strong>
+                  <div v-for="fact in connectionFacts" :key="fact.label" class="fact-cell">
+                    <span>{{ fact.label }}</span><strong>{{ fact.value }}</strong>
                   </div>
                 </div>
                 <div class="note-type-row">
@@ -554,25 +626,72 @@ useEventListener(
               <article class="viewer-card">
                 <div class="section-label">
                   <ArrowRight :size="12" />
-                  <span>Connections</span>
+                  <span>Best next hops</span>
                 </div>
-                <ul class="connections-list">
+                <p class="viewer-copy">
+                  Use these when you want the cleanest progression path out of the current node.
+                </p>
+                <ul v-if="connectionBuckets.next.length" class="connections-list">
                   <li
-                    v-for="conn in node.connections"
+                    v-for="conn in connectionBuckets.next"
                     :key="conn.id"
                     class="connection-item"
-                    @click="graphStore.selectNode(conn.target_id)"
+                    @click="graphStore.selectNode(conn.targetId)"
                   >
-                    <span class="conn-target">{{ connectedNodeTitle(conn.target_id) }}</span>
-                    <span :class="['conn-badge', edgeBadgeClass(conn.edge_type)]">{{ edgeLabel(conn.edge_type) }}</span>
+                    <span class="conn-target">{{ conn.title }}</span>
+                    <span :class="['conn-badge', edgeBadgeClass(conn.edgeType)]">{{ conn.relationLabel }}</span>
                   </li>
                 </ul>
+                <div v-else class="empty-history">No progression links from this node yet.</div>
+              </article>
+
+              <article class="viewer-card">
+                <div class="section-label">
+                  <Shapes :size="12" />
+                  <span>Related cluster</span>
+                </div>
+                <p class="viewer-copy">
+                  These links add mental-model context and common co-usage around the node.
+                </p>
+                <div class="connection-stack">
+                  <div v-if="connectionBuckets.related.length" class="connection-group">
+                    <div class="connection-group-label">Conceptual</div>
+                    <ul class="connections-list">
+                      <li
+                        v-for="conn in connectionBuckets.related"
+                        :key="conn.id"
+                        class="connection-item"
+                        @click="graphStore.selectNode(conn.targetId)"
+                      >
+                        <span class="conn-target">{{ conn.title }}</span>
+                        <span :class="['conn-badge', edgeBadgeClass(conn.edgeType)]">{{ conn.relationLabel }}</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div v-if="connectionBuckets.supporting.length" class="connection-group">
+                    <div class="connection-group-label">Usage</div>
+                    <ul class="connections-list">
+                      <li
+                        v-for="conn in connectionBuckets.supporting"
+                        :key="conn.id"
+                        class="connection-item"
+                        @click="graphStore.selectNode(conn.targetId)"
+                      >
+                        <span class="conn-target">{{ conn.title }}</span>
+                        <span :class="['conn-badge', edgeBadgeClass(conn.edgeType)]">{{ conn.relationLabel }}</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div v-if="!connectionBuckets.related.length && !connectionBuckets.supporting.length" class="empty-history">
+                    No related-cluster links from this node yet.
+                  </div>
+                </div>
               </article>
 
               <article v-if="nodeTips.length" class="viewer-card viewer-card-wide">
                 <div class="section-label">
                   <ArrowRight :size="12" />
-                  <span>Tips</span>
+                  <span>How to use this node</span>
                 </div>
                 <ul class="tips-list">
                   <li v-for="tip in nodeTips" :key="tip">{{ tip }}</li>
@@ -782,6 +901,28 @@ useEventListener(
   color: var(--app-accent);
 }
 
+.header-link-btn,
+.workspace-link-btn {
+  border: 1px solid rgba(91, 143, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(91, 143, 255, 0.12);
+  color: #d8e7ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0 12px;
+  height: 30px;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+
+.header-link-btn:hover,
+.workspace-link-btn:hover {
+  background: rgba(91, 143, 255, 0.2);
+  border-color: rgba(91, 143, 255, 0.36);
+  color: #eef5ff;
+}
+
 .close-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #e8eaf0;
@@ -825,11 +966,18 @@ useEventListener(
   border-color: color-mix(in srgb, var(--app-accent) 26%, transparent);
 }
 
+.meta-chip-parent {
+  color: #9fd0ff;
+  background: rgba(91, 143, 255, 0.12);
+  border-color: rgba(91, 143, 255, 0.22);
+}
+
 .compact-block {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+
 
 .compact-fact-row {
   display: flex;
@@ -939,17 +1087,6 @@ useEventListener(
   color: #6a7a9a;
 }
 
-.panel-footer {
-  padding: 12px 18px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  position: sticky;
-  bottom: 0;
-  background: linear-gradient(180deg, rgba(12, 16, 28, 0) 0%, rgba(12, 16, 28, 0.95) 28%);
-  backdrop-filter: blur(8px);
-}
-
 .focus-action-row {
   display: flex;
   align-items: center;
@@ -961,11 +1098,7 @@ useEventListener(
   color: var(--app-text-secondary);
 }
 
-
-.pin-btn,
-.workspace-btn,
 .learn-btn {
-  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -974,17 +1107,6 @@ useEventListener(
   border-radius: 8px;
   font-size: 12px;
   cursor: pointer;
-}
-
-.pin-btn,
-.workspace-btn {
-  border: 1px solid color-mix(in srgb, var(--app-accent) 38%, transparent);
-  background: color-mix(in srgb, var(--app-accent) 12%, transparent);
-  color: var(--app-accent);
-}
-
-.pin-btn.active {
-  background: color-mix(in srgb, var(--app-accent) 20%, transparent);
 }
 
 .learn-btn {
@@ -1006,37 +1128,82 @@ useEventListener(
   color: #7a8099;
 }
 
-.page-counter {
-  font-size: 11px;
-  color: var(--app-text-secondary);
-}
-
 .viewer-layout {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 18px;
+  gap: 10px;
+  padding: 14px 18px 18px;
 }
 
-.viewer-toolbar {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 42px;
-  gap: 12px;
+.viewer-topbar {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 2px 0;
+}
+
+.viewer-tabs {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.viewer-tab-chip {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #9fa9c2;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+
+.viewer-tab-chip:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #dbe6ff;
+}
+
+.viewer-tab-chip.active {
+  background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--app-accent) 32%, transparent);
+  color: #eef5ff;
+}
+
+.viewer-nav-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.viewer-page-count {
+  font-size: 11px;
+  color: var(--app-text-secondary);
 }
 
 .viewer-nav-btn {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   border: none;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
   color: #b7c1dc;
   cursor: pointer;
+}
+
+.viewer-nav-btn-inline {
+  width: 32px;
+  height: 32px;
 }
 
 .viewer-nav-btn:hover:not(:disabled) {
@@ -1049,24 +1216,10 @@ useEventListener(
   cursor: default;
 }
 
-.viewer-page-meta {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: center;
-  text-align: center;
-}
-
-.viewer-page-label {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--app-text-primary);
-}
-
-.viewer-page-subtitle {
+.viewer-kicker {
   font-size: 11px;
   color: var(--app-text-secondary);
+  padding: 0 2px;
 }
 
 .viewer-dots {
@@ -1086,8 +1239,13 @@ useEventListener(
 }
 
 .viewer-dot.active {
-  width: 28px;
+  width: 18px;
   background: color-mix(in srgb, var(--app-accent) 90%, white 8%);
+}
+
+.viewer-dots-minimal {
+  gap: 6px;
+  margin-top: -2px;
 }
 
 .viewer-stage {
@@ -1110,15 +1268,23 @@ useEventListener(
 }
 
 .viewer-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  padding: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.viewer-card-accent {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--app-accent) 10%, rgba(255, 255, 255, 0.04)), rgba(255, 255, 255, 0.02));
+  border-color: color-mix(in srgb, var(--app-accent) 16%, rgba(255, 255, 255, 0.08));
 }
 
 .viewer-card-main {
-  width: min(880px, 100%);
+  width: min(1120px, 100%);
   margin: 0 auto;
+  padding: 14px;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .viewer-card-wide {
@@ -1127,6 +1293,34 @@ useEventListener(
 
 .tags-block {
   margin-top: 16px;
+}
+
+.viewer-copy {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #c8cad6;
+}
+
+
+.connection-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.connection-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connection-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-text-secondary);
 }
 
 .workspace-layout {
@@ -1372,15 +1566,20 @@ useEventListener(
 
 @media (max-width: 980px) {
   .viewer-layout {
-    padding: 14px;
+    padding: 12px 12px 16px;
   }
 
   .viewer-grid {
     grid-template-columns: 1fr;
   }
 
-  .viewer-page-label {
-    font-size: 16px;
+  .viewer-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .viewer-nav-inline {
+    justify-content: space-between;
   }
 }
 </style>

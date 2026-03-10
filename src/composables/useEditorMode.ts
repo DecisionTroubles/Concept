@@ -25,6 +25,35 @@ let lastNodeId: string | null = null
 // Set every frame by GraphScene from the filtered, sequential compass dots.
 let neighborOrder: string[] = []
 
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+function compassDotsEqual(a: CompassDot[], b: CompassDot[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i]
+    const right = b[i]
+    if (
+      left.id !== right.id ||
+      left.title !== right.title ||
+      left.edgeType !== right.edgeType ||
+      left.index !== right.index ||
+      Math.abs(left.screenX - right.screenX) > 0.5 ||
+      Math.abs(left.screenY - right.screenY) > 0.5
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
 export function useEditorMode() {
   function enterFly()   { mode.value = 'fly' }
   function enterNormal() { mode.value = 'normal' }
@@ -70,9 +99,15 @@ export function useEditorMode() {
     return neighborOrder[n - 1] ?? null
   }
   function setNeighborOrder(ids: string[]) {
+    if (arraysEqual(neighborOrder, ids)) return
     neighborOrder = ids
   }
   function setCompassState(dots: CompassDot[], center: { x: number; y: number } | null) {
+    const currentCenter = compassCenter.value
+    const sameCenter =
+      currentCenter === center ||
+      (!!currentCenter && !!center && Math.abs(currentCenter.x - center.x) < 0.5 && Math.abs(currentCenter.y - center.y) < 0.5)
+    if (sameCenter && compassDotsEqual(compassDots.value, dots)) return
     compassDots.value = dots
     compassCenter.value = center
   }

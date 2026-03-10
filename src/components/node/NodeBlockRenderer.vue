@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
+import { codeToHtml } from 'shiki'
 import type { Node, NoteType } from '@/bindings'
 import { useGraphStore } from '@/stores/graph'
 import {
@@ -99,6 +100,7 @@ const markdownHtml = computed(() => markdownToHtml(fieldValue(props.node, primar
 const codeValue = computed(() => fieldValue(props.node, primaryField.value))
 const imageSrc = computed(() => fieldValue(props.node, primaryField.value))
 const imageCaption = computed(() => props.block.caption_field ? fieldValue(props.node, props.block.caption_field) : '')
+const highlightedCodeHtml = ref('')
 const relationItems = computed(() =>
   props.node.connections.slice(0, effectiveCompact.value ? 4 : 8).map(conn => ({
     id: conn.id,
@@ -107,6 +109,43 @@ const relationItems = computed(() =>
     edgeType: conn.edge_type,
   }))
 )
+
+watchEffect(async onCleanup => {
+  if (blockType.value !== 'code') {
+    highlightedCodeHtml.value = ''
+    return
+  }
+
+  const source = codeValue.value?.trim() || ''
+  if (!source) {
+    highlightedCodeHtml.value = ''
+    return
+  }
+
+  const lang = props.block.language || 'text'
+  let cancelled = false
+  onCleanup(() => {
+    cancelled = true
+  })
+
+  try {
+    const html = await codeToHtml(source, {
+      lang,
+      theme: 'github-dark-default',
+    })
+    if (!cancelled) highlightedCodeHtml.value = html
+  } catch {
+    try {
+      const html = await codeToHtml(source, {
+        lang: 'text',
+        theme: 'github-dark-default',
+      })
+      if (!cancelled) highlightedCodeHtml.value = html
+    } catch {
+      if (!cancelled) highlightedCodeHtml.value = ''
+    }
+  }
+})
 </script>
 
 <template>
@@ -132,7 +171,8 @@ const relationItems = computed(() =>
       <div class="code-head">
         <span v-if="block.language" class="code-language">{{ block.language }}</span>
       </div>
-      <pre class="code-block"><code>{{ codeValue || 'No code yet.' }}</code></pre>
+      <div v-if="highlightedCodeHtml" class="code-block shiki-frame" v-html="highlightedCodeHtml" />
+      <pre v-else class="code-block"><code>{{ codeValue || 'No code yet.' }}</code></pre>
     </template>
 
     <template v-else-if="blockType === 'image' || blockType === 'diagram'">
@@ -174,16 +214,16 @@ const relationItems = computed(() =>
 .node-block {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
+  gap: 8px;
+  padding: 14px 16px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.026);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .node-block.compact {
-  padding: 10px;
-  gap: 8px;
+  padding: 10px 12px;
+  gap: 6px;
 }
 
 .node-block-label,
@@ -199,26 +239,33 @@ const relationItems = computed(() =>
 .relations-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+}
+
+.node-block-field_group:not(.compact) .field-group-list {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .field-entry {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .field-entry-value,
 .empty-block,
 .image-caption,
 .callout-block {
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.6;
   color: #d6dae6;
 }
 
 .field-entry-value {
   white-space: pre-wrap;
+  color: #e5ebfb;
 }
 
 .field-entry-value.compact {
@@ -254,6 +301,7 @@ const relationItems = computed(() =>
 .code-head {
   display: flex;
   justify-content: flex-end;
+  margin-bottom: -2px;
 }
 
 .code-language {
@@ -267,14 +315,37 @@ const relationItems = computed(() =>
 
 .code-block {
   margin: 0;
-  padding: 14px;
   border-radius: 12px;
   overflow: auto;
-  background: rgba(8, 12, 22, 0.9);
-  border: 1px solid rgba(125, 145, 185, 0.15);
+  background: rgba(7, 11, 20, 0.9);
+  border: 1px solid rgba(125, 145, 185, 0.12);
   color: #d9e7ff;
   font-size: 12px;
   line-height: 1.6;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+}
+
+.code-block code {
+  display: block;
+  padding: 14px;
+}
+
+.shiki-frame {
+  padding: 0;
+  background: rgba(8, 12, 22, 0.94);
+}
+
+.shiki-frame :deep(pre) {
+  margin: 0;
+  padding: 16px 18px;
+  background: transparent !important;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.65;
+  border-radius: 12px;
+}
+
+.shiki-frame :deep(code) {
   font-family: ui-monospace, 'Cascadia Code', monospace;
 }
 
@@ -295,9 +366,11 @@ const relationItems = computed(() =>
 }
 
 .callout-block {
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: 12px;
   border: 1px solid transparent;
+  font-size: 15px;
+  line-height: 1.7;
 }
 
 .tone-info {
@@ -325,10 +398,10 @@ const relationItems = computed(() =>
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.024);
   color: var(--app-text-primary);
   cursor: pointer;
 }
@@ -336,5 +409,11 @@ const relationItems = computed(() =>
 .relation-item small {
   font-size: 10px;
   color: var(--app-text-secondary);
+}
+
+@media (min-width: 900px) {
+  .node-block-field_group:not(.compact) .field-group-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

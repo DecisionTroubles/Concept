@@ -71,7 +71,7 @@ export function createGraphSessionActions(session: GraphSessionState) {
   function toggleFocusView(rootId?: string | null) {
     const id = rootId ?? session.selectedNodeId.value
     if (!id) return
-    if (session.focusViewActive.value && session.focusRootNodeId.value === id) {
+    if (session.focusViewActive.value) {
       closeFocusView()
       return
     }

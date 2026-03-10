@@ -98,6 +98,8 @@ pub struct PackConnectionLayerV2 {
 pub struct PackNodeV2 {
     pub id: String,
     pub title: String,
+    #[serde(default)]
+    pub parent_node_id: Option<String>,
     pub node_type: String,
     #[serde(default)]
     pub note_type_id: Option<String>,
@@ -112,10 +114,12 @@ pub struct PackNodeV2 {
     #[serde(default)]
     pub layer_membership: Vec<String>,
     #[serde(default)]
+    pub sublayer_nodes: Vec<PackNodeV2>,
+    #[serde(default)]
     pub metadata: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct PackNodePositionV2 {
     pub x: f64,
     pub y: f64,
@@ -138,6 +142,52 @@ pub struct PackEdgeV2 {
 
 fn default_weight() -> f64 {
     1.0
+}
+
+#[derive(Clone)]
+struct FlatPackNodeV2 {
+    id: String,
+    title: String,
+    parent_node_id: Option<String>,
+    node_type: String,
+    note_type_id: Option<String>,
+    note_fields: Value,
+    content_data: Option<String>,
+    tags: Vec<String>,
+    weight: f64,
+    position: Option<PackNodePositionV2>,
+    layer_membership: Vec<String>,
+    metadata: Value,
+}
+
+fn flatten_pack_nodes(
+    nodes: &[PackNodeV2],
+    inherited_parent_id: Option<&str>,
+    out: &mut Vec<FlatPackNodeV2>,
+) {
+    for node in nodes {
+        let parent_node_id = node
+            .parent_node_id
+            .clone()
+            .or_else(|| inherited_parent_id.map(str::to_string));
+
+        out.push(FlatPackNodeV2 {
+            id: node.id.clone(),
+            title: node.title.clone(),
+            parent_node_id: parent_node_id.clone(),
+            node_type: node.node_type.clone(),
+            note_type_id: node.note_type_id.clone(),
+            note_fields: node.note_fields.clone(),
+            content_data: node.content_data.clone(),
+            tags: node.tags.clone(),
+            weight: node.weight,
+            position: node.position.clone(),
+            layer_membership: node.layer_membership.clone(),
+            metadata: node.metadata.clone(),
+        });
+
+        flatten_pack_nodes(&node.sublayer_nodes, Some(&node.id), out);
+    }
 }
 
 fn json_text(v: &Value) -> String {
@@ -293,8 +343,11 @@ fn seed_v2(conn: &Connection, pack: DomainPackV2) -> Result<(), AppError> {
         .ok_or_else(|| AppError::Other("No layers available for node placement".into()))?
         .clone();
 
+    let mut flat_nodes = Vec::new();
+    flatten_pack_nodes(&pack.nodes, None, &mut flat_nodes);
+
     let mut node_id_map = std::collections::BTreeMap::<String, String>::new();
-    for node in &pack.nodes {
+    for node in &flat_nodes {
         let primary_layer_cfg = node.layer_membership.first().cloned();
         let primary_layer = primary_layer_cfg
             .as_ref()
@@ -307,6 +360,7 @@ fn seed_v2(conn: &Connection, pack: DomainPackV2) -> Result<(), AppError> {
             CreateNodeInput {
                 title: node.title.clone(),
                 layer_id: primary_layer.clone(),
+                parent_node_id: None,
                 node_type: node.node_type.clone(),
                 note_type_id: node
                     .note_type_id
@@ -352,6 +406,24 @@ fn seed_v2(conn: &Connection, pack: DomainPackV2) -> Result<(), AppError> {
         }
 
         node_id_map.insert(node.id.clone(), inserted.id);
+    }
+
+    for node in &flat_nodes {
+        if let Some(parent_cfg_id) = &node.parent_node_id {
+            let node_db_id = node_id_map.get(&node.id).ok_or_else(|| {
+                AppError::Other(format!("Flattened node '{}' missing db id", node.id))
+            })?;
+            let parent_db_id = node_id_map.get(parent_cfg_id).ok_or_else(|| {
+                AppError::Other(format!(
+                    "Node '{}' references missing parent node '{}'",
+                    node.id, parent_cfg_id
+                ))
+            })?;
+            conn.execute(
+                "UPDATE nodes SET parent_node_id = ?1 WHERE id = ?2",
+                params![parent_db_id, node_db_id],
+            )?;
+        }
     }
 
     for edge in &pack.edges {

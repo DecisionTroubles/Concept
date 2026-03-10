@@ -19,6 +19,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             id           TEXT PRIMARY KEY,
             title        TEXT NOT NULL,
             layer_id     TEXT NOT NULL REFERENCES layers(id) ON DELETE CASCADE,
+            parent_node_id TEXT REFERENCES nodes(id) ON DELETE CASCADE,
             node_type    TEXT NOT NULL DEFAULT 'vocab',
             note_type_id TEXT REFERENCES note_types(id) ON DELETE SET NULL,
             note_fields  TEXT NOT NULL DEFAULT '{}',
@@ -173,6 +174,12 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
     if !cols.iter().any(|c| c == "note_fields") {
         conn.execute(
             "ALTER TABLE nodes ADD COLUMN note_fields TEXT NOT NULL DEFAULT '{}'",
+            [],
+        )?;
+    }
+    if !cols.iter().any(|c| c == "parent_node_id") {
+        conn.execute(
+            "ALTER TABLE nodes ADD COLUMN parent_node_id TEXT REFERENCES nodes(id) ON DELETE CASCADE",
             [],
         )?;
     }

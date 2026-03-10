@@ -6,7 +6,7 @@ type TAURI_CHANNEL<T> = (response: T) => void
 
 export type ConnectionLayer = { id: string; name: string; display_order: number; metadata: string; created_at: string }
 
-export type CreateNodeInput = { title: string; layer_id: string; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }> | null; content_data: string | null; tags: string[]; weight: number }
+export type CreateNodeInput = { title: string; layer_id: string; parent_node_id: string | null; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }> | null; content_data: string | null; tags: string[]; weight: number }
 
 export type Edge = { id: string; source_id: string; target_id: string; edge_type: string; relation_id: string | null; weight: number; created_at: string }
 
@@ -14,7 +14,7 @@ export type EdgeRef = { id: string; target_id: string; edge_type: string; relati
 
 export type Layer = { id: string; name: string; display_order: number; filter_json: string; metadata: string; created_at: string }
 
-export type Node = { id: string; title: string; layer_id: string; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }>; content_type: string; content_data: string | null; tags: string[]; learned: boolean; progress_status: string; progress_review_count: number; progress_streak: number; progress_last_reviewed_at: string | null; progress_next_review_at: string | null; progress_scheduler_key: string; progress_scheduler_state: string; weight: number; pos_x: number | null; pos_y: number | null; pos_z: number | null; 
+export type Node = { id: string; title: string; layer_id: string; parent_node_id: string | null; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }>; content_type: string; content_data: string | null; tags: string[]; learned: boolean; progress_status: string; progress_review_count: number; progress_streak: number; progress_last_reviewed_at: string | null; progress_next_review_at: string | null; progress_scheduler_key: string; progress_scheduler_state: string; weight: number; pos_x: number | null; pos_y: number | null; pos_z: number | null; metadata: string; 
 /**
  * Outgoing edges — loaded in the same call, no second IPC round-trip needed.
  */
