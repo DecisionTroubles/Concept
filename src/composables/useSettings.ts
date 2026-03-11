@@ -314,11 +314,7 @@ export function useSettings() {
   function getWorldSettings(worldId: string | null | undefined): WorldSettings {
     if (!worldId) return { ...DEFAULT_WORLD_SETTINGS }
     const existing = worldSettingsById[worldId]
-    if (existing) return existing
-    const created = sanitizeWorldSettings(undefined)
-    worldSettingsById[worldId] = created
-    saveWorldSettingsToStorage()
-    return created
+    return existing ? existing : { ...DEFAULT_WORLD_SETTINGS }
   }
 
   function updateWorldSettings(worldId: string, patch: Partial<WorldSettings>) {

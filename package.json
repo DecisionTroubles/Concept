@@ -18,9 +18,9 @@
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-shell": "^2.3.5",
-    "@tresjs/cientos": "^5.4.0",
-    "@tresjs/core": "^5.5.0",
-    "@tresjs/post-processing": "^3.4.0",
+    "@tresjs/cientos": "^5.6.0",
+    "@tresjs/core": "^5.7.0",
+    "@tresjs/post-processing": "^3.6.0",
     "@vue/devtools": "^8.0.5",
     "@vueuse/core": "^14.2.1",
     "class-variance-authority": "^0.7.1",

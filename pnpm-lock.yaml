@@ -15,14 +15,14 @@ importers:
         specifier: ^2.3.5
         version: 2.3.5
       '@tresjs/cientos':
-        specifier: ^5.4.0
-        version: 5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3)))(@types/three@0.183.1)(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
+        specifier: ^5.6.0
+        version: 5.6.0(@tresjs/core@5.7.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3)))(@types/three@0.183.1)(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
       '@tresjs/core':
-        specifier: ^5.5.0
-        version: 5.5.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
+        specifier: ^5.7.0
+        version: 5.7.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
       '@tresjs/post-processing':
-        specifier: ^3.4.0
-        version: 3.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3)))(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
+        specifier: ^3.6.0
+        version: 3.6.0(@tresjs/core@5.7.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3)))(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
       '@vue/devtools':
         specifier: ^8.0.5
         version: 8.0.6(vite@7.3.1(@types/node@25.3.0)(jiti@2.6.1)(lightningcss@1.31.1))(vue@3.5.28(typescript@5.9.3))
@@ -1076,23 +1076,23 @@ packages:
   '@tauri-apps/plugin-shell@2.3.5':
     resolution: {integrity: sha512-jewtULhiQ7lI7+owCKAjc8tYLJr92U16bPOeAa472LHJdgaibLP83NcfAF2e+wkEcA53FxKQAZ7byDzs2eeizg==}
 
-  '@tresjs/cientos@5.4.0':
-    resolution: {integrity: sha512-JDyQFgs+YZrZU2gH2geeP5/N1YsQ6kMPZGERNMeh5lgyuXhJuzgw2K+gukGKKL6uX9+p+9dkYn6y0sysHnYF1w==}
+  '@tresjs/cientos@5.6.0':
+    resolution: {integrity: sha512-/Q9wQMHi5WhpTYtYZtF6SGW+8OZBeHAJGieMdu7C9Y+lc0gaNeKrwsVSGiWMS0BQ0gjud7mYLadRNI/pmNz2fg==}
     peerDependencies:
-      '@tresjs/core': 5.5.0
+      '@tresjs/core': 5.7.0
       three: '>=0.133'
       vue: '>=3.5.17'
 
-  '@tresjs/core@5.5.0':
-    resolution: {integrity: sha512-wIHwPYWeBXO1LdDVRHPAt0YLjvqm8JYb6uliOkzLyWzHqVNVZ0qQjipGPT72mV87uQFUiIHF8EY8L2jiWxuUFw==}
+  '@tresjs/core@5.7.0':
+    resolution: {integrity: sha512-omGQDyrG7m6ozbo+AWOAw1lO3UhQIKT6h/w/3Ci0TacQLzd2eFJOIsCPbicn4JI88fJG2EVT+IOQWsx9j+d+hQ==}
     peerDependencies:
       three: '>=0.133'
       vue: '>=3.4'
 
-  '@tresjs/post-processing@3.4.0':
-    resolution: {integrity: sha512-sWis5h/s0pquZHWFc9boU/SrPhM31uz+wnSf1Lm2PBxqo6WRkCG+HFbEA+fUtAEEAXHrTBcL6du3gnBhwu8IIw==}
+  '@tresjs/post-processing@3.6.0':
+    resolution: {integrity: sha512-UR/P7HwEbDfFmdJab6NUhNNhALl1xTYGABtqcQMt07xI3444OyotGXwjMdd3JjaLWZ07WraXtWbwC4vwwvIezQ==}
     peerDependencies:
-      '@tresjs/core': 5.5.0
+      '@tresjs/core': 5.7.0
       three: '>=0.169'
       vue: '>=3.4'
 
@@ -2627,6 +2627,10 @@ packages:
     resolution: {integrity: sha512-kQAVowdR33euIqeA0+VZTDqU+qo1IeVY+hrKYtZMio3Pg0P0vuh/kwRylLUddJhB6pf3q/botcOvRtx4IN1wqQ==}
     engines: {node: '>=16 || 14 >=14.17'}
 
+  minimatch@9.0.9:
+    resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
+    engines: {node: '>=16 || 14 >=14.17'}
+
   minipass@7.1.2:
     resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
     engines: {node: '>=16 || 14 >=14.17'}
@@ -3225,8 +3229,8 @@ packages:
       react:
         optional: true
 
-  three-mesh-bvh@0.9.8:
-    resolution: {integrity: sha512-YphYvdXEZSXdz6iNdWJo1RB6qvSCRyiXPEVSvNU6xVWbLDOdSrfEIsJOpgFOnefdmVEvZ6M+sY0cjh9gl7MvdA==}
+  three-mesh-bvh@0.9.9:
+    resolution: {integrity: sha512-FJKitcjvbALmeQRK+Sc+nLGorCpkrZBrbgJZFzhdyWboak37DZikn46hvQkNqSbJPm227ahYmS6k3N/GXaAyXw==}
     peerDependencies:
       three: '>= 0.159.0'
 
@@ -4434,16 +4438,16 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.10.1
 
-  '@tresjs/cientos@5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3)))(@types/three@0.183.1)(three@0.183.1)(vue@3.5.28(typescript@5.9.3))':
+  '@tresjs/cientos@5.6.0(@tresjs/core@5.7.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3)))(@types/three@0.183.1)(three@0.183.1)(vue@3.5.28(typescript@5.9.3))':
     dependencies:
-      '@tresjs/core': 5.5.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
+      '@tresjs/core': 5.7.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
       '@vueuse/core': 13.9.0(vue@3.5.28(typescript@5.9.3))
       camera-controls: 2.10.1(three@0.183.1)
       stats-gl: 2.4.2(@types/three@0.183.1)(three@0.183.1)
       stats.js: 0.17.0
       three: 0.183.1
       three-custom-shader-material: 5.4.0(three@0.183.1)
-      three-mesh-bvh: 0.9.8(three@0.183.1)
+      three-mesh-bvh: 0.9.9(three@0.183.1)
       three-stdlib: 2.36.1(three@0.183.1)
       vue: 3.5.28(typescript@5.9.3)
     transitivePeerDependencies:
@@ -4451,7 +4455,7 @@ snapshots:
       - '@types/three'
       - react
 
-  '@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3))':
+  '@tresjs/core@5.7.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3))':
     dependencies:
       '@pmndrs/pointer-events': 6.6.29
       '@vue/devtools-api': 7.7.9
@@ -4460,9 +4464,9 @@ snapshots:
       three: 0.183.1
       vue: 3.5.28(typescript@5.9.3)
 
-  '@tresjs/post-processing@3.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3)))(three@0.183.1)(vue@3.5.28(typescript@5.9.3))':
+  '@tresjs/post-processing@3.6.0(@tresjs/core@5.7.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3)))(three@0.183.1)(vue@3.5.28(typescript@5.9.3))':
     dependencies:
-      '@tresjs/core': 5.5.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
+      '@tresjs/core': 5.7.0(three@0.183.1)(vue@3.5.28(typescript@5.9.3))
       '@vueuse/core': 13.9.0(vue@3.5.28(typescript@5.9.3))
       postprocessing: 6.38.3(three@0.183.1)
       three: 0.183.1
@@ -4585,8 +4589,8 @@ snapshots:
 
   '@typescript-eslint/project-service@8.46.3(typescript@5.9.3)':
     dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.56.0(typescript@5.9.3)
-      '@typescript-eslint/types': 8.56.0
+      '@typescript-eslint/tsconfig-utils': 8.46.3(typescript@5.9.3)
+      '@typescript-eslint/types': 8.46.3
       debug: 4.4.3
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -4644,7 +4648,7 @@ snapshots:
       debug: 4.4.3
       fast-glob: 3.3.3
       is-glob: 4.0.3
-      minimatch: 9.0.6
+      minimatch: 9.0.9
       semver: 7.7.4
       ts-api-utils: 2.4.0(typescript@5.9.3)
       typescript: 5.9.3
@@ -6232,6 +6236,10 @@ snapshots:
     dependencies:
       brace-expansion: 5.0.3
 
+  minimatch@9.0.9:
+    dependencies:
+      brace-expansion: 2.0.2
+
   minipass@7.1.2: {}
 
   mitt@3.0.1: {}
@@ -6911,7 +6919,7 @@ snapshots:
       object-hash: 3.0.0
       three: 0.183.1
 
-  three-mesh-bvh@0.9.8(three@0.183.1):
+  three-mesh-bvh@0.9.9(three@0.183.1):
     dependencies:
       three: 0.183.1
 

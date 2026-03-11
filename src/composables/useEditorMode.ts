@@ -65,7 +65,7 @@ export function useEditorMode() {
     if (mode.value === 'fly') { mode.value = 'normal' }
     else if (mode.value === 'graph') {
       const graphStore = useGraphStore()
-      graphStore.selectNode(null); mode.value = 'normal'; compassIndex.value = 0
+      graphStore.clearSelection(); mode.value = 'normal'; compassIndex.value = 0
     }
   }
   function onNodeSelected(id: string | null) {
@@ -75,10 +75,11 @@ export function useEditorMode() {
         if (jumpList.length > 20) jumpList.shift()
       }
       lastNodeId = id
-      mode.value = 'graph'; compassIndex.value = 0
     } else if (mode.value === 'graph') {
       lastNodeId = null
       mode.value = 'normal'; compassIndex.value = 0
+    } else {
+      lastNodeId = null
     }
   }
   function jumpBack(): string | null {

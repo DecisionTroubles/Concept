@@ -73,6 +73,7 @@ declare global {
   const useCssVars: typeof import('vue').useCssVars
   const useEditorMode: typeof import('./src/composables/useEditorMode').useEditorMode
   const useForceLayout: typeof import('./src/composables/useForceLayout').useForceLayout
+  const useGraphEditorSync: typeof import('./src/composables/useGraphEditorSync').useGraphEditorSync
   const useGraphStore: typeof import('./src/stores/graph').useGraphStore
   const useId: typeof import('vue').useId
   const useLink: typeof import('vue-router').useLink
@@ -181,6 +182,7 @@ declare module 'vue' {
     readonly useCssVars: UnwrapRef<typeof import('vue')['useCssVars']>
     readonly useEditorMode: UnwrapRef<typeof import('./src/composables/useEditorMode')['useEditorMode']>
     readonly useForceLayout: UnwrapRef<typeof import('./src/composables/useForceLayout')['useForceLayout']>
+    readonly useGraphEditorSync: UnwrapRef<typeof import('./src/composables/useGraphEditorSync')['useGraphEditorSync']>
     readonly useGraphStore: UnwrapRef<typeof import('./src/stores/graph')['useGraphStore']>
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useLink: UnwrapRef<typeof import('vue-router')['useLink']>

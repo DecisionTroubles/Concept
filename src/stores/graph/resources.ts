@@ -10,10 +10,11 @@ export interface GraphResourceActionsOptions {
   session: GraphSessionState
   status: GraphStatusState
   settings: ReturnTypeUseSettings
+  resetInteractiveState: () => void
 }
 
 export function createGraphResourceActions(options: GraphResourceActionsOptions) {
-  const { state, session, status, settings } = options
+  const { state, session, status, settings, resetInteractiveState } = options
 
   async function loadLayers() {
     status.isLoading.value = true
@@ -136,9 +137,7 @@ export function createGraphResourceActions(options: GraphResourceActionsOptions)
 
   async function loadNodes(layerId: string) {
     state.activeLayerId.value = layerId
-    session.selectedNodeId.value = null
-    session.centeredNodePanel.value = false
-    session.nodeEditorOpen.value = false
+    resetInteractiveState()
     status.isLoading.value = true
     try {
       state.nodes.value = await useTauRPC().get_nodes(layerId)

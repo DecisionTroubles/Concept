@@ -326,7 +326,7 @@ async function reviewNode(grade: ReviewGrade) {
 }
 
 function onClose() {
-  graphStore.selectNode(null)
+  graphStore.clearSelection()
 }
 
 function toggleCentered() {

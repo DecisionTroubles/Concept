@@ -55,10 +55,13 @@ export interface GraphSessionState {
   pinnedNodeIds: Ref<string[]>
   focusViewActive: Ref<boolean>
   focusRootNodeId: Ref<string | null>
+  focusCursorNodeId: Ref<string | null>
+  focusOverlayParentSelection: Ref<string[] | null>
   activeBuffer: Ref<BufferId>
   progressOverlayOpen: Ref<boolean>
   worldPickerOpen: Ref<boolean>
   focusVersion: Ref<number>
+  focusViewVersion: Ref<number>
 }
 
 export function createGraphSessionState(): GraphSessionState {
@@ -69,10 +72,13 @@ export function createGraphSessionState(): GraphSessionState {
     pinnedNodeIds: ref<string[]>([]),
     focusViewActive: ref(false),
     focusRootNodeId: ref<string | null>(null),
+    focusCursorNodeId: ref<string | null>(null),
+    focusOverlayParentSelection: ref<string[] | null>(null),
     activeBuffer: ref<BufferId>('none'),
     progressOverlayOpen: ref(false),
     worldPickerOpen: ref(false),
     focusVersion: ref(0),
+    focusViewVersion: ref(0),
   }
 }
 

@@ -2,12 +2,15 @@
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, BloomPmndrs, VignettePmndrs } from '@tresjs/post-processing'
 import { appKernel } from '@/core/kernel'
+import { useGraphEditorSync } from '@/composables/useGraphEditorSync'
 import { useTheme } from '@/composables/useTheme'
 
 const graphStore = useGraphStore()
 const editorMode = useEditorMode()
 const themeState = useTheme()
 const settings = useSettings()
+
+useGraphEditorSync()
 
 const GraphSceneModule = appKernel.getModule('GraphScene')
 const LayerPanelModule = appKernel.getModule('LayerPanel')

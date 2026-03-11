@@ -10,6 +10,7 @@ import {
 } from '@/stores/graph/shared'
 import { createGraphSessionActions } from '@/stores/graph/session'
 import { createGraphResourceActions } from '@/stores/graph/resources'
+import { createGraphFocusActions } from '@/stores/graph/focus'
 import { createGraphWorldActions } from '@/stores/graph/worlds'
 
 export type { BufferId }
@@ -27,6 +28,13 @@ export const useGraphStore = defineStore('graph', () => {
     session,
     status,
     settings,
+    resetInteractiveState: sessionActions.resetInteractiveState,
+  })
+  const focusActions = createGraphFocusActions({
+    state: resources,
+    session,
+    settings,
+    setConnectionLayerSelection: resourceActions.setConnectionLayerSelection,
   })
   const worldActions = createGraphWorldActions({
     resources,
@@ -76,6 +84,7 @@ export const useGraphStore = defineStore('graph', () => {
     pinnedNodeIds: session.pinnedNodeIds,
     focusViewActive: session.focusViewActive,
     focusRootNodeId: session.focusRootNodeId,
+    focusCursorNodeId: session.focusCursorNodeId,
     pinnedNodes: derived.pinnedNodes,
     activeBuffer: session.activeBuffer,
     progressOverlayOpen: session.progressOverlayOpen,
@@ -104,6 +113,7 @@ export const useGraphStore = defineStore('graph', () => {
     setNodeProgressStatus: resourceActions.setNodeProgressStatus,
     reviewNode: resourceActions.reviewNode,
     selectNode: sessionActions.selectNode,
+    clearSelection: sessionActions.clearSelection,
     toggleCenteredNodePanel: sessionActions.toggleCenteredNodePanel,
     openNodeEditor: sessionActions.openNodeEditor,
     closeNodeEditor: sessionActions.closeNodeEditor,
@@ -112,9 +122,11 @@ export const useGraphStore = defineStore('graph', () => {
     togglePinNode: sessionActions.togglePinNode,
     unpinNode: sessionActions.unpinNode,
     clearPinnedNodes: sessionActions.clearPinnedNodes,
-    openFocusView: sessionActions.openFocusView,
-    closeFocusView: sessionActions.closeFocusView,
-    toggleFocusView: sessionActions.toggleFocusView,
+    openFocusView: focusActions.openFocusView,
+    closeFocusView: focusActions.closeFocusView,
+    toggleFocusView: focusActions.toggleFocusView,
+    setFocusCursorNode: focusActions.setFocusCursorNode,
+    selectFocusNode: focusActions.selectFocusNode,
     closeBuffer: sessionActions.closeBuffer,
     openBuffer: sessionActions.openBuffer,
     toggleBuffer: sessionActions.toggleBuffer,
@@ -127,6 +139,7 @@ export const useGraphStore = defineStore('graph', () => {
     toggleConnectionLayer: resourceActions.toggleConnectionLayer,
     setConnectionLayerSelection: resourceActions.setConnectionLayerSelection,
     focusVersion: session.focusVersion,
+    focusViewVersion: session.focusViewVersion,
     requestFocus: sessionActions.requestFocus,
     initialize: worldActions.initialize,
     resetGraphData,

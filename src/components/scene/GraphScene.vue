@@ -3,7 +3,7 @@ import { Html, Line2, OrbitControls } from '@tresjs/cientos'
 import { useTres } from '@tresjs/core'
 import { useEventListener, useRafFn } from '@vueuse/core'
 import * as THREE from 'three'
-import { computed, onMounted, shallowRef, watch, ref } from 'vue'
+import { computed, shallowRef, watch, ref, nextTick } from 'vue'
 import { useForceLayout, type PositionedNode } from '@/composables/useForceLayout'
 import { COMPASS_RING_R, type CompassDot } from '@/composables/useEditorMode'
 import { useTheme } from '@/composables/useTheme'
@@ -22,24 +22,10 @@ const editorMode = useEditorMode()
 
 // в”Ђв”Ђ Settings (configurable keybindings) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const settings = useSettings()
-const focusOverlayParentSelection = ref<string[] | null>(null)
-const focusCursorNodeId = ref<string | null>(null)
 
 // в”Ђв”Ђ Fly key tracking (only active in fly mode) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const activeKeys = new Set<string>()
 type CameraFocusTarget = { target: THREE.Vector3; position: THREE.Vector3 }
-
-// Sync mode when node deselected from outside (X button, layer switch, etc.)
-watch(
-  () => graphStore.selectedNodeId,
-  id => {
-    editorMode.onNodeSelected(id)
-    if (!id) return
-    if (focusViewConfig.value.defaultOnSelect && !graphStore.focusViewActive) {
-      graphStore.openFocusView(id)
-    }
-  }
-)
 
 // Clear stuck fly keys when leaving fly mode
 watch(
@@ -51,7 +37,7 @@ watch(
 
 const activeSceneNodeId = computed(() =>
   graphStore.focusViewActive
-    ? (focusCursorNodeId.value ?? graphStore.focusRootNodeId ?? graphStore.selectedNodeId)
+    ? (graphStore.focusCursorNodeId ?? graphStore.focusRootNodeId ?? graphStore.selectedNodeId)
     : graphStore.selectedNodeId
 )
 
@@ -69,31 +55,6 @@ const neighborIds = computed<Set<string>>(() => {
   )
 })
 
-useEventListener(
-  document,
-  'keydown',
-  (e: KeyboardEvent) => {
-    const tag = (e.target as HTMLElement)?.tagName
-    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
-    if (isInput || graphStore.activeBuffer !== 'none' || !graphStore.focusViewActive || !graphStore.selectedNodeId) return
-
-    const key = e.key.toLowerCase()
-    if (e.key === 'Escape' && !graphStore.centeredNodePanel) {
-      e.preventDefault()
-      e.stopImmediatePropagation()
-      graphStore.closeFocusView()
-      return
-    }
-
-    if (key === settings.keys.openNode || e.key === 'Enter') {
-      e.preventDefault()
-      e.stopImmediatePropagation()
-      graphStore.toggleCenteredNodePanel()
-    }
-  },
-  { capture: true }
-)
-
 // Focus camera when search requests focus (even for the same node re-selected)
 watch(
   () => graphStore.focusVersion,
@@ -103,226 +64,207 @@ watch(
       const t = displayedNodes.value.find(n => n.id === id)
       if (t) focusNode(t)
     }
-  }
-)
-
-watch(
-  () => [graphStore.focusViewActive, graphStore.focusRootNodeId] as const,
-  ([active, rootId]) => {
-    const next = active ? (rootId ?? null) : null
-    if (focusCursorNodeId.value !== next) focusCursorNodeId.value = next
   },
-  { immediate: true }
+  { flush: 'post' }
 )
 
-watch(
-  () => graphStore.selectedNodeId,
-  id => {
-    if (!graphStore.focusViewActive) return
-    if (!id) return
-    if (displayedNodes.value.some(node => node.id === id)) {
-      if (focusCursorNodeId.value !== id) focusCursorNodeId.value = id
+useEventListener(window, 'pointerdown', () => {
+  // If the user starts interacting manually, stop auto-focus lerp immediately.
+  focusTarget.value = null
+})
+
+useEventListener(window, 'keydown', e => {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
+  const key = e.key.toLowerCase()
+  const isSpaceFocusKey = e.key === ' '
+  if (!isInput && key === settings.keys.pinnedBuffer) {
+    e.preventDefault()
+    graphStore.toggleBuffer('pinned')
+    return
+  }
+  if (!isInput && key === settings.keys.mapBuffer) {
+    e.preventDefault()
+    graphStore.toggleBuffer('map')
+    return
+  }
+  if (!isInput && e.key === 'Escape' && graphStore.activeBuffer !== 'none') {
+    e.preventDefault()
+    graphStore.closeBuffer()
+    return
+  }
+
+  if (graphStore.activeBuffer !== 'none') return
+
+  // Fly key tracking
+  if (editorMode.mode.value === 'fly') {
+    const flyMoveKeys = [
+      settings.keys.flyForward,
+      settings.keys.flyBack,
+      settings.keys.flyLeft,
+      settings.keys.flyRight,
+      settings.keys.flyUp,
+      settings.keys.flyDown,
+    ]
+    if (flyMoveKeys.includes(key)) {
+      activeKeys.add(key)
+      e.preventDefault()
     }
   }
-)
 
-onMounted(() => {
-  window.addEventListener('pointerdown', () => {
-    // If the user starts interacting manually, stop auto-focus lerp immediately.
-    focusTarget.value = null
-  })
-
-  window.addEventListener('keydown', e => {
-    const tag = (e.target as HTMLElement)?.tagName
-    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
-    const key = e.key.toLowerCase()
-    const isSpaceFocusKey = e.key === ' '
-    if (!isInput && key === settings.keys.pinnedBuffer) {
-      e.preventDefault()
-      graphStore.toggleBuffer('pinned')
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    if (graphStore.focusViewActive && !graphStore.centeredNodePanel) {
+      graphStore.closeFocusView()
       return
     }
-    if (!isInput && key === settings.keys.mapBuffer) {
-      e.preventDefault()
-      graphStore.toggleBuffer('map')
-      return
-    }
-    if (!isInput && e.key === 'Escape' && graphStore.activeBuffer !== 'none') {
-      e.preventDefault()
-      graphStore.closeBuffer()
-      return
-    }
+    editorMode.escapeFromCurrentMode()
+    return
+  }
+  if (!isInput && key === settings.keys.flyMode) {
+    editorMode.enterFly()
+    return
+  }
+  if (!isInput && key === settings.keys.graphMode && graphStore.selectedNodeId) {
+    editorMode.enterGraph()
+    return
+  }
+  if (!isInput && graphStore.selectedNodeId && (key === settings.keys.openNode || e.key === 'Enter')) {
+    e.preventDefault()
+    graphStore.toggleCenteredNodePanel()
+    return
+  }
+  if (!isInput && graphStore.selectedNodeId && key === settings.keys.pinNode) {
+    e.preventDefault()
+    graphStore.togglePinNode(graphStore.selectedNodeId)
+    return
+  }
+  if (!isInput && graphStore.selectedNodeId && (key === settings.keys.focusView || isSpaceFocusKey)) {
+    e.preventDefault()
+    graphStore.toggleFocusView(graphStore.selectedNodeId)
+    return
+  }
 
-    if (graphStore.activeBuffer !== 'none') return
+  if (
+    !isInput &&
+    graphStore.focusViewActive &&
+    activeSceneNodeId.value &&
+    (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')
+  ) {
+    e.preventDefault()
+    const id = moveFocusSelection(e.key)
+    if (id) {
+      graphStore.selectFocusNode(id)
+      const t = displayedNodes.value.find(n => n.id === id)
+      if (t) focusNode(t)
+    }
+    return
+  }
 
-    // Fly key tracking
-    if (editorMode.mode.value === 'fly') {
-      const k = key
-      const flyMoveKeys = [
-        settings.keys.flyForward,
-        settings.keys.flyBack,
-        settings.keys.flyLeft,
-        settings.keys.flyRight,
-        settings.keys.flyUp,
-        settings.keys.flyDown,
-      ]
-      if (flyMoveKeys.includes(k)) {
-        activeKeys.add(k)
+  if (editorMode.mode.value !== 'fly' && !isInput) {
+    const rawControls = controlsRef.value
+    const controls = rawControls?.instance ?? rawControls
+    const cam = controls?.object as THREE.PerspectiveCamera | undefined
+
+    if (controls?.target && cam) {
+      const orbitStep = 0.12
+      const tiltStep = 0.09
+      const zoomInFactor = 0.9
+      const zoomOutFactor = 1.12
+      let changed = false
+
+      _orbitOffset.copy(cam.position).sub(controls.target)
+      _orbitSpherical.setFromVector3(_orbitOffset)
+
+      if (key === settings.keys.graphOrbitLeft) {
         e.preventDefault()
-      }
-    }
-
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      editorMode.escapeFromCurrentMode()
-      return
-    }
-    if (!isInput && key === settings.keys.flyMode) {
-      editorMode.enterFly()
-      return
-    }
-    if (!isInput && key === settings.keys.graphMode && graphStore.selectedNodeId) {
-      editorMode.enterGraph()
-      return
-    }
-    if (!isInput && graphStore.selectedNodeId && (key === settings.keys.openNode || e.key === 'Enter')) {
-      e.preventDefault()
-      graphStore.toggleCenteredNodePanel()
-      return
-    }
-    if (!isInput && graphStore.selectedNodeId && key === settings.keys.pinNode) {
-      e.preventDefault()
-      graphStore.togglePinNode(graphStore.selectedNodeId)
-      return
-    }
-    if (!isInput && graphStore.selectedNodeId && (key === settings.keys.focusView || isSpaceFocusKey)) {
-      e.preventDefault()
-      graphStore.toggleFocusView(graphStore.selectedNodeId)
-      return
-    }
-
-    if (
-      !isInput &&
-      graphStore.focusViewActive &&
-      activeSceneNodeId.value &&
-      (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')
-    ) {
-      e.preventDefault()
-      const id = moveFocusSelection(e.key)
-      if (id) {
-        focusCursorNodeId.value = id
-        graphStore.selectNode(id)
-        const t = displayedNodes.value.find(n => n.id === id)
-        if (t) focusNode(t)
-      }
-      return
-    }
-
-    if (editorMode.mode.value !== 'fly' && !isInput) {
-      const rawControls = controlsRef.value
-      const controls = rawControls?.instance ?? rawControls
-      const cam = controls?.object as THREE.PerspectiveCamera | undefined
-
-      if (controls?.target && cam) {
-        const orbitStep = 0.12
-        const tiltStep = 0.09
-        const zoomInFactor = 0.9
-        const zoomOutFactor = 1.12
-        let changed = false
-
-        _orbitOffset.copy(cam.position).sub(controls.target)
-        _orbitSpherical.setFromVector3(_orbitOffset)
-
-        if (key === settings.keys.graphOrbitLeft) {
-          e.preventDefault()
-          _orbitSpherical.theta += orbitStep
-          changed = true
-        } else if (key === settings.keys.graphOrbitRight) {
-          e.preventDefault()
-          _orbitSpherical.theta -= orbitStep
-          changed = true
-        } else if (key === settings.keys.graphTiltUp) {
-          e.preventDefault()
-          _orbitSpherical.phi = Math.max(0.2, _orbitSpherical.phi - tiltStep)
-          changed = true
-        } else if (key === settings.keys.graphTiltDown) {
-          e.preventDefault()
-          _orbitSpherical.phi = Math.min(Math.PI - 0.2, _orbitSpherical.phi + tiltStep)
-          changed = true
-        } else if (key === settings.keys.graphZoomIn) {
-          e.preventDefault()
-          _orbitSpherical.radius = Math.max(3, _orbitSpherical.radius * zoomInFactor)
-          changed = true
-        } else if (key === settings.keys.graphZoomOut) {
-          e.preventDefault()
-          _orbitSpherical.radius = Math.min(140, _orbitSpherical.radius * zoomOutFactor)
-          changed = true
-        }
-
-        if (changed) {
-          _orbitOffset.setFromSpherical(_orbitSpherical)
-          cam.position.copy(controls.target).add(_orbitOffset)
-          controls.update()
-          focusTarget.value = null
-          return
-        }
-      }
-    }
-
-    if (editorMode.mode.value === 'graph' && !isInput && !graphStore.centeredNodePanel) {
-      if (e.key === 'Tab') {
+        _orbitSpherical.theta += orbitStep
+        changed = true
+      } else if (key === settings.keys.graphOrbitRight) {
         e.preventDefault()
-        const id = e.shiftKey ? editorMode.tabPrev() : editorMode.tabNext()
-        if (id) {
-          if (graphStore.focusViewActive) focusCursorNodeId.value = id
-          graphStore.selectNode(id)
-          const t = displayedNodes.value.find(n => n.id === id)
-          if (t) focusNode(t)
-        }
+        _orbitSpherical.theta -= orbitStep
+        changed = true
+      } else if (key === settings.keys.graphTiltUp) {
+        e.preventDefault()
+        _orbitSpherical.phi = Math.max(0.2, _orbitSpherical.phi - tiltStep)
+        changed = true
+      } else if (key === settings.keys.graphTiltDown) {
+        e.preventDefault()
+        _orbitSpherical.phi = Math.min(Math.PI - 0.2, _orbitSpherical.phi + tiltStep)
+        changed = true
+      } else if (key === settings.keys.graphZoomIn) {
+        e.preventDefault()
+        _orbitSpherical.radius = Math.max(3, _orbitSpherical.radius * zoomInFactor)
+        changed = true
+      } else if (key === settings.keys.graphZoomOut) {
+        e.preventDefault()
+        _orbitSpherical.radius = Math.min(140, _orbitSpherical.radius * zoomOutFactor)
+        changed = true
+      }
+
+      if (changed) {
+        _orbitOffset.setFromSpherical(_orbitSpherical)
+        cam.position.copy(controls.target).add(_orbitOffset)
+        controls.update()
+        focusTarget.value = null
         return
       }
-      const num = parseInt(e.key)
-      if (num >= 1 && num <= 9) {
-        e.preventDefault()
-        const id = editorMode.jumpToNeighbor(num)
-        if (id) {
-          if (graphStore.focusViewActive) focusCursorNodeId.value = id
-          graphStore.selectNode(id)
-          const t = displayedNodes.value.find(n => n.id === id)
-          if (t) focusNode(t)
-        }
-      }
     }
+  }
 
-    // jump back (works in any non-fly mode)
-    if (!isInput && key === settings.keys.jumpBack && editorMode.mode.value !== 'fly') {
+  if (editorMode.mode.value === 'graph' && !isInput && !graphStore.centeredNodePanel) {
+    if (e.key === 'Tab') {
       e.preventDefault()
-      const id = editorMode.jumpBack()
+      const id = e.shiftKey ? editorMode.tabPrev() : editorMode.tabNext()
       if (id) {
-        graphStore.selectNode(id)
+        if (graphStore.focusViewActive) graphStore.selectFocusNode(id)
+        else graphStore.selectNode(id)
         const t = displayedNodes.value.find(n => n.id === id)
         if (t) focusNode(t)
-      } else {
-        editorMode.escapeFromCurrentMode()
       }
       return
     }
-  })
-
-  window.addEventListener('keyup', e => {
-    activeKeys.delete(e.key.toLowerCase())
-  })
-
-  // Scene fog вЂ” gives the graph depth and a sense of infinite space.
-  try {
-    const scene: THREE.Scene | undefined = tres?.scene?.value ?? tres?.scene
-    if (scene instanceof THREE.Scene) {
-      scene.fog = new THREE.FogExp2(new THREE.Color('#080b14'), settings.graphics.fogDensity)
+    const num = parseInt(e.key)
+    if (num >= 1 && num <= 9) {
+      e.preventDefault()
+      const id = editorMode.jumpToNeighbor(num)
+      if (id) {
+        if (graphStore.focusViewActive) graphStore.selectFocusNode(id)
+        else graphStore.selectNode(id)
+        const t = displayedNodes.value.find(n => n.id === id)
+        if (t) focusNode(t)
+      }
     }
-  } catch {
-    /* skip if context not yet ready */
+  }
+
+  // jump back (works in any non-fly mode)
+  if (!isInput && key === settings.keys.jumpBack && editorMode.mode.value !== 'fly') {
+    e.preventDefault()
+    const id = editorMode.jumpBack()
+    if (id) {
+      graphStore.selectNode(id)
+      const t = displayedNodes.value.find(n => n.id === id)
+      if (t) focusNode(t)
+    } else {
+      editorMode.escapeFromCurrentMode()
+    }
+    return
   }
 })
+
+useEventListener(window, 'keyup', e => {
+  activeKeys.delete(e.key.toLowerCase())
+})
+
+// Scene fog вЂ” gives the graph depth and a sense of infinite space.
+try {
+  const scene: THREE.Scene | undefined = tres?.scene?.value ?? tres?.scene
+  if (scene instanceof THREE.Scene) {
+    scene.fog = new THREE.FogExp2(new THREE.Color('#080b14'), settings.graphics.fogDensity)
+  }
+} catch {
+  /* skip if context not yet ready */
+}
 
 watch(
   () => settings.graphics.fogDensity,
@@ -532,9 +474,6 @@ function boolOr(obj: JsonObject, key: string, fallback: boolean): boolean {
 }
 
 const worldRoot = computed(() => parseJsonObject(graphStore.worldConfig?.config_json))
-const currentWorldId = computed(() => graphStore.worldConfig?.id ?? null)
-const currentWorldSettings = computed(() => settings.getWorldSettings(currentWorldId.value))
-
 const worldMetadata = computed<JsonObject>(() => {
   const metadata = worldRoot.value.metadata
   return metadata && typeof metadata === 'object' ? (metadata as JsonObject) : {}
@@ -752,7 +691,7 @@ function isFocusConnectionEligible(conn: { relation_id: string | null }): boolea
 
 const worldNodes = computed(() => positionedNodes.value.filter(node => !isSublayerNode(node)))
 
-const displayedNodes = computed(() => {
+function buildDisplayedNodes(): PositionedNode[] {
   if (!graphStore.focusViewActive || !graphStore.focusRootNodeId) return worldNodes.value
 
   const root = worldNodes.value.find(node => node.id === graphStore.focusRootNodeId)
@@ -762,14 +701,11 @@ const displayedNodes = computed(() => {
     .filter(node => focusParentId(node) === root.id)
     .slice(0, focusViewConfig.value.maxNeighbors)
 
-  const directNeighbors: PositionedNode[] =
-    focusChildren
-
   const byRing: PositionedNode[][] = []
-  if (directNeighbors.length > 0) {
-    const ringCount = Math.max(1, Math.min(focusViewConfig.value.rings, directNeighbors.length))
+  if (focusChildren.length > 0) {
+    const ringCount = Math.max(1, Math.min(focusViewConfig.value.rings, focusChildren.length))
     const buckets: PositionedNode[][] = Array.from({ length: ringCount }, () => [])
-    directNeighbors.forEach((neighbor, index) => {
+    focusChildren.forEach((neighbor, index) => {
       buckets[index % ringCount].push(neighbor)
     })
     byRing.push(...buckets.filter(bucket => bucket.length > 0))
@@ -804,7 +740,24 @@ const displayedNodes = computed(() => {
   })
 
   return result
-})
+}
+
+const displayedNodes = shallowRef<PositionedNode[]>([])
+
+watch(
+  () => [
+    positionedNodes.value,
+    graphStore.focusViewActive,
+    graphStore.focusRootNodeId,
+    focusViewConfig.value.rings,
+    focusViewConfig.value.ringRadius,
+    focusViewConfig.value.maxNeighbors,
+  ],
+  () => {
+    displayedNodes.value = buildDisplayedNodes()
+  },
+  { immediate: true }
+)
 
 function isFocusVisibleEdge(nodeId: string, conn: { target_id: string }): boolean {
   if (!graphStore.focusViewActive || !graphStore.focusRootNodeId) return true
@@ -915,13 +868,6 @@ function focusNode(node: PositionedNode) {
   focusTarget.value = graphStore.focusViewActive
     ? buildClusterFocus(displayedNodes.value)
     : buildSingleNodeFocus(new THREE.Vector3(node.x, node.y, node.z))
-}
-
-function focusOverlaySelectionForEntry(): string[] {
-  const mode = currentWorldSettings.value.focusOverlayEntryMode
-  if (mode === 'inherit') return [...graphStore.activeConnectionLayerIds]
-  if (mode === 'none') return []
-  return graphStore.connectionLayers.map(layer => layer.id)
 }
 
 // в”Ђв”Ђ Node helpers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
@@ -1389,14 +1335,12 @@ function nodeProgressLabel(node: PositionedNode): string {
 function onNodeClick(node: PositionedNode, event: { stopPropagation?: () => void }) {
   event.stopPropagation?.()
   if (graphStore.focusViewActive) {
-    focusCursorNodeId.value = node.id
-    graphStore.selectNode(node.id)
+    graphStore.selectFocusNode(node.id)
     focusNode(node)
     return
   }
   graphStore.selectNode(node.id)
   focusNode(node)
-  editorMode.onNodeSelected(node.id)
 }
 
 function onNodePointerEnter(node: PositionedNode, event: { stopPropagation?: () => void }) {
@@ -1409,51 +1353,15 @@ function onNodePointerLeave(node: PositionedNode, event: { stopPropagation?: () 
   if (hoveredNodeId.value === node.id) hoveredNodeId.value = null
 }
 
-// Watch for layer changes вЂ” reset focus
 watch(
-  () => graphStore.activeLayerId,
-  () => {
-    focusTarget.value = null
-    hoveredNodeId.value = null
-    graphStore.closeFocusView()
-  }
-)
-
-watch(
-  () => [
-    graphStore.focusViewActive,
-    graphStore.focusRootNodeId,
-    displayedNodes.value.map(node => node.id).join('|'),
-  ],
-  ([focusActive]) => {
-    if (!focusActive || displayedNodes.value.length === 0) return
+  () => graphStore.focusViewVersion,
+  async () => {
+    if (!graphStore.focusViewActive) return
+    await nextTick()
+    if (!graphStore.focusViewActive || displayedNodes.value.length === 0) return
     focusTarget.value = buildClusterFocus(displayedNodes.value)
-  }
-)
-
-watch(
-  () => graphStore.focusViewActive,
-  (active, wasActive) => {
-    if (active === wasActive) return
-
-    if (active) {
-      focusOverlayParentSelection.value = [...graphStore.activeConnectionLayerIds]
-      graphStore.setConnectionLayerSelection(focusOverlaySelectionForEntry())
-      return
-    }
-
-    const previous = focusOverlayParentSelection.value
-    focusOverlayParentSelection.value = null
-    const selected = graphStore.selectedNode
-    const parentId = focusParentId(selected)
-    if (selected && isSublayerNode(selected) && parentId) {
-      if (graphStore.selectedNodeId !== parentId) graphStore.selectNode(parentId)
-      if (focusCursorNodeId.value !== parentId) focusCursorNodeId.value = parentId
-    }
-    if (currentWorldSettings.value.restoreOverlaySelectionOnExit && previous) {
-      graphStore.setConnectionLayerSelection(previous)
-    }
-  }
+  },
+  { flush: 'post' }
 )
 </script>
 
