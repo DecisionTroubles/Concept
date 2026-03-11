@@ -7,6 +7,7 @@ import { computed, shallowRef, watch, ref, nextTick } from 'vue'
 import { useForceLayout, type PositionedNode } from '@/composables/useForceLayout'
 import { COMPASS_RING_R, type CompassDot } from '@/composables/useEditorMode'
 import { useTheme } from '@/composables/useTheme'
+import { graphTrace } from '@/stores/graph/debug'
 
 const graphStore = useGraphStore()
 const controlsRef = shallowRef()
@@ -31,6 +32,11 @@ type CameraFocusTarget = { target: THREE.Vector3; position: THREE.Vector3 }
 watch(
   () => editorMode.mode.value,
   m => {
+    graphTrace('scene.watch.editorMode', {
+      mode: m,
+      selectedNodeId: graphStore.selectedNodeId,
+      focusViewActive: graphStore.focusViewActive,
+    })
     if (m !== 'fly') activeKeys.clear()
   }
 )
@@ -47,10 +53,9 @@ const neighborIds = computed<Set<string>>(() => {
     ? (graphStore.nodes.find(node => node.id === activeSceneNodeId.value) ?? null)
     : null
   if (!sel) return new Set()
-  const displaySet = new Set(displayedNodes.value.map(node => node.id))
   return new Set(
     sel.connections
-      .filter(conn => isConnectionVisible(conn) && displaySet.has(conn.target_id))
+      .filter(conn => isConnectionVisible(conn))
       .map(conn => conn.target_id)
   )
 })
@@ -60,6 +65,12 @@ watch(
   () => graphStore.focusVersion,
   () => {
     const id = activeSceneNodeId.value
+    graphTrace('scene.watch.focusVersion', {
+      focusVersion: graphStore.focusVersion,
+      activeSceneNodeId: id,
+      selectedNodeId: graphStore.selectedNodeId,
+      focusViewActive: graphStore.focusViewActive,
+    })
     if (id) {
       const t = displayedNodes.value.find(n => n.id === id)
       if (t) focusNode(t)
@@ -141,6 +152,12 @@ useEventListener(window, 'keydown', e => {
   }
   if (!isInput && graphStore.selectedNodeId && (key === settings.keys.focusView || isSpaceFocusKey)) {
     e.preventDefault()
+    graphTrace('scene.key.focusToggle', {
+      key: e.key,
+      selectedNodeId: graphStore.selectedNodeId,
+      activeSceneNodeId: activeSceneNodeId.value,
+      focusViewActive: graphStore.focusViewActive,
+    })
     graphStore.toggleFocusView(graphStore.selectedNodeId)
     return
   }
@@ -212,7 +229,7 @@ useEventListener(window, 'keydown', e => {
     }
   }
 
-  if (editorMode.mode.value === 'graph' && !isInput && !graphStore.centeredNodePanel) {
+  if (graphStore.selectedNodeId && editorMode.mode.value !== 'fly' && !isInput && !graphStore.centeredNodePanel) {
     if (e.key === 'Tab') {
       e.preventDefault()
       const id = e.shiftKey ? editorMode.tabPrev() : editorMode.tabNext()
@@ -299,12 +316,38 @@ const _focusDirection = new THREE.Vector3()
 // Pulse state for the core light
 let pulseT = 0
 
-// Camera position snapshot for distance-faded labels (sampled, not every frame)
+// Camera position snapshot for distance-faded labels
 const cameraPos = new THREE.Vector3()
-const labelTick = ref(0)
-let labelSampleMs = 0
 
 const _ndcVec = new THREE.Vector3()
+
+type PendingCompassState = {
+  neighborOrder: string[]
+  dots: CompassDot[]
+  center: { x: number; y: number } | null
+}
+
+let pendingCompassState: PendingCompassState | null = null
+let compassCommitTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleCompassCommit(state: PendingCompassState) {
+  pendingCompassState = state
+  if (compassCommitTimer !== null) return
+  compassCommitTimer = setTimeout(() => {
+    compassCommitTimer = null
+    const next = pendingCompassState
+    pendingCompassState = null
+    if (!next) return
+    graphTrace('scene.commitCompassState', {
+      dotCount: next.dots.length,
+      hasCenter: !!next.center,
+      neighborCount: next.neighborOrder.length,
+      activeSceneNodeId: activeSceneNodeId.value,
+    })
+    editorMode.setNeighborOrder(next.neighborOrder)
+    editorMode.setCompassState(next.dots, next.center)
+  }, 0)
+}
 
 useRafFn(({ delta }) => {
   const raw = controlsRef.value
@@ -352,16 +395,9 @@ useRafFn(({ delta }) => {
     coreLightRef.value.intensity = 55 + 22 * Math.sin(pulseT * 0.4)
   }
 
-  // Sample camera position at a lower rate to avoid forcing heavy full-scene reactivity.
-  labelSampleMs += delta
-  if (labelSampleMs >= 120) {
-    cameraPos.copy(cam.position)
-    labelTick.value++
-    labelSampleMs = 0
-  }
+  cameraPos.copy(cam.position)
 
-  // Compass projection (graph mode only)
-  if (editorMode.mode.value === 'graph' && activeSceneNodeId.value) {
+  if (editorMode.mode.value !== 'fly' && activeSceneNodeId.value) {
     const sel = displayedNodes.value.find(n => n.id === activeSceneNodeId.value)
     if (sel) {
       _ndcVec.set(sel.x, sel.y, sel.z).project(cam)
@@ -369,9 +405,6 @@ useRafFn(({ delta }) => {
       const sy = ((-_ndcVec.y + 1) / 2) * window.innerHeight
       const center = { x: sx, y: sy }
       const nodeMap = new Map(displayedNodes.value.map(n => [n.id, n]))
-      // Deduplicate by target_id (same neighbor can appear via both an outgoing
-      // and an incoming edge after the bidirectional query), then filter to
-      // nodes present in this layer, so indices are always sequential 1, 2, 3вЂ¦
       const seen = new Set<string>()
       const validConns = sel.connections
         .filter(conn => {
@@ -380,7 +413,7 @@ useRafFn(({ delta }) => {
           seen.add(conn.target_id)
           return true
         })
-      editorMode.setNeighborOrder(validConns.map(conn => conn.target_id))
+      const neighborOrder = validConns.map(conn => conn.target_id)
 
       const provisional = validConns.slice(0, 9).map((conn, i) => {
         const nb = nodeMap.get(conn.target_id)!
@@ -411,12 +444,21 @@ useRafFn(({ delta }) => {
           index: item.i + 1,
         }
       })
-      editorMode.setCompassState(dots, center)
+
+      scheduleCompassCommit({
+        neighborOrder,
+        dots,
+        center,
+      })
     }
   } else {
-    editorMode.setNeighborOrder([])
-    editorMode.setCompassState([], null)
+    scheduleCompassCommit({
+      neighborOrder: [],
+      dots: [],
+      center: null,
+    })
   }
+
 })
 
 // в”Ђв”Ђ Hover state в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
@@ -691,6 +733,27 @@ function isFocusConnectionEligible(conn: { relation_id: string | null }): boolea
 
 const worldNodes = computed(() => positionedNodes.value.filter(node => !isSublayerNode(node)))
 
+function displayedNodesEqual(a: PositionedNode[], b: PositionedNode[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i]
+    const right = b[i]
+    if (
+      left.id !== right.id ||
+      left.x !== right.x ||
+      left.y !== right.y ||
+      left.z !== right.z ||
+      left.title !== right.title ||
+      left.node_type !== right.node_type ||
+      left.connections !== right.connections
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
 function buildDisplayedNodes(): PositionedNode[] {
   if (!graphStore.focusViewActive || !graphStore.focusRootNodeId) return worldNodes.value
 
@@ -754,7 +817,15 @@ watch(
     focusViewConfig.value.maxNeighbors,
   ],
   () => {
-    displayedNodes.value = buildDisplayedNodes()
+    const next = buildDisplayedNodes()
+    if (displayedNodesEqual(displayedNodes.value, next)) return
+    graphTrace('scene.update.displayedNodes', {
+      previousCount: displayedNodes.value.length,
+      nextCount: next.length,
+      focusViewActive: graphStore.focusViewActive,
+      focusRootNodeId: graphStore.focusRootNodeId,
+    })
+    displayedNodes.value = next
   },
   { immediate: true }
 )
@@ -865,6 +936,11 @@ function buildClusterFocus(nodes: PositionedNode[]): CameraFocusTarget {
 }
 
 function focusNode(node: PositionedNode) {
+  graphTrace('scene.focusNode', {
+    nodeId: node.id,
+    focusViewActive: graphStore.focusViewActive,
+    displayedNodeCount: displayedNodes.value.length,
+  })
   focusTarget.value = graphStore.focusViewActive
     ? buildClusterFocus(displayedNodes.value)
     : buildSingleNodeFocus(new THREE.Vector3(node.x, node.y, node.z))
@@ -1295,8 +1371,6 @@ function isPriorityLabelNode(node: PositionedNode): boolean {
 }
 
 function nodeLabelOpacity(node: PositionedNode): number {
-  // make opacity recompute only on sampled camera updates
-  void labelTick.value
   if (hoveredNodeId.value === node.id || activeSceneNodeId.value === node.id) return 1
   const dx = cameraPos.x - node.x
   const dy = cameraPos.y - node.y
@@ -1334,6 +1408,13 @@ function nodeProgressLabel(node: PositionedNode): string {
 // в”Ђв”Ђ Event handlers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function onNodeClick(node: PositionedNode, event: { stopPropagation?: () => void }) {
   event.stopPropagation?.()
+  graphTrace('scene.onNodeClick', {
+    nodeId: node.id,
+    focusViewActive: graphStore.focusViewActive,
+    selectedNodeId: graphStore.selectedNodeId,
+    focusRootNodeId: graphStore.focusRootNodeId,
+    focusCursorNodeId: graphStore.focusCursorNodeId,
+  })
   if (graphStore.focusViewActive) {
     graphStore.selectFocusNode(node.id)
     focusNode(node)
@@ -1356,10 +1437,42 @@ function onNodePointerLeave(node: PositionedNode, event: { stopPropagation?: () 
 watch(
   () => graphStore.focusViewVersion,
   async () => {
+    graphTrace('scene.watch.focusViewVersion', {
+      focusViewVersion: graphStore.focusViewVersion,
+      focusViewActive: graphStore.focusViewActive,
+      focusRootNodeId: graphStore.focusRootNodeId,
+      focusCursorNodeId: graphStore.focusCursorNodeId,
+      selectedNodeId: graphStore.selectedNodeId,
+      displayedNodeCount: displayedNodes.value.length,
+    })
     if (!graphStore.focusViewActive) return
     await nextTick()
     if (!graphStore.focusViewActive || displayedNodes.value.length === 0) return
     focusTarget.value = buildClusterFocus(displayedNodes.value)
+  },
+  { flush: 'post' }
+)
+
+watch(
+  () => [
+    graphStore.selectedNodeId,
+    graphStore.focusViewActive,
+    graphStore.focusRootNodeId,
+    graphStore.focusCursorNodeId,
+    graphStore.centeredNodePanel,
+  ],
+  ([selectedNodeId, focusViewActive, focusRootNodeId, focusCursorNodeId, centeredNodePanel], previous) => {
+    graphTrace('scene.watch.sessionTuple', {
+      previous,
+      next: {
+        selectedNodeId,
+        focusViewActive,
+        focusRootNodeId,
+        focusCursorNodeId,
+        centeredNodePanel,
+      },
+      activeSceneNodeId: activeSceneNodeId.value,
+    })
   },
   { flush: 'post' }
 )

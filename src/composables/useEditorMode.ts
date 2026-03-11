@@ -1,4 +1,5 @@
 import { ref, readonly, shallowRef } from 'vue'
+import { graphTrace } from '@/stores/graph/debug'
 
 export type EditorMode = 'normal' | 'fly' | 'graph'
 export const COMPASS_RING_R = 110   // px — shared with CompassHUD
@@ -101,6 +102,10 @@ export function useEditorMode() {
   }
   function setNeighborOrder(ids: string[]) {
     if (arraysEqual(neighborOrder, ids)) return
+    graphTrace('editorMode.setNeighborOrder', {
+      previous: [...neighborOrder],
+      next: ids,
+    })
     neighborOrder = ids
   }
   function setCompassState(dots: CompassDot[], center: { x: number; y: number } | null) {
@@ -109,6 +114,12 @@ export function useEditorMode() {
       currentCenter === center ||
       (!!currentCenter && !!center && Math.abs(currentCenter.x - center.x) < 0.5 && Math.abs(currentCenter.y - center.y) < 0.5)
     if (sameCenter && compassDotsEqual(compassDots.value, dots)) return
+    graphTrace('editorMode.setCompassState', {
+      previousCenter: currentCenter,
+      nextCenter: center,
+      previousDotCount: compassDots.value.length,
+      nextDotCount: dots.length,
+    })
     compassDots.value = dots
     compassCenter.value = center
   }

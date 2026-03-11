@@ -1,16 +1,41 @@
 import type { Ref } from 'vue'
 import type { BufferId, GraphSessionState } from '@/stores/graph/shared'
+import { graphTrace } from '@/stores/graph/debug'
 
 export function createGraphSessionActions(session: GraphSessionState) {
   function selectNode(id: string | null) {
-    if (session.selectedNodeId.value === id) return
+    if (session.selectedNodeId.value === id) {
+      graphTrace('session.selectNode.skip', { id, selectedNodeId: session.selectedNodeId.value })
+      return
+    }
+    graphTrace('session.selectNode', {
+      from: session.selectedNodeId.value,
+      to: id,
+      focusViewActive: session.focusViewActive.value,
+      focusRootNodeId: session.focusRootNodeId.value,
+      focusCursorNodeId: session.focusCursorNodeId.value,
+    })
     session.selectedNodeId.value = id
   }
 
   function clearSelection() {
     if (session.selectedNodeId.value === null && !session.centeredNodePanel.value && !session.nodeEditorOpen.value && !session.focusViewActive.value) {
+      graphTrace('session.clearSelection.skip', {
+        selectedNodeId: session.selectedNodeId.value,
+        centeredNodePanel: session.centeredNodePanel.value,
+        nodeEditorOpen: session.nodeEditorOpen.value,
+        focusViewActive: session.focusViewActive.value,
+      })
       return
     }
+    graphTrace('session.clearSelection', {
+      selectedNodeId: session.selectedNodeId.value,
+      centeredNodePanel: session.centeredNodePanel.value,
+      nodeEditorOpen: session.nodeEditorOpen.value,
+      focusViewActive: session.focusViewActive.value,
+      focusRootNodeId: session.focusRootNodeId.value,
+      focusCursorNodeId: session.focusCursorNodeId.value,
+    })
     session.selectedNodeId.value = null
     session.centeredNodePanel.value = false
     session.nodeEditorOpen.value = false
@@ -22,6 +47,11 @@ export function createGraphSessionActions(session: GraphSessionState) {
   }
 
   function requestFocus(id: string) {
+    graphTrace('session.requestFocus', {
+      id,
+      from: session.selectedNodeId.value,
+      focusVersion: session.focusVersion.value,
+    })
     session.selectedNodeId.value = id
     session.focusVersion.value++
   }
@@ -66,7 +96,16 @@ export function createGraphSessionActions(session: GraphSessionState) {
   }
 
   function setFocusCursorNode(id: string | null) {
-    if (session.focusCursorNodeId.value === id) return
+    if (session.focusCursorNodeId.value === id) {
+      graphTrace('session.setFocusCursorNode.skip', { id })
+      return
+    }
+    graphTrace('session.setFocusCursorNode', {
+      from: session.focusCursorNodeId.value,
+      to: id,
+      focusRootNodeId: session.focusRootNodeId.value,
+      selectedNodeId: session.selectedNodeId.value,
+    })
     session.focusCursorNodeId.value = id
   }
 

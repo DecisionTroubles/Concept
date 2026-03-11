@@ -1,5 +1,6 @@
 import type { GraphResourceState, GraphSessionState } from '@/stores/graph/shared'
 import type { ReturnTypeUseSettings } from '@/stores/graph/types'
+import { graphTrace } from '@/stores/graph/debug'
 
 interface GraphFocusActionsOptions {
   state: GraphResourceState
@@ -33,7 +34,22 @@ export function createGraphFocusActions(options: GraphFocusActionsOptions) {
   function openFocusView(rootId?: string | null) {
     const id = rootId ?? session.selectedNodeId.value
     if (!id) return
-    if (session.focusViewActive.value && session.focusRootNodeId.value === id) return
+    if (session.focusViewActive.value && session.focusRootNodeId.value === id) {
+      graphTrace('focus.open.skip', {
+        id,
+        focusViewActive: session.focusViewActive.value,
+        focusRootNodeId: session.focusRootNodeId.value,
+      })
+      return
+    }
+
+    graphTrace('focus.open', {
+      id,
+      selectedNodeId: session.selectedNodeId.value,
+      focusViewActive: session.focusViewActive.value,
+      focusRootNodeId: session.focusRootNodeId.value,
+      activeConnectionLayerIds: [...state.activeConnectionLayerIds.value],
+    })
 
     session.focusOverlayParentSelection.value = [...state.activeConnectionLayerIds.value]
     session.focusViewActive.value = true
@@ -45,7 +61,13 @@ export function createGraphFocusActions(options: GraphFocusActionsOptions) {
   }
 
   function closeFocusView() {
-    if (!session.focusViewActive.value && session.focusRootNodeId.value === null) return
+    if (!session.focusViewActive.value && session.focusRootNodeId.value === null) {
+      graphTrace('focus.close.skip', {
+        focusViewActive: session.focusViewActive.value,
+        focusRootNodeId: session.focusRootNodeId.value,
+      })
+      return
+    }
 
     const previousSelection = session.focusOverlayParentSelection.value
     const selected = session.selectedNodeId.value
@@ -54,6 +76,16 @@ export function createGraphFocusActions(options: GraphFocusActionsOptions) {
     const parentId = focusParentId(selected)
     const nextSelection =
       selected && isSublayerNode(selected) && parentId ? parentId : session.selectedNodeId.value
+
+    graphTrace('focus.close', {
+      selectedNodeId: session.selectedNodeId.value,
+      selectedParentId: parentId,
+      nextSelection,
+      focusRootNodeId: session.focusRootNodeId.value,
+      focusCursorNodeId: session.focusCursorNodeId.value,
+      restoreOverlaySelectionOnExit: currentWorldSettings().restoreOverlaySelectionOnExit,
+      previousSelection,
+    })
 
     session.focusViewActive.value = false
     session.focusRootNodeId.value = null
@@ -70,6 +102,12 @@ export function createGraphFocusActions(options: GraphFocusActionsOptions) {
   function toggleFocusView(rootId?: string | null) {
     const id = rootId ?? session.selectedNodeId.value
     if (!id) return
+    graphTrace('focus.toggle', {
+      id,
+      focusViewActive: session.focusViewActive.value,
+      focusRootNodeId: session.focusRootNodeId.value,
+      selectedNodeId: session.selectedNodeId.value,
+    })
     if (session.focusViewActive.value) {
       closeFocusView()
       return
@@ -78,11 +116,26 @@ export function createGraphFocusActions(options: GraphFocusActionsOptions) {
   }
 
   function setFocusCursorNode(id: string | null) {
-    if (session.focusCursorNodeId.value === id) return
+    if (session.focusCursorNodeId.value === id) {
+      graphTrace('focus.setCursor.skip', { id })
+      return
+    }
+    graphTrace('focus.setCursor', {
+      from: session.focusCursorNodeId.value,
+      to: id,
+      focusRootNodeId: session.focusRootNodeId.value,
+      selectedNodeId: session.selectedNodeId.value,
+    })
     session.focusCursorNodeId.value = id
   }
 
   function selectFocusNode(id: string) {
+    graphTrace('focus.selectNode', {
+      id,
+      selectedNodeId: session.selectedNodeId.value,
+      focusCursorNodeId: session.focusCursorNodeId.value,
+      focusRootNodeId: session.focusRootNodeId.value,
+    })
     setFocusCursorNode(id)
     if (session.selectedNodeId.value !== id) session.selectedNodeId.value = id
   }

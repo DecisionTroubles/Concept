@@ -56,7 +56,7 @@ onMounted(() => graphStore.initialize())
   <component :is="NodeSearchModule" />
   <component
     :is="CompassHUDModule"
-    v-if="editorMode.mode.value === 'graph' && editorMode.compassCenter.value"
+    v-if="graphStore.selectedNodeId && editorMode.mode.value !== 'fly' && editorMode.compassCenter.value"
     :dots="editorMode.compassDots.value"
     :center-x="editorMode.compassCenter.value?.x ?? 0"
     :center-y="editorMode.compassCenter.value?.y ?? 0"
