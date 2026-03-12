@@ -615,11 +615,11 @@ useEventListener(
                 <div class="section-title">Add GitHub Pack</div>
                 <label class="learning-field">
                   <span>Pack id</span>
-                  <input v-model="packForm.id" type="text" placeholder="odin-core" />
+                  <input v-model="packForm.id" type="text" placeholder="language-core" />
                 </label>
                 <label class="learning-field">
                   <span>Display name</span>
-                  <input v-model="packForm.name" type="text" placeholder="Odin Core" />
+                  <input v-model="packForm.name" type="text" placeholder="Language Core" />
                 </label>
                 <label class="learning-field">
                   <span>GitHub repo</span>
@@ -627,7 +627,7 @@ useEventListener(
                 </label>
                 <label class="learning-field">
                   <span>Pack folder path</span>
-                  <input v-model="packForm.path" type="text" placeholder="packs/odin-core" />
+                  <input v-model="packForm.path" type="text" placeholder="packs/language-core" />
                 </label>
                 <label class="learning-field">
                   <span>Branch</span>
@@ -972,6 +972,10 @@ useEventListener(
 }
 
 .graphics-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
   padding-top: 4px;
 }
 
@@ -1085,8 +1089,12 @@ useEventListener(
 .world-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.world-actions {
+  padding-top: 4px;
 }
 
 .world-error {
