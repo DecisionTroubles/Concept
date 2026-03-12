@@ -3,9 +3,12 @@ mod domain;
 mod error;
 mod extensions;
 mod graph;
+mod pack_registry;
 mod scheduler;
 mod world_registry;
 
+use std::fs;
+use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
 use rusqlite::Connection;
@@ -18,6 +21,7 @@ use graph::{
 use extensions::NodeExtensionData;
 use scheduler::{ReviewEvent, SchedulerDescriptor};
 use world_registry::{ScanRoot, WorldPackInfo};
+use pack_registry::{GitHubPackSourceInput, PackRegistryEntry};
 
 // ---------------------------------------------------------------------------
 // DB state — initialized once in setup, shared across all resolver calls.
@@ -33,6 +37,138 @@ fn db() -> &'static DbState {
         .expect("DB not initialized — setup() has not run yet")
 }
 
+fn ensure_starter_pack(local_worlds_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let starter_dir = local_worlds_dir.join("starter-example");
+    let starter_pack = starter_dir.join("pack.json");
+    if starter_pack.exists() {
+        return Ok(());
+    }
+
+    fs::create_dir_all(&starter_dir)?;
+    fs::write(
+        &starter_pack,
+        r#"{
+  "version": "2",
+  "world": {
+    "id": "starter-example",
+    "name": "Starter Example",
+    "layout": {},
+    "metadata": {
+      "description": "A tiny example world shipped into app data as a local starter pack."
+    }
+  },
+  "note_types": [
+    {
+      "id": "starter-concept",
+      "name": "Starter Concept",
+      "fields": ["Summary", "Why", "Example", "Pitfall"],
+      "schema_json": {
+        "fields": [
+          { "key": "Summary", "label": "Summary", "widget": "text" },
+          { "key": "Why", "label": "Why", "widget": "textarea" },
+          { "key": "Example", "label": "Example", "widget": "code" },
+          { "key": "Pitfall", "label": "Pitfall", "widget": "textarea" }
+        ]
+      },
+      "layout_json": {},
+      "metadata": {},
+      "is_default": true
+    }
+  ],
+  "relation_kinds": [
+    { "id": "rel-explains", "label": "Explains", "directed": true, "default_weight": 1.0, "metadata": {} },
+    { "id": "rel-next", "label": "Next", "directed": true, "default_weight": 1.0, "metadata": {} }
+  ],
+  "layers": [
+    { "id": "main", "name": "Main", "display_order": 0, "node_filter": {}, "edge_filter": {}, "metadata": {} }
+  ],
+  "connection_layers": [
+    { "id": "all-links", "name": "All links", "display_order": 0, "metadata": {} }
+  ],
+  "nodes": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "node_type": "concept",
+      "note_type_id": "starter-concept",
+      "note_fields": {
+        "Summary": "This starter world shows the basic reading flow of Concept.",
+        "Why": "Use it as a small sanity-check world before installing larger packs from GitHub.",
+        "Example": "Open Welcome, move to Connections, then inspect Graph basics.",
+        "Pitfall": "Treating the starter pack as real content instead of a template will limit the map."
+      },
+      "content_data": "Welcome to Concept.",
+      "tags": ["starter"],
+      "weight": 1.0,
+      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "layer_membership": ["main"],
+      "metadata": {}
+    },
+    {
+      "id": "graph-basics",
+      "title": "Graph basics",
+      "node_type": "concept",
+      "note_type_id": "starter-concept",
+      "note_fields": {
+        "Summary": "Nodes carry ideas, and links tell you how to move through them.",
+        "Why": "A small graph teaches the viewer and navigation model without content overload.",
+        "Example": "Welcome -> Graph basics -> Install packs",
+        "Pitfall": "Raw links without explanation make a map feel mechanical."
+      },
+      "content_data": "Graph basics.",
+      "tags": ["starter"],
+      "weight": 1.0,
+      "position": { "x": 4.0, "y": 0.0, "z": -1.5 },
+      "layer_membership": ["main"],
+      "metadata": {}
+    },
+    {
+      "id": "install-packs",
+      "title": "Install packs",
+      "node_type": "concept",
+      "note_type_id": "starter-concept",
+      "note_fields": {
+        "Summary": "Add GitHub pack sources in Settings, then install them into your local pack library.",
+        "Why": "Runtime packs now come from app data, not bundled domains in the repo.",
+        "Example": "Settings -> Packs -> Add source -> Install -> Open world",
+        "Pitfall": "Expecting repo domains to appear at runtime will not work anymore."
+      },
+      "content_data": "Install packs from GitHub.",
+      "tags": ["starter"],
+      "weight": 1.0,
+      "position": { "x": 8.0, "y": 0.0, "z": 1.5 },
+      "layer_membership": ["main"],
+      "metadata": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-welcome-graph",
+      "source_id": "welcome",
+      "target_id": "graph-basics",
+      "relation_id": "rel-explains",
+      "edge_type": "Semantic",
+      "weight": 1.0,
+      "connection_layer_membership": ["all-links"],
+      "metadata": {}
+    },
+    {
+      "id": "edge-graph-install",
+      "source_id": "graph-basics",
+      "target_id": "install-packs",
+      "relation_id": "rel-next",
+      "edge_type": "Context",
+      "weight": 1.0,
+      "connection_layer_membership": ["all-links"],
+      "metadata": {}
+    }
+  ]
+}"#,
+    )?;
+
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // TauRPC API definition — generates src/bindings.ts
 // ---------------------------------------------------------------------------
@@ -43,6 +179,7 @@ trait GraphApi {
     async fn get_layers() -> Result<Vec<Layer>, String>;
     async fn get_world_config() -> Result<Option<WorldConfig>, String>;
     async fn get_world_packs() -> Result<Vec<WorldPackInfo>, String>;
+    async fn get_pack_registry() -> Result<Vec<PackRegistryEntry>, String>;
     async fn get_relation_kinds() -> Result<Vec<RelationKind>, String>;
     async fn get_connection_layers() -> Result<Vec<ConnectionLayer>, String>;
     async fn create_layer(name: String, display_order: i32) -> Result<Layer, String>;
@@ -104,6 +241,12 @@ trait GraphApi {
     async fn reset_data(reseed: Option<bool>) -> Result<(), String>;
     async fn select_world(world_id: String) -> Result<(), String>;
     async fn reload_active_world() -> Result<(), String>;
+    async fn add_github_pack_source(input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String>;
+    async fn update_pack_source(id: String, input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String>;
+    async fn remove_pack_source(id: String) -> Result<(), String>;
+    async fn install_pack_source(id: String) -> Result<PackRegistryEntry, String>;
+    async fn refresh_pack_source(id: String) -> Result<PackRegistryEntry, String>;
+    async fn check_pack_source_updates(id: String) -> Result<PackRegistryEntry, String>;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +271,10 @@ impl GraphApi for ApiImpl {
     async fn get_world_packs(self) -> Result<Vec<WorldPackInfo>, String> {
         let conn = db().lock().await;
         world_registry::list_world_packs(&conn).map_err(|e| e.to_string())
+    }
+
+    async fn get_pack_registry(self) -> Result<Vec<PackRegistryEntry>, String> {
+        pack_registry::get_pack_registry().map_err(|e| e.to_string())
     }
 
     async fn get_relation_kinds(self) -> Result<Vec<RelationKind>, String> {
@@ -298,6 +445,30 @@ impl GraphApi for ApiImpl {
         let conn = db().lock().await;
         world_registry::reload_active_world(&conn).map_err(|e| e.to_string())
     }
+
+    async fn add_github_pack_source(self, input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String> {
+        pack_registry::add_github_pack_source(input).map_err(|e| e.to_string())
+    }
+
+    async fn update_pack_source(self, id: String, input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String> {
+        pack_registry::update_pack_source(&id, input).map_err(|e| e.to_string())
+    }
+
+    async fn remove_pack_source(self, id: String) -> Result<(), String> {
+        pack_registry::remove_pack_source(&id).map_err(|e| e.to_string())
+    }
+
+    async fn install_pack_source(self, id: String) -> Result<PackRegistryEntry, String> {
+        pack_registry::install_pack_source(&id).await.map_err(|e| e.to_string())
+    }
+
+    async fn refresh_pack_source(self, id: String) -> Result<PackRegistryEntry, String> {
+        pack_registry::refresh_pack_source(&id).await.map_err(|e| e.to_string())
+    }
+
+    async fn check_pack_source_updates(self, id: String) -> Result<PackRegistryEntry, String> {
+        pack_registry::check_pack_source_updates(&id).await.map_err(|e| e.to_string())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -319,33 +490,26 @@ pub async fn run() {
             std::fs::create_dir_all(&data_dir)?;
             let user_worlds_dir = data_dir.join("worlds");
             std::fs::create_dir_all(&user_worlds_dir)?;
+            let installed_worlds_dir = user_worlds_dir.join("installed");
+            let local_worlds_dir = user_worlds_dir.join("local");
+            std::fs::create_dir_all(&installed_worlds_dir)?;
+            std::fs::create_dir_all(&local_worlds_dir)?;
+            ensure_starter_pack(&local_worlds_dir)?;
             let conn = Connection::open(data_dir.join("graph.db"))?;
             db::init_schema(&conn)?;
             let mut scan_roots = Vec::new();
 
-            let bundled_domains = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../domains");
-            if bundled_domains.exists() {
-                scan_roots.push(ScanRoot {
-                    kind: "bundled".into(),
-                    path: bundled_domains,
-                });
-            }
-
-            if let Ok(resource_dir) = app.path().resource_dir() {
-                let resource_domains = resource_dir.join("domains");
-                if resource_domains.exists() {
-                    scan_roots.push(ScanRoot {
-                        kind: "bundled".into(),
-                        path: resource_domains,
-                    });
-                }
-            }
-
             scan_roots.push(ScanRoot {
-                kind: "user".into(),
-                path: user_worlds_dir,
+                kind: "installed".into(),
+                path: installed_worlds_dir.clone(),
             });
 
+            scan_roots.push(ScanRoot {
+                kind: "local".into(),
+                path: local_worlds_dir.clone(),
+            });
+
+            pack_registry::configure(user_worlds_dir.clone())?;
             world_registry::configure_scan_roots(scan_roots)?;
             world_registry::ensure_active_world_loaded(&conn)?;
             // Store in the global OnceLock — safe because setup() runs exactly once

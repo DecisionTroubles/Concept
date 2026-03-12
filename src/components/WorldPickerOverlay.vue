@@ -7,6 +7,14 @@ const graphStore = useGraphStore()
 const settings = useSettings()
 
 const validWorlds = computed(() => graphStore.worldPacks.filter(world => world.valid))
+const registryByWorldId = computed(() => {
+  const map = new Map<string, string>()
+  for (const entry of graphStore.packRegistry) {
+    const worldId = entry.pack_info?.world_id
+    if (worldId) map.set(worldId, entry.install_status)
+  }
+  return map
+})
 
 function openPicker() {
   graphStore.openWorldPicker()
@@ -84,7 +92,7 @@ useEventListener(
         </div>
 
         <div class="summary-copy">
-          Bundled worlds are scanned from `domains/*/pack.json`. User-added worlds can live in the app data `worlds/` folder.
+          Installed worlds are loaded from your local pack library. Add GitHub pack sources from Settings to bring in more worlds.
         </div>
 
         <div class="summary-actions">
@@ -107,6 +115,9 @@ useEventListener(
             </div>
             <div class="world-card-badges">
               <span class="world-badge source">{{ world.source_kind }}</span>
+              <span v-if="world.world_id && registryByWorldId.get(world.world_id)" class="world-badge source">
+                {{ registryByWorldId.get(world.world_id) }}
+              </span>
               <span v-if="world.is_loaded" class="world-badge state loaded">Loaded</span>
               <span v-else-if="world.is_active" class="world-badge state selected">Selected</span>
             </div>

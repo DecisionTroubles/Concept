@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { useTauRPC } from '@/composables/useTauRPC'
 import { useSettings } from '@/composables/useSettings'
+import type { GitHubPackSourceInput } from '@/bindings'
 import {
   createGraphDerivedState,
   createGraphResourceState,
@@ -43,6 +44,7 @@ export const useGraphStore = defineStore('graph', () => {
     loadWorldPacks: resourceActions.loadWorldPacks,
     loadWorldConfig: resourceActions.loadWorldConfig,
     loadRelationKinds: resourceActions.loadRelationKinds,
+    loadPackRegistry: resourceActions.loadPackRegistry,
     loadConnectionLayers: resourceActions.loadConnectionLayers,
     loadNoteTypes: resourceActions.loadNoteTypes,
     loadSchedulerAlgorithms: resourceActions.loadSchedulerAlgorithms,
@@ -65,6 +67,46 @@ export const useGraphStore = defineStore('graph', () => {
     await worldActions.reloadActiveWorld(() => useTauRPC().reload_active_world())
   }
 
+  async function refreshPackRegistry() {
+    await resourceActions.loadPackRegistry()
+    await resourceActions.loadWorldPacks()
+  }
+
+  async function addGitHubPackSource(input: GitHubPackSourceInput) {
+    const entry = await useTauRPC().add_github_pack_source(input)
+    await refreshPackRegistry()
+    return entry
+  }
+
+  async function updatePackSource(id: string, input: GitHubPackSourceInput) {
+    const entry = await useTauRPC().update_pack_source(id, input)
+    await refreshPackRegistry()
+    return entry
+  }
+
+  async function removePackSource(id: string) {
+    await useTauRPC().remove_pack_source(id)
+    await refreshPackRegistry()
+  }
+
+  async function installPackSource(id: string) {
+    const entry = await useTauRPC().install_pack_source(id)
+    await refreshPackRegistry()
+    return entry
+  }
+
+  async function refreshPackSource(id: string) {
+    const entry = await useTauRPC().refresh_pack_source(id)
+    await refreshPackRegistry()
+    return entry
+  }
+
+  async function checkPackSourceUpdates(id: string) {
+    const entry = await useTauRPC().check_pack_source_updates(id)
+    await refreshPackRegistry()
+    return entry
+  }
+
   return {
     layers: resources.layers,
     activeLayerId: resources.activeLayerId,
@@ -75,6 +117,7 @@ export const useGraphStore = defineStore('graph', () => {
     reviewEvents: resources.reviewEvents,
     worldConfig: resources.worldConfig,
     worldPacks: resources.worldPacks,
+    packRegistry: resources.packRegistry,
     relationKinds: resources.relationKinds,
     connectionLayers: resources.connectionLayers,
     activeConnectionLayerIds: resources.activeConnectionLayerIds,
@@ -100,6 +143,7 @@ export const useGraphStore = defineStore('graph', () => {
     loadReviewEvents: resourceActions.loadReviewEvents,
     loadWorldConfig: resourceActions.loadWorldConfig,
     loadWorldPacks: resourceActions.loadWorldPacks,
+    loadPackRegistry: resourceActions.loadPackRegistry,
     loadRelationKinds: resourceActions.loadRelationKinds,
     loadConnectionLayers: resourceActions.loadConnectionLayers,
     loadNodes: resourceActions.loadNodes,
@@ -145,5 +189,12 @@ export const useGraphStore = defineStore('graph', () => {
     resetGraphData,
     selectWorld,
     reloadActiveWorld,
+    addGitHubPackSource,
+    updatePackSource,
+    removePackSource,
+    installPackSource,
+    refreshPackSource,
+    checkPackSourceUpdates,
+    refreshPackRegistry,
   }
 })

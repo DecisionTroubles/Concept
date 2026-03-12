@@ -84,9 +84,18 @@ const GRAPH_ACTIONS: Array<{ key: ActionKey; label: string }> = [
 
 const isOpen = ref(false)
 const listeningAction = ref<ActionKey | null>(null)
-const activeTab = ref<'world' | 'hotkeys' | 'themes' | 'graphics' | 'learning' | 'worlds' | 'authoring'>('world')
+const activeTab = ref<'world' | 'hotkeys' | 'themes' | 'graphics' | 'learning' | 'packs' | 'authoring'>('world')
 const currentWorldId = computed(() => graphStore.worldConfig?.id ?? null)
 const currentWorldSettings = computed(() => settings.getWorldSettings(currentWorldId.value))
+const packForm = ref({
+  id: '',
+  name: '',
+  repo: '',
+  path: '',
+  branch: 'main',
+  pinned_ref: '',
+  enabled: true,
+})
 
 function toggle() {
   if (listeningAction.value) return
@@ -108,6 +117,27 @@ async function selectWorldNow(worldId: string) {
 
 async function reloadActiveWorldNow() {
   await graphStore.reloadActiveWorld()
+}
+
+async function submitPackSource() {
+  await graphStore.addGitHubPackSource({
+    id: packForm.value.id.trim(),
+    name: packForm.value.name.trim(),
+    repo: packForm.value.repo.trim(),
+    path: packForm.value.path.trim(),
+    branch: packForm.value.branch.trim(),
+    pinned_ref: packForm.value.pinned_ref.trim() || null,
+    enabled: packForm.value.enabled,
+  })
+  packForm.value = {
+    id: '',
+    name: '',
+    repo: '',
+    path: '',
+    branch: 'main',
+    pinned_ref: '',
+    enabled: true,
+  }
 }
 
 function startListening(action: ActionKey) {
@@ -276,8 +306,8 @@ useEventListener(
             <button class="tab-btn" :class="{ active: activeTab === 'learning' }" @click="activeTab = 'learning'">
               Learning
             </button>
-            <button class="tab-btn" :class="{ active: activeTab === 'worlds' }" @click="activeTab = 'worlds'">
-              Worlds
+            <button class="tab-btn" :class="{ active: activeTab === 'packs' }" @click="activeTab = 'packs'">
+              Packs
             </button>
             <button class="tab-btn" :class="{ active: activeTab === 'authoring' }" @click="activeTab = 'authoring'">
               Authoring
@@ -565,7 +595,7 @@ useEventListener(
             </div>
           </div>
 
-          <div class="tab-content" v-else-if="activeTab === 'worlds'">
+          <div class="tab-content" v-else-if="activeTab === 'packs'">
             <div class="learning-layout">
               <section class="graphics-card">
                 <div class="section-title">Active World</div>
@@ -574,7 +604,7 @@ useEventListener(
                   <span>{{ graphStore.worldConfig?.id ?? 'No active world in database' }}</span>
                 </div>
                 <div class="graphics-copy">
-                  Bundled packs are scanned from `domains/*/pack.json`. User packs can be added to the app data `worlds/` folder.
+                  Installed worlds are loaded from your local pack library. Add GitHub sources here, then install them into app data.
                 </div>
                 <div class="graphics-actions">
                   <button class="reset-btn" @click="reloadActiveWorldNow">Reload active world</button>
@@ -582,7 +612,75 @@ useEventListener(
               </section>
 
               <section class="graphics-card">
-                <div class="section-title">Available Worlds</div>
+                <div class="section-title">Add GitHub Pack</div>
+                <label class="learning-field">
+                  <span>Pack id</span>
+                  <input v-model="packForm.id" type="text" placeholder="odin-core" />
+                </label>
+                <label class="learning-field">
+                  <span>Display name</span>
+                  <input v-model="packForm.name" type="text" placeholder="Odin Core" />
+                </label>
+                <label class="learning-field">
+                  <span>GitHub repo</span>
+                  <input v-model="packForm.repo" type="text" placeholder="owner/repo" />
+                </label>
+                <label class="learning-field">
+                  <span>Pack folder path</span>
+                  <input v-model="packForm.path" type="text" placeholder="packs/odin-core" />
+                </label>
+                <label class="learning-field">
+                  <span>Branch</span>
+                  <input v-model="packForm.branch" type="text" placeholder="main" />
+                </label>
+                <label class="learning-field">
+                  <span>Pinned ref</span>
+                  <input v-model="packForm.pinned_ref" type="text" placeholder="optional tag or sha" />
+                </label>
+                <div class="graphics-actions">
+                  <button class="reset-btn" @click="submitPackSource">Add source</button>
+                  <button class="reset-btn" @click="graphStore.refreshPackRegistry()">Refresh registry</button>
+                </div>
+              </section>
+
+              <section class="graphics-card graphics-card-wide">
+                <div class="section-title">Registered Sources</div>
+                <div v-if="graphStore.packRegistry.length === 0" class="graphics-copy">
+                  No pack sources yet. Add a GitHub repo folder above to start building your local pack library.
+                </div>
+                <div v-else class="world-list">
+                  <article v-for="entry in graphStore.packRegistry" :key="entry.source.id" class="world-card">
+                    <div class="world-head">
+                      <div class="world-meta">
+                        <strong>{{ entry.source.name }}</strong>
+                        <span>{{ entry.source.repo }}/{{ entry.source.path }}</span>
+                      </div>
+                      <div class="world-badges">
+                        <span class="scheduler-key">{{ entry.install_status }}</span>
+                        <span v-if="entry.pack_info?.world_name" class="theme-active">{{ entry.pack_info.world_name }}</span>
+                      </div>
+                    </div>
+                    <p class="world-path">{{ entry.source.branch }}<template v-if="entry.source.pinned_ref"> · {{ entry.source.pinned_ref }}</template></p>
+                    <p v-if="entry.last_error" class="world-error">{{ entry.last_error }}</p>
+                    <div class="world-actions">
+                      <button class="reset-btn" @click="graphStore.installPackSource(entry.source.id)">Install</button>
+                      <button class="reset-btn" @click="graphStore.checkPackSourceUpdates(entry.source.id)">Check updates</button>
+                      <button class="reset-btn" @click="graphStore.refreshPackSource(entry.source.id)">Refresh</button>
+                      <button class="reset-btn" @click="graphStore.removePackSource(entry.source.id)">Remove</button>
+                      <button
+                        v-if="entry.pack_info?.world_id"
+                        class="reset-btn"
+                        @click="selectWorldNow(entry.pack_info.world_id)"
+                      >
+                        Open world
+                      </button>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="graphics-card graphics-card-wide">
+                <div class="section-title">Installed Worlds</div>
                 <div class="world-list">
                   <article v-for="world in graphStore.worldPacks" :key="world.pack_path" class="world-card" :class="{ active: world.is_active }">
                     <div class="world-head">

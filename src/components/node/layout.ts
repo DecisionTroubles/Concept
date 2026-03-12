@@ -48,6 +48,12 @@ export type LayoutRoot = {
   }
 }
 
+const OVERVIEW_PRIMARY_KEYS = ['summary', 'meaning', 'function', 'main', 'concept', 'term', 'phrase', 'pattern']
+const OVERVIEW_SUPPORT_KEYS = ['why', 'whyitmatters', 'usage', 'when']
+const SIGNAL_KEYS = ['signals', 'mapsignals', 'tip']
+const PITFALL_KEYS = ['pitfall', 'warning', 'caution', 'note']
+const EXAMPLE_KEYS = ['example', 'examplecode', 'diagram', 'visual']
+
 export function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   if (!raw) return fallback
   try {
@@ -79,6 +85,64 @@ export function fieldLabel(fieldByKey: Map<string, NoteFieldDefinition>, key: st
   return fieldByKey.get(key)?.label || key
 }
 
+function normalized(value: string): string {
+  return value.toLowerCase().replaceAll(/[^a-z0-9]/g, '')
+}
+
+function fieldKeys(node: Node): string[] {
+  return Object.keys(node.note_fields)
+}
+
+function firstMatchingKey(keys: string[], needles: string[]): string | null {
+  for (const key of keys) {
+    const norm = normalized(key)
+    if (needles.some(needle => norm.includes(needle))) return key
+  }
+  return null
+}
+
+function allMatchingKeys(keys: string[], needles: string[]): string[] {
+  return keys.filter(key => {
+    const norm = normalized(key)
+    return needles.some(needle => norm.includes(needle))
+  })
+}
+
+function fieldWidget(fieldByKey: Map<string, NoteFieldDefinition>, key: string): string {
+  return (fieldByKey.get(key)?.widget || '').toLowerCase()
+}
+
+function preferCodeField(keys: string[], fieldByKey: Map<string, NoteFieldDefinition>): string | null {
+  const explicitCode = keys.find(key => fieldWidget(fieldByKey, key) === 'code')
+  if (explicitCode) return explicitCode
+  return firstMatchingKey(keys, ['examplecode', 'code', 'snippet'])
+}
+
+function preferImageField(keys: string[], fieldByKey: Map<string, NoteFieldDefinition>): string | null {
+  const explicitImage = keys.find(key => {
+    const widget = fieldWidget(fieldByKey, key)
+    return widget === 'image' || widget === 'diagram'
+  })
+  if (explicitImage) return explicitImage
+  return firstMatchingKey(keys, ['diagram', 'image', 'visual'])
+}
+
+function candidateOverviewFields(keys: string[]): string[] {
+  const ordered = [
+    ...allMatchingKeys(keys, OVERVIEW_PRIMARY_KEYS),
+    ...allMatchingKeys(keys, OVERVIEW_SUPPORT_KEYS),
+  ]
+  return Array.from(new Set(ordered))
+}
+
+function candidateExampleFields(keys: string[], fieldByKey: Map<string, NoteFieldDefinition>): string[] {
+  const ordered = [
+    ...(preferCodeField(keys, fieldByKey) ? [preferCodeField(keys, fieldByKey)!] : []),
+    ...allMatchingKeys(keys, EXAMPLE_KEYS),
+  ]
+  return Array.from(new Set(ordered))
+}
+
 export function blocksFromLegacyPage(page: LayoutPage): LayoutBlock[] {
   const fields = (page.sections ?? [])
     .flatMap(section => (section.items ?? []).map(item => item.field ?? '').filter(Boolean))
@@ -90,54 +154,147 @@ export function blocksFromLegacyPage(page: LayoutPage): LayoutBlock[] {
   }]
 }
 
-export function inferFallbackBlocks(node: Node, fieldByKey: Map<string, NoteFieldDefinition>): LayoutBlock[] {
-  const keys = Object.keys(node.note_fields)
-  if (keys.length === 0) {
-    return [{ type: 'field_group', label: 'Content', fields: ['content_data'] }]
+export function inferFallbackContentPages(node: Node, fieldByKey: Map<string, NoteFieldDefinition>): LayoutPage[] {
+  const keys = fieldKeys(node)
+  const overviewFields = candidateOverviewFields(keys)
+  const whyField = firstMatchingKey(keys, OVERVIEW_SUPPORT_KEYS)
+  const signalField = firstMatchingKey(keys, SIGNAL_KEYS)
+  const pitfallField = firstMatchingKey(keys, PITFALL_KEYS)
+  const codeField = preferCodeField(keys, fieldByKey)
+  const exampleField = firstMatchingKey(keys, ['example'])
+  const imageField = preferImageField(keys, fieldByKey)
+  const exampleSupportField = firstMatchingKey(keys, ['usage', 'when', 'tip', 'function'])
+
+  const overviewBlocks: LayoutBlock[] = []
+  const primaryOverviewFields = overviewFields.length > 0
+    ? overviewFields.slice(0, 2)
+    : keys.slice(0, 2)
+
+  if (primaryOverviewFields.length > 0) {
+    overviewBlocks.push({
+      type: 'field_group',
+      label: 'Core idea',
+      fields: primaryOverviewFields,
+    })
+  } else {
+    overviewBlocks.push({
+      type: 'field_group',
+      label: 'Core idea',
+      fields: ['content_data'],
+    })
   }
 
-  const summaryKeys = keys.filter(key => {
-    const lower = key.toLowerCase()
-    return lower.includes('summary') || lower.includes('meaning') || lower.includes('function') || lower.includes('term') || lower.includes('phrase') || lower.includes('pattern')
-  })
-  const codeField = keys.find(key => (fieldByKey.get(key)?.widget || '').toLowerCase() === 'code')
-  const imageField = keys.find(key => {
-    const widget = (fieldByKey.get(key)?.widget || '').toLowerCase()
-    return widget === 'image' || widget === 'diagram'
-  })
-  const calloutField = keys.find(key => {
-    const lower = key.toLowerCase()
-    return lower.includes('tip') || lower.includes('pitfall') || lower.includes('warning') || lower.includes('note')
+  if (whyField && !primaryOverviewFields.includes(whyField)) {
+    overviewBlocks.push({
+      type: 'markdown',
+      label: 'Why it matters',
+      field: whyField,
+    })
+  }
+  if (signalField) {
+    overviewBlocks.push({
+      type: 'callout',
+      label: 'Map signals',
+      field: signalField,
+      tone: 'info',
+    })
+  }
+  if (pitfallField) {
+    overviewBlocks.push({
+      type: 'callout',
+      label: 'Common pitfall',
+      field: pitfallField,
+      tone: 'warning',
+    })
+  }
+  overviewBlocks.push({
+    type: 'relations',
+    label: 'Related jumps',
+    compact: true,
   })
 
-  const blocks: LayoutBlock[] = []
-  blocks.push({
-    type: 'field_group',
-    label: 'Overview',
-    fields: summaryKeys.length > 0 ? summaryKeys.slice(0, 3) : keys.slice(0, 3),
-  })
+  const exampleBlocks: LayoutBlock[] = []
   if (codeField) {
-    blocks.push({ type: 'code', label: fieldLabel(fieldByKey, codeField), field: codeField })
+    exampleBlocks.push({
+      type: 'code',
+      label: fieldLabel(fieldByKey, codeField),
+      field: codeField,
+      language: inferCodeLanguage(node, codeField),
+    })
+  } else if (exampleField) {
+    exampleBlocks.push({
+      type: 'markdown',
+      label: fieldLabel(fieldByKey, exampleField),
+      field: exampleField,
+    })
+  } else if (imageField) {
+    exampleBlocks.push({
+      type: 'image',
+      label: fieldLabel(fieldByKey, imageField),
+      field: imageField,
+      caption_field: firstMatchingKey(keys, ['caption']),
+    })
+  } else if (keys.length > 0) {
+    exampleBlocks.push({
+      type: 'field_group',
+      label: 'Example',
+      fields: keys.slice(0, 1),
+    })
   }
-  if (imageField) {
-    blocks.push({ type: 'image', label: fieldLabel(fieldByKey, imageField), field: imageField })
+
+  if (exampleSupportField && (!codeField || exampleSupportField !== codeField)) {
+    exampleBlocks.push({
+      type: 'callout',
+      label: 'What to notice',
+      field: exampleSupportField,
+      tone: 'tip',
+    })
   }
-  if (calloutField) {
-    blocks.push({ type: 'callout', label: fieldLabel(fieldByKey, calloutField), field: calloutField, tone: 'tip' })
-  }
-  return blocks
+  exampleBlocks.push({
+    type: 'relations',
+    label: 'Related jumps',
+    compact: true,
+  })
+
+  return [
+    {
+      id: 'overview',
+      label: 'Overview',
+      kind: 'content',
+      blocks: overviewBlocks,
+    },
+    {
+      id: 'example',
+      label: 'Example',
+      kind: 'content',
+      blocks: exampleBlocks,
+    },
+  ]
+}
+
+export function inferFallbackBlocks(node: Node, fieldByKey: Map<string, NoteFieldDefinition>): LayoutBlock[] {
+  return inferFallbackContentPages(node, fieldByKey)[0]?.blocks ?? [{ type: 'field_group', label: 'Content', fields: ['content_data'] }]
 }
 
 export function inferSummaryBlocks(node: Node, fieldByKey: Map<string, NoteFieldDefinition>): LayoutBlock[] {
-  const fallback = inferFallbackBlocks(node, fieldByKey)
-  return fallback.map((block, index) => {
-    if (index === 0 && block.type === 'field_group') {
-      return {
-        ...block,
-        compact: true,
-        fields: (block.fields ?? []).slice(0, 2),
+  return (inferFallbackContentPages(node, fieldByKey)[0]?.blocks ?? [])
+    .filter(block => block.type !== 'relations')
+    .map((block, index) => {
+      if (index === 0 && block.type === 'field_group') {
+        return {
+          ...block,
+          compact: true,
+          fields: (block.fields ?? []).slice(0, 2),
+        }
       }
-    }
-    return { ...block, compact: true }
-  }).slice(0, 3)
+      return { ...block, compact: true }
+    })
+    .slice(0, 2)
+}
+
+function inferCodeLanguage(node: Node, key: string): string {
+  const lowerKey = normalized(key)
+  if (lowerKey.includes('odin')) return 'odin'
+  if (node.title.toLowerCase().includes('odin')) return 'odin'
+  return 'text'
 }

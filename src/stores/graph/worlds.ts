@@ -9,6 +9,7 @@ export interface GraphWorldActionsOptions {
   loadWorldPacks: () => Promise<void>
   loadWorldConfig: () => Promise<void>
   loadRelationKinds: () => Promise<void>
+  loadPackRegistry: () => Promise<void>
   loadConnectionLayers: () => Promise<void>
   loadNoteTypes: () => Promise<void>
   loadSchedulerAlgorithms: () => Promise<void>
@@ -27,6 +28,7 @@ export function createGraphWorldActions(options: GraphWorldActionsOptions) {
     loadWorldPacks,
     loadWorldConfig,
     loadRelationKinds,
+    loadPackRegistry,
     loadConnectionLayers,
     loadNoteTypes,
     loadSchedulerAlgorithms,
@@ -39,6 +41,7 @@ export function createGraphWorldActions(options: GraphWorldActionsOptions) {
 
   async function refreshLoadedWorld() {
     await loadWorldPacks()
+    await loadPackRegistry()
     await loadWorldConfig()
     await loadRelationKinds()
     await loadConnectionLayers()

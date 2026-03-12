@@ -214,23 +214,24 @@ watchEffect(async onCleanup => {
 .node-block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.026);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 0.8rem;
+  padding: 1.15rem 1.25rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--app-overlay-bg) 82%, white 3%);
+  border: 1px solid color-mix(in srgb, var(--app-overlay-border) 78%, transparent);
 }
 
 .node-block.compact {
-  padding: 10px 12px;
-  gap: 6px;
+  padding: 0.9rem 1rem;
+  gap: 0.65rem;
+  border-radius: 0.9rem;
 }
 
 .node-block-label,
 .field-entry-label {
-  font-size: 10px;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--app-text-secondary);
 }
@@ -239,33 +240,23 @@ watchEffect(async onCleanup => {
 .relations-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.node-block-field_group:not(.compact) .field-group-list {
-  display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: 14px;
+  gap: 0.95rem;
 }
 
 .field-entry {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.35rem;
 }
 
 .field-entry-value,
 .empty-block,
 .image-caption,
 .callout-block {
-  font-size: 14px;
-  line-height: 1.6;
-  color: #d6dae6;
-}
-
-.field-entry-value {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--app-text-primary);
   white-space: pre-wrap;
-  color: #e5ebfb;
 }
 
 .field-entry-value.compact {
@@ -278,19 +269,19 @@ watchEffect(async onCleanup => {
 .markdown-block :deep(h2),
 .markdown-block :deep(h3),
 .markdown-block :deep(h4) {
-  margin: 0;
+  margin: 0 0 0.45rem;
   color: var(--app-text-primary);
 }
 
 .markdown-block :deep(p),
 .markdown-block :deep(ul) {
   margin: 0;
-  color: #d6dae6;
-  line-height: 1.55;
+  color: var(--app-text-primary);
+  line-height: 1.7;
 }
 
 .markdown-block :deep(ul) {
-  padding-left: 18px;
+  padding-left: 1.2rem;
 }
 
 .markdown-block :deep(code) {
@@ -301,119 +292,100 @@ watchEffect(async onCleanup => {
 .code-head {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: -2px;
 }
 
 .code-language {
-  font-size: 10px;
+  font-size: 0.68rem;
   color: var(--app-accent);
   border-radius: 999px;
-  padding: 3px 7px;
-  background: color-mix(in srgb, var(--app-accent) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--app-accent) 26%, transparent);
+  padding: 0.25rem 0.6rem;
+  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-accent) 24%, transparent);
 }
 
 .code-block {
   margin: 0;
-  border-radius: 12px;
+  border-radius: 0.95rem;
   overflow: auto;
-  background: rgba(7, 11, 20, 0.9);
+  background: rgba(8, 12, 22, 0.94);
   border: 1px solid rgba(125, 145, 185, 0.12);
   color: #d9e7ff;
-  font-size: 12px;
+  font-size: 0.9rem;
   line-height: 1.6;
   font-family: ui-monospace, 'Cascadia Code', monospace;
 }
 
 .code-block code {
   display: block;
-  padding: 14px;
-}
-
-.shiki-frame {
-  padding: 0;
-  background: rgba(8, 12, 22, 0.94);
+  padding: 1rem 1.1rem;
 }
 
 .shiki-frame :deep(pre) {
   margin: 0;
-  padding: 16px 18px;
+  padding: 1rem 1.1rem;
   background: transparent !important;
-  overflow: auto;
-  font-size: 12px;
-  line-height: 1.65;
-  border-radius: 12px;
-}
-
-.shiki-frame :deep(code) {
-  font-family: ui-monospace, 'Cascadia Code', monospace;
 }
 
 .image-wrap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0.7rem;
 }
 
 .image-block {
   display: block;
   width: 100%;
-  max-height: 320px;
-  object-fit: contain;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.95rem;
+  object-fit: cover;
+  border: 1px solid color-mix(in srgb, var(--app-overlay-border) 78%, transparent);
 }
 
 .callout-block {
-  padding: 14px 16px;
-  border-radius: 12px;
+  padding: 1rem 1.05rem;
+  border-radius: 0.9rem;
   border: 1px solid transparent;
-  font-size: 15px;
-  line-height: 1.7;
 }
 
 .tone-info {
-  background: rgba(91, 143, 255, 0.12);
-  border-color: rgba(91, 143, 255, 0.26);
+  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--app-accent) 22%, transparent);
 }
 
 .tone-tip {
-  background: rgba(61, 214, 140, 0.12);
-  border-color: rgba(61, 214, 140, 0.26);
+  background: rgba(72, 186, 120, 0.1);
+  border-color: rgba(72, 186, 120, 0.2);
 }
 
-.tone-warning {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.26);
-}
-
+.tone-warning,
 .tone-danger {
-  background: rgba(244, 63, 94, 0.12);
-  border-color: rgba(244, 63, 94, 0.26);
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.24);
 }
 
 .relation-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.024);
+  justify-content: space-between;
+  gap: 0.9rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--app-overlay-border) 70%, transparent);
+  background: transparent;
   color: var(--app-text-primary);
   cursor: pointer;
 }
 
-.relation-item small {
-  font-size: 10px;
-  color: var(--app-text-secondary);
+.relation-item:hover {
+  border-color: color-mix(in srgb, var(--app-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--app-accent) 8%, transparent);
 }
 
-@media (min-width: 900px) {
-  .node-block-field_group:not(.compact) .field-group-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.relation-item small {
+  color: var(--app-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.66rem;
 }
 </style>

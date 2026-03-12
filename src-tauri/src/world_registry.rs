@@ -108,7 +108,7 @@ fn collect_pack_files(root: &Path, out: &mut Vec<PathBuf>) -> Result<(), AppErro
     Ok(())
 }
 
-fn parse_pack_info(path: &Path, source_kind: &str) -> WorldPackInfo {
+pub fn inspect_pack_file(path: &Path, source_kind: &str) -> WorldPackInfo {
     let pack_path = path.to_string_lossy().to_string();
     let raw = match fs::read_to_string(path) {
         Ok(raw) => raw,
@@ -184,7 +184,7 @@ pub fn list_world_packs(conn: &Connection) -> Result<Vec<WorldPackInfo>, AppErro
         collect_pack_files(&root.path, &mut files)?;
         files.sort();
         for file in files {
-            let mut info = parse_pack_info(&file, &root.kind);
+            let mut info = inspect_pack_file(&file, &root.kind);
             if let Some(world_id) = &info.world_id {
                 info.is_active = active_world_id.as_ref() == Some(world_id);
                 info.is_loaded = loaded_world_id.as_ref() == Some(world_id);

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Node, NoteType } from '@/bindings'
-import NodeFieldRenderer from '@/components/node/NodeFieldRenderer.vue'
 import NodeBlockRenderer from '@/components/node/NodeBlockRenderer.vue'
 import {
   blocksFromLegacyPage,
-  inferFallbackBlocks,
+  inferFallbackContentPages,
   parseLayout,
   parseSchemaFields,
   type LayoutPage,
@@ -18,9 +17,7 @@ const props = defineProps<{
   activePageId?: string | null
 }>()
 
-const schemaFields = computed<NoteFieldDefinition[]>(() => {
-  return parseSchemaFields(props.noteType)
-})
+const schemaFields = computed<NoteFieldDefinition[]>(() => parseSchemaFields(props.noteType))
 
 const fieldByKey = computed(() => {
   const map = new Map<string, NoteFieldDefinition>()
@@ -30,7 +27,9 @@ const fieldByKey = computed(() => {
 
 const pages = computed<LayoutPage[]>(() => {
   const parsed = parseLayout(props.noteType)
-  return Array.isArray(parsed.pages) ? parsed.pages : []
+  const authored = Array.isArray(parsed.pages) ? parsed.pages.filter(page => (page.kind ?? 'content') === 'content') : []
+  if (authored.length > 0) return authored
+  return inferFallbackContentPages(props.node, fieldByKey.value)
 })
 
 const visiblePages = computed(() => {
@@ -38,24 +37,22 @@ const visiblePages = computed(() => {
   return pages.value.filter(page => page.id === props.activePageId)
 })
 
-const hasLayout = computed(() => pages.value.length > 0)
-
-const fallbackFields = computed<NoteFieldDefinition[]>(() => {
-  const explicit = Object.keys(props.node.note_fields).map(key => ({
-    key,
-    label: key,
-    widget: key.toLowerCase().includes('example') ? 'long_text' : 'text',
-  }))
-  if (explicit.length > 0) return explicit
-  return [{ key: 'content_data', label: 'Content', widget: 'long_text' }]
-})
-
-const fallbackBlocks = computed(() => inferFallbackBlocks(props.node, fieldByKey.value))
+function pagePreset(page: LayoutPage): 'overview' | 'example' | 'generic' {
+  const id = page.id.toLowerCase()
+  if (id === 'overview') return 'overview'
+  if (id === 'example') return 'example'
+  return 'generic'
+}
 </script>
 
 <template>
-  <div v-if="hasLayout" class="note-type-pages">
-    <section v-for="page in visiblePages" :key="page.id" class="note-page">
+  <div class="note-type-pages">
+    <section
+      v-for="page in visiblePages"
+      :key="page.id"
+      class="note-page"
+      :class="`note-page-${pagePreset(page)}`"
+    >
       <div v-if="page.blocks?.length" class="note-block-list">
         <NodeBlockRenderer
           v-for="(block, index) in page.blocks"
@@ -68,42 +65,18 @@ const fallbackBlocks = computed(() => inferFallbackBlocks(props.node, fieldByKey
       <div v-else-if="(page.sections?.length || 0) > 0" class="note-sections">
         <article v-for="section in page.sections || []" :key="section.id" class="note-section">
           <div v-if="section.label" class="note-section-title">{{ section.label }}</div>
-          <div class="note-field-list">
-            <NodeFieldRenderer
-              v-for="item in section.items || []"
-              :key="`${page.id}-${section.id}-${item.field}`"
+          <div class="note-block-list">
+            <NodeBlockRenderer
+              v-for="(block, index) in blocksFromLegacyPage({ ...page, sections: [{ ...section }] })"
+              :key="`${page.id}-${section.id}-${index}`"
               :node="node"
-              :field="fieldByKey.get(item.field || '') || { key: item.field || 'content_data', label: item.field || 'Content', widget: 'text' }"
+              :note-type="noteType"
+              :block="block"
             />
           </div>
         </article>
       </div>
-      <div v-else class="note-block-list">
-        <NodeBlockRenderer
-          v-for="(block, index) in blocksFromLegacyPage(page)"
-          :key="`${page.id}-fallback-${index}`"
-          :node="node"
-          :note-type="noteType"
-          :block="block"
-        />
-      </div>
-    </section>
-  </div>
-
-  <div v-else class="note-type-pages">
-    <section class="note-page">
-      <div class="note-block-list" v-if="fallbackBlocks.length > 0">
-        <NodeBlockRenderer
-          v-for="(block, index) in fallbackBlocks"
-          :key="`fallback-block-${index}`"
-          :node="node"
-          :note-type="noteType"
-          :block="block"
-        />
-      </div>
-      <div v-else class="note-field-list">
-        <NodeFieldRenderer v-for="field in fallbackFields" :key="field.key" :node="node" :field="field" />
-      </div>
+      <div v-else class="note-empty">No page content yet.</div>
     </section>
   </div>
 </template>
@@ -112,61 +85,66 @@ const fallbackBlocks = computed(() => inferFallbackBlocks(props.node, fieldByKey
 .note-type-pages {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 24px;
 }
 
 .note-page {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 18px;
+}
+
+.note-block-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
 }
 
 .note-sections {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.note-block-list {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 14px;
+  gap: 18px;
 }
 
 .note-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .note-section-title {
-  font-size: 11px;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--app-text-primary);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--app-text-secondary);
 }
 
-.note-field-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.note-empty {
+  color: var(--app-text-secondary);
+  font-size: 0.95rem;
 }
 
-.note-block-list :deep(.node-block) {
-  grid-column: 1 / -1;
+.note-page-overview :deep(.node-block-field_group:first-child) {
+  padding: 22px 24px;
 }
 
-@media (min-width: 980px) {
-  .note-block-list :deep(.node-block-callout) {
-    grid-column: span 4;
-  }
+.note-page-overview :deep(.node-block-callout),
+.note-page-example :deep(.node-block-callout) {
+  max-width: 48rem;
+}
 
-  .note-block-list :deep(.node-block-field_group) {
-    grid-column: span 8;
-  }
+.note-page-example :deep(.node-block-code),
+.note-page-example :deep(.node-block-markdown),
+.note-page-example :deep(.node-block-image),
+.note-page-example :deep(.node-block-diagram) {
+  width: 100%;
+}
 
-  .note-block-list :deep(.node-block-code),
-  .note-block-list :deep(.node-block-relations) {
-    grid-column: 1 / -1;
+@media (min-width: 1080px) {
+  .note-page-overview .note-block-list,
+  .note-page-example .note-block-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

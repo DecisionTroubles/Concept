@@ -43,6 +43,14 @@ export function createGraphResourceActions(options: GraphResourceActionsOptions)
     }
   }
 
+  async function loadPackRegistry() {
+    try {
+      state.packRegistry.value = await useTauRPC().get_pack_registry()
+    } catch (e) {
+      status.error.value = String(e)
+    }
+  }
+
   async function loadRelationKinds() {
     try {
       state.relationKinds.value = await useTauRPC().get_relation_kinds()
@@ -282,6 +290,7 @@ export function createGraphResourceActions(options: GraphResourceActionsOptions)
     loadLayers,
     loadWorldConfig,
     loadWorldPacks,
+    loadPackRegistry,
     loadRelationKinds,
     loadNoteTypes,
     loadNodeProgress,

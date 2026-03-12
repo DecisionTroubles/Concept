@@ -5,6 +5,7 @@ import type {
   Node,
   NodeProgress,
   NoteType,
+  PackRegistryEntry,
   RelationKind,
   ReviewEvent,
   SchedulerDescriptor,
@@ -24,6 +25,7 @@ export interface GraphResourceState {
   reviewEvents: Ref<ReviewEvent[]>
   worldConfig: Ref<WorldConfig | null>
   worldPacks: Ref<WorldPackInfo[]>
+  packRegistry: Ref<PackRegistryEntry[]>
   relationKinds: Ref<RelationKind[]>
   connectionLayers: Ref<ConnectionLayer[]>
   activeConnectionLayerIds: Ref<string[]>
@@ -41,6 +43,7 @@ export function createGraphResourceState(): GraphResourceState {
     reviewEvents: ref<ReviewEvent[]>([]),
     worldConfig: ref<WorldConfig | null>(null),
     worldPacks: ref<WorldPackInfo[]>([]),
+    packRegistry: ref<PackRegistryEntry[]>([]),
     relationKinds: ref<RelationKind[]>([]),
     connectionLayers: ref<ConnectionLayer[]>([]),
     activeConnectionLayerIds: ref<string[]>([]),

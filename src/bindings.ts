@@ -12,6 +12,8 @@ export type Edge = { id: string; source_id: string; target_id: string; edge_type
 
 export type EdgeRef = { id: string; target_id: string; edge_type: string; relation_id: string | null; connection_layer_ids: string[]; weight: number }
 
+export type GitHubPackSourceInput = { id: string; name: string; repo: string; path: string; branch: string; pinned_ref: string | null; enabled: boolean }
+
 export type Layer = { id: string; name: string; display_order: number; filter_json: string; metadata: string; created_at: string }
 
 export type Node = { id: string; title: string; layer_id: string; parent_node_id: string | null; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }>; content_type: string; content_data: string | null; tags: string[]; learned: boolean; progress_status: string; progress_review_count: number; progress_streak: number; progress_last_reviewed_at: string | null; progress_next_review_at: string | null; progress_scheduler_key: string; progress_scheduler_state: string; weight: number; pos_x: number | null; pos_y: number | null; pos_z: number | null; metadata: string; 
@@ -28,6 +30,10 @@ export type NoteType = { id: string; name: string; world_id: string | null; base
 
 export type NoteTypeInput = { name: string; world_id: string | null; base_note_type_id: string | null; fields: string[]; schema_json: string; layout_json: string; metadata: string; is_default: boolean }
 
+export type PackRegistryEntry = { source: PackSource; pack_info: WorldPackInfo | null; install_status: string; last_error: string | null }
+
+export type PackSource = { id: string; name: string; provider: string; repo: string; path: string; branch: string; enabled: boolean; installed_version: string | null; last_checked_at: string | null; last_installed_at: string | null; pinned_ref: string | null }
+
 export type RelationKind = { id: string; world_id: string; label: string; directed: boolean; default_weight: number; metadata: string; created_at: string }
 
 export type ReviewEvent = { id: string; node_id: string; grade: string; scheduler_key: string; reviewed_at: string; previous_status: string; next_status: string; scheduled_for_at: string | null; scheduler_state: string }
@@ -38,8 +44,10 @@ export type WorldConfig = { id: string; name: string; config_json: string; creat
 
 export type WorldPackInfo = { world_id: string | null; world_name: string | null; pack_path: string; source_kind: string; valid: boolean; is_active: boolean; is_loaded: boolean; error: string | null }
 
-const ARGS_MAP = { '':'{"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["input"],"delete_edge":["id"],"duplicate_note_type":["source_id","name","world_id"],"get_connection_layers":[],"get_layers":[],"get_node_extension_data":["node_id","extension_key"],"get_node_progress":[],"get_nodes":["layer_id"],"get_note_type":["id"],"get_note_types":[],"get_relation_kinds":[],"get_review_events":[],"get_scheduler_algorithms":[],"get_world_config":[],"get_world_packs":[],"mark_learned":["id","learned"],"reload_active_world":[],"reset_data":["reseed"],"review_node":["node_id","grade","scheduler_key"],"seed_sample_data":[],"select_world":["world_id"],"set_node_extension_data":["node_id","extension_key","data_json"],"set_node_note_type":["node_id","note_type_id"],"set_node_progress_status":["node_id","status"],"update_node_content":["node_id","title","note_fields","content_data","tags"],"update_node_position":["id","x","y","z"],"update_note_type":["id","input"]}' }
-export type Router = { "": {create_edge: (sourceId: string, targetId: string, edgeType: string) => Promise<Edge>, 
+const ARGS_MAP = { '':'{"add_github_pack_source":["input"],"check_pack_source_updates":["id"],"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["input"],"delete_edge":["id"],"duplicate_note_type":["source_id","name","world_id"],"get_connection_layers":[],"get_layers":[],"get_node_extension_data":["node_id","extension_key"],"get_node_progress":[],"get_nodes":["layer_id"],"get_note_type":["id"],"get_note_types":[],"get_pack_registry":[],"get_relation_kinds":[],"get_review_events":[],"get_scheduler_algorithms":[],"get_world_config":[],"get_world_packs":[],"install_pack_source":["id"],"mark_learned":["id","learned"],"refresh_pack_source":["id"],"reload_active_world":[],"remove_pack_source":["id"],"reset_data":["reseed"],"review_node":["node_id","grade","scheduler_key"],"seed_sample_data":[],"select_world":["world_id"],"set_node_extension_data":["node_id","extension_key","data_json"],"set_node_note_type":["node_id","note_type_id"],"set_node_progress_status":["node_id","status"],"update_node_content":["node_id","title","note_fields","content_data","tags"],"update_node_position":["id","x","y","z"],"update_note_type":["id","input"],"update_pack_source":["id","input"]}' }
+export type Router = { "": {add_github_pack_source: (input: GitHubPackSourceInput) => Promise<PackRegistryEntry>, 
+check_pack_source_updates: (id: string) => Promise<PackRegistryEntry>, 
+create_edge: (sourceId: string, targetId: string, edgeType: string) => Promise<Edge>, 
 create_layer: (name: string, displayOrder: number) => Promise<Layer>, 
 create_node: (input: CreateNodeInput) => Promise<Node>, 
 create_note_type: (input: NoteTypeInput) => Promise<NoteType>, 
@@ -52,13 +60,17 @@ get_node_progress: () => Promise<NodeProgress[]>,
 get_nodes: (layerId: string) => Promise<Node[]>, 
 get_note_type: (id: string) => Promise<NoteType>, 
 get_note_types: () => Promise<NoteType[]>, 
+get_pack_registry: () => Promise<PackRegistryEntry[]>, 
 get_relation_kinds: () => Promise<RelationKind[]>, 
 get_review_events: () => Promise<ReviewEvent[]>, 
 get_scheduler_algorithms: () => Promise<SchedulerDescriptor[]>, 
 get_world_config: () => Promise<WorldConfig | null>, 
 get_world_packs: () => Promise<WorldPackInfo[]>, 
+install_pack_source: (id: string) => Promise<PackRegistryEntry>, 
 mark_learned: (id: string, learned: boolean) => Promise<Node>, 
+refresh_pack_source: (id: string) => Promise<PackRegistryEntry>, 
 reload_active_world: () => Promise<null>, 
+remove_pack_source: (id: string) => Promise<null>, 
 reset_data: (reseed: boolean | null) => Promise<null>, 
 review_node: (nodeId: string, grade: string, schedulerKey: string | null) => Promise<Node>, 
 seed_sample_data: () => Promise<null>, 
@@ -68,7 +80,8 @@ set_node_note_type: (nodeId: string, noteTypeId: string | null) => Promise<Node>
 set_node_progress_status: (nodeId: string, status: string) => Promise<Node>, 
 update_node_content: (nodeId: string, title: string, noteFields: Partial<{ [key in string]: string }>, contentData: string | null, tags: string[]) => Promise<Node>, 
 update_node_position: (id: string, x: number, y: number, z: number) => Promise<null>, 
-update_note_type: (id: string, input: NoteTypeInput) => Promise<NoteType>} };
+update_note_type: (id: string, input: NoteTypeInput) => Promise<NoteType>, 
+update_pack_source: (id: string, input: GitHubPackSourceInput) => Promise<PackRegistryEntry>} };
 
 
 export const createTauRPCProxy = () => createProxy<Router>(ARGS_MAP)
