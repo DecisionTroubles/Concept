@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { COMPASS_RING_R } from '@/composables/useEditorMode'
+import { COMPASS_RING_R } from '@/scene/controller/useSceneHudState'
 
 interface CompassDot {
   id: string

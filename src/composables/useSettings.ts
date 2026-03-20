@@ -17,6 +17,7 @@ export interface Keybindings {
   progressOverlay: string
   worldPicker: string
   pinnedBuffer: string
+  packsBuffer: string
   mapBuffer:    string
   graphOrbitLeft: string
   graphOrbitRight: string
@@ -72,6 +73,7 @@ const DEFAULT_KEYBINDINGS: Keybindings = {
   progressOverlay: 'n',
   worldPicker: 'o',
   pinnedBuffer: 'b',
+  packsBuffer: 'y',
   mapBuffer:    'm',
   graphOrbitLeft: 'h',
   graphOrbitRight: 'l',

@@ -97,7 +97,7 @@ declare global {
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
   // @ts-ignore
-  export type { EditorMode, CompassDot } from './src/composables/useEditorMode'
+  export type { EditorMode } from './src/composables/useEditorMode'
   import('./src/composables/useEditorMode')
   // @ts-ignore
   export type { PositionedNode, ClusterLayoutOptions, ForceLayoutOptions } from './src/composables/useForceLayout'
@@ -115,7 +115,6 @@ import { UnwrapRef } from 'vue'
 declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
-    readonly COMPASS_RING_R: UnwrapRef<typeof import('./src/composables/useEditorMode')['COMPASS_RING_R']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>

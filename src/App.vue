@@ -4,11 +4,13 @@ import { EffectComposerPmndrs, BloomPmndrs, VignettePmndrs } from '@tresjs/post-
 import { appKernel } from '@/core/kernel'
 import { useGraphEditorSync } from '@/composables/useGraphEditorSync'
 import { useTheme } from '@/composables/useTheme'
+import { useSceneHudState } from '@/scene/controller/useSceneHudState'
 
 const graphStore = useGraphStore()
 const editorMode = useEditorMode()
 const themeState = useTheme()
 const settings = useSettings()
+const hudState = useSceneHudState()
 
 useGraphEditorSync()
 
@@ -56,11 +58,11 @@ onMounted(() => graphStore.initialize())
   <component :is="NodeSearchModule" />
   <component
     :is="CompassHUDModule"
-    v-if="graphStore.selectedNodeId && editorMode.mode.value !== 'fly' && editorMode.compassCenter.value"
-    :dots="editorMode.compassDots.value"
-    :center-x="editorMode.compassCenter.value?.x ?? 0"
-    :center-y="editorMode.compassCenter.value?.y ?? 0"
-    :active-index="editorMode.compassIndex.value"
+    v-if="editorMode.mode.value !== 'fly' && hudState.center.value && hudState.dots.value.length > 0"
+    :dots="hudState.dots.value"
+    :center-x="hudState.center.value?.x ?? 0"
+    :center-y="hudState.center.value?.y ?? 0"
+    :active-index="hudState.activeIndex.value"
   />
   <component :is="BufferOverlayModule" />
 </template>

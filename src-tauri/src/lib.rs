@@ -128,9 +128,9 @@ fn ensure_starter_pack(local_worlds_dir: &Path) -> Result<(), Box<dyn std::error
       "node_type": "concept",
       "note_type_id": "starter-concept",
       "note_fields": {
-        "Summary": "Add GitHub pack sources in Settings, then install them into your local pack library.",
+        "Summary": "Open the pack library, add GitHub sources there, then pull them into your local pack library.",
         "Why": "Runtime packs now come from app data, not bundled domains in the repo.",
-        "Example": "Settings -> Packs -> Add source -> Install -> Open world",
+        "Example": "Projects -> Pack library -> Add source -> Pull -> Open project",
         "Pitfall": "Expecting repo domains to appear at runtime will not work anymore."
       },
       "content_data": "Install packs from GitHub.",

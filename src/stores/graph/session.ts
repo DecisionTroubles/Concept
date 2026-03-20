@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import type { BufferId, GraphSessionState } from '@/stores/graph/shared'
 import { graphTrace } from '@/stores/graph/debug'
+import { createWorldFocusState } from '@/scene/model/focusState'
 
 export function createGraphSessionActions(session: GraphSessionState) {
   function selectNode(id: string | null) {
@@ -39,9 +40,7 @@ export function createGraphSessionActions(session: GraphSessionState) {
     session.selectedNodeId.value = null
     session.centeredNodePanel.value = false
     session.nodeEditorOpen.value = false
-    session.focusViewActive.value = false
-    session.focusRootNodeId.value = null
-    session.focusCursorNodeId.value = null
+    session.focusState.value = createWorldFocusState()
     session.focusOverlayParentSelection.value = null
     session.focusViewVersion.value += 1
   }
@@ -93,20 +92,6 @@ export function createGraphSessionActions(session: GraphSessionState) {
 
   function clearPinnedNodes() {
     session.pinnedNodeIds.value = []
-  }
-
-  function setFocusCursorNode(id: string | null) {
-    if (session.focusCursorNodeId.value === id) {
-      graphTrace('session.setFocusCursorNode.skip', { id })
-      return
-    }
-    graphTrace('session.setFocusCursorNode', {
-      from: session.focusCursorNodeId.value,
-      to: id,
-      focusRootNodeId: session.focusRootNodeId.value,
-      selectedNodeId: session.selectedNodeId.value,
-    })
-    session.focusCursorNodeId.value = id
   }
 
   function closeBuffer() {
@@ -165,7 +150,6 @@ export function createGraphSessionActions(session: GraphSessionState) {
     togglePinNode,
     unpinNode,
     clearPinnedNodes,
-    setFocusCursorNode,
     closeBuffer,
     openBuffer,
     toggleBuffer,

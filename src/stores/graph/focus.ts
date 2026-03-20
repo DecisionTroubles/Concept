@@ -1,6 +1,7 @@
 import type { GraphResourceState, GraphSessionState } from '@/stores/graph/shared'
 import type { ReturnTypeUseSettings } from '@/stores/graph/types'
 import { graphTrace } from '@/stores/graph/debug'
+import { createSolarFocusState, createWorldFocusState, isSolarFocusState } from '@/scene/model/focusState'
 
 interface GraphFocusActionsOptions {
   state: GraphResourceState
@@ -34,7 +35,7 @@ export function createGraphFocusActions(options: GraphFocusActionsOptions) {
   function openFocusView(rootId?: string | null) {
     const id = rootId ?? session.selectedNodeId.value
     if (!id) return
-    if (session.focusViewActive.value && session.focusRootNodeId.value === id) {
+    if (isSolarFocusState(session.focusState.value) && session.focusState.value.rootNodeId === id) {
       graphTrace('focus.open.skip', {
         id,
         focusViewActive: session.focusViewActive.value,
@@ -52,9 +53,7 @@ export function createGraphFocusActions(options: GraphFocusActionsOptions) {
     })
 
     session.focusOverlayParentSelection.value = [...state.activeConnectionLayerIds.value]
-    session.focusViewActive.value = true
-    session.focusRootNodeId.value = id
-    session.focusCursorNodeId.value = id
+    session.focusState.value = createSolarFocusState(id)
     if (session.selectedNodeId.value !== id) session.selectedNodeId.value = id
     session.focusViewVersion.value += 1
     setConnectionLayerSelection(focusOverlaySelectionForEntry())
@@ -87,9 +86,7 @@ export function createGraphFocusActions(options: GraphFocusActionsOptions) {
       previousSelection,
     })
 
-    session.focusViewActive.value = false
-    session.focusRootNodeId.value = null
-    session.focusCursorNodeId.value = null
+    session.focusState.value = createWorldFocusState()
     session.focusOverlayParentSelection.value = null
     session.focusViewVersion.value += 1
 
@@ -126,7 +123,8 @@ export function createGraphFocusActions(options: GraphFocusActionsOptions) {
       focusRootNodeId: session.focusRootNodeId.value,
       selectedNodeId: session.selectedNodeId.value,
     })
-    session.focusCursorNodeId.value = id
+    if (!id || !isSolarFocusState(session.focusState.value)) return
+    session.focusState.value = createSolarFocusState(session.focusState.value.rootNodeId, id)
   }
 
   function selectFocusNode(id: string) {

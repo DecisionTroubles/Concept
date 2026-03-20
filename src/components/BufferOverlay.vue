@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useEventListener } from '@vueuse/core'
-import { Layers3, Pin, X } from 'lucide-vue-next'
+import { Layers3, Package, Pin, X } from 'lucide-vue-next'
 import OverlayShell from '@/components/ui/OverlayShell.vue'
+import PackLibraryPane from '@/components/packs/PackLibraryPane.vue'
 
 const graphStore = useGraphStore()
 const settings = useSettings()
 
 const isOpen = computed(() => graphStore.activeBuffer !== 'none')
 const isPinnedBuffer = computed(() => graphStore.activeBuffer === 'pinned')
+const isPacksBuffer = computed(() => graphStore.activeBuffer === 'packs')
 const isMapBuffer = computed(() => graphStore.activeBuffer === 'map')
 const pinnedViewMode = ref<'list' | 'cards'>('cards')
 const hoveredMapNodeId = ref<string | null>(null)
@@ -20,7 +22,7 @@ const dragStartX = ref(0)
 const dragStartY = ref(0)
 const dragStartCenterX = ref(0)
 const dragStartCenterZ = ref(0)
-const BUFFER_ORDER: Array<Exclude<typeof graphStore.activeBuffer.value, 'none'>> = ['pinned', 'map']
+const BUFFER_ORDER: Array<Exclude<typeof graphStore.activeBuffer.value, 'none'>> = ['pinned', 'packs', 'map']
 
 function isSublayerNode(node: { parent_node_id: string | null }): boolean {
   return typeof node.parent_node_id === 'string' && node.parent_node_id.length > 0
@@ -261,6 +263,11 @@ useEventListener(
       graphStore.openBuffer('pinned')
       return
     }
+    if (k === settings.keys.packsBuffer) {
+      e.preventDefault()
+      graphStore.openBuffer('packs')
+      return
+    }
     if (k === settings.keys.mapBuffer) {
       e.preventDefault()
       graphStore.openBuffer('map')
@@ -315,6 +322,9 @@ useEventListener(
       <div class="buffer-tabs">
         <button :class="['tab-btn', isPinnedBuffer ? 'active' : '']" @click="graphStore.openBuffer('pinned')">
           <Pin :size="14" /> Pinned
+        </button>
+        <button :class="['tab-btn', isPacksBuffer ? 'active' : '']" @click="graphStore.openBuffer('packs')">
+          <Package :size="14" /> Packs
         </button>
         <button :class="['tab-btn', isMapBuffer ? 'active' : '']" @click="graphStore.openBuffer('map')">
           <Layers3 :size="14" /> Map
@@ -379,6 +389,10 @@ useEventListener(
                 </article>
               </div>
             </div>
+    </div>
+
+    <div v-else-if="isPacksBuffer" class="buffer-body">
+      <PackLibraryPane />
     </div>
 
     <div v-else-if="isMapBuffer" class="buffer-body">

@@ -125,6 +125,7 @@ export const useGraphStore = defineStore('graph', () => {
     centeredNodePanel: session.centeredNodePanel,
     nodeEditorOpen: session.nodeEditorOpen,
     pinnedNodeIds: session.pinnedNodeIds,
+    focusState: session.focusState,
     focusViewActive: session.focusViewActive,
     focusRootNodeId: session.focusRootNodeId,
     focusCursorNodeId: session.focusCursorNodeId,

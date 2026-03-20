@@ -12,8 +12,10 @@ import type {
   WorldConfig,
   WorldPackInfo,
 } from '@/bindings'
+import type { GraphFocusState } from '@/scene/model/focusState'
+import { createWorldFocusState, focusCursorNodeId, focusRootNodeId, isSolarFocusState } from '@/scene/model/focusState'
 
-export type BufferId = 'none' | 'pinned' | 'map'
+export type BufferId = 'none' | 'pinned' | 'packs' | 'map'
 
 export interface GraphResourceState {
   layers: Ref<Layer[]>
@@ -56,6 +58,7 @@ export interface GraphSessionState {
   centeredNodePanel: Ref<boolean>
   nodeEditorOpen: Ref<boolean>
   pinnedNodeIds: Ref<string[]>
+  focusState: Ref<GraphFocusState>
   focusViewActive: Ref<boolean>
   focusRootNodeId: Ref<string | null>
   focusCursorNodeId: Ref<string | null>
@@ -68,14 +71,16 @@ export interface GraphSessionState {
 }
 
 export function createGraphSessionState(): GraphSessionState {
+  const focusState = ref<GraphFocusState>(createWorldFocusState())
   return {
     selectedNodeId: ref<string | null>(null),
     centeredNodePanel: ref(false),
     nodeEditorOpen: ref(false),
     pinnedNodeIds: ref<string[]>([]),
-    focusViewActive: ref(false),
-    focusRootNodeId: ref<string | null>(null),
-    focusCursorNodeId: ref<string | null>(null),
+    focusState,
+    focusViewActive: computed(() => isSolarFocusState(focusState.value)),
+    focusRootNodeId: computed(() => focusRootNodeId(focusState.value)),
+    focusCursorNodeId: computed(() => focusCursorNodeId(focusState.value)),
     focusOverlayParentSelection: ref<string[] | null>(null),
     activeBuffer: ref<BufferId>('none'),
     progressOverlayOpen: ref(false),

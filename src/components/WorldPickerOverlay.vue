@@ -24,6 +24,11 @@ function closePicker() {
   graphStore.closeWorldPicker()
 }
 
+function openPackLibrary() {
+  graphStore.closeWorldPicker()
+  graphStore.openBuffer('packs')
+}
+
 async function openWorld(worldId: string) {
   await graphStore.selectWorld(worldId)
 }
@@ -62,17 +67,17 @@ useEventListener(
   <button
     class="world-picker-btn"
     :class="{ active: graphStore.worldPickerOpen }"
-    :title="`World picker (${settings.keys.worldPicker.toUpperCase()})`"
+    :title="`Projects (${settings.keys.worldPicker.toUpperCase()})`"
     @click="openPicker"
   >
-    <span class="world-picker-btn-label">Worlds</span>
+    <span class="world-picker-btn-label">Projects</span>
     <span class="world-picker-btn-key">{{ settings.keys.worldPicker.toUpperCase() }}</span>
   </button>
 
   <OverlayShell
     :open="graphStore.worldPickerOpen"
-    title="World Picker"
-    subtitle="Choose which world pack to load into the app"
+    title="Projects"
+    subtitle="Choose which local project to load, then use the pack library to pull changes"
     width-class="world-picker-shell"
     height-class="world-picker-shell"
     @close="closePicker"
@@ -80,23 +85,24 @@ useEventListener(
     <div class="world-picker-layout">
       <section class="world-picker-summary">
         <div class="summary-block">
-          <div class="summary-label">Active world</div>
+          <div class="summary-label">Active project</div>
           <strong>{{ graphStore.worldConfig?.name ?? 'No world loaded' }}</strong>
           <span>{{ graphStore.worldConfig?.id ?? 'No active world in database' }}</span>
         </div>
 
         <div class="summary-block">
-          <div class="summary-label">Detected packs</div>
+          <div class="summary-label">Available projects</div>
           <strong>{{ graphStore.worldPacks.length }}</strong>
           <span>{{ validWorlds.length }} valid</span>
         </div>
 
         <div class="summary-copy">
-          Installed worlds are loaded from your local pack library. Add GitHub pack sources from Settings to bring in more worlds.
+          Installed and local packs show up here as projects. Use the pack library to track sources, reload metadata, and pull remote changes.
         </div>
 
         <div class="summary-actions">
-          <button class="summary-btn" @click="reloadCurrentWorld">Reload active world</button>
+          <button class="summary-btn" @click="reloadCurrentWorld">Reload active project</button>
+          <button class="summary-btn subtle" @click="openPackLibrary">Open pack library</button>
           <button class="summary-btn subtle" @click="closePicker">Close</button>
         </div>
       </section>
