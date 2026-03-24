@@ -491,6 +491,14 @@ useEventListener(
 
               <section class="graphics-card">
                 <div class="section-title">Scene</div>
+                <label class="toggle-row">
+                  <span>Node glow</span>
+                  <input
+                    type="checkbox"
+                    :checked="settings.graphics.nodeGlowEnabled"
+                    @change="updateGraphicBoolean('nodeGlowEnabled', $event)"
+                  />
+                </label>
                 <label class="slider-row">
                   <span>Fog density</span>
                   <input
@@ -1209,7 +1217,6 @@ useEventListener(
   opacity: 0;
 }
 </style>
-
 
 
 

@@ -42,6 +42,7 @@ export interface GraphicsSettings {
   vignetteEnabled: boolean
   vignetteDarkness: number
   fogDensity: number
+  nodeGlowEnabled: boolean
   nodeDetail: number
 }
 
@@ -108,6 +109,7 @@ const GRAPHICS_PRESETS: Record<'low' | 'medium' | 'high', Omit<GraphicsSettings,
     vignetteEnabled: false,
     vignetteDarkness: 0.2,
     fogDensity: 0.01,
+    nodeGlowEnabled: false,
     nodeDetail: 0,
   },
   medium: {
@@ -118,6 +120,7 @@ const GRAPHICS_PRESETS: Record<'low' | 'medium' | 'high', Omit<GraphicsSettings,
     vignetteEnabled: true,
     vignetteDarkness: 0.42,
     fogDensity: 0.014,
+    nodeGlowEnabled: false,
     nodeDetail: 1,
   },
   high: {
@@ -128,6 +131,7 @@ const GRAPHICS_PRESETS: Record<'low' | 'medium' | 'high', Omit<GraphicsSettings,
     vignetteEnabled: true,
     vignetteDarkness: 0.6,
     fogDensity: 0.018,
+    nodeGlowEnabled: false,
     nodeDetail: 2,
   },
 }
@@ -150,6 +154,7 @@ function sanitizeGraphics(input: Partial<GraphicsSettings>): GraphicsSettings {
     vignetteEnabled: input.vignetteEnabled ?? base.vignetteEnabled,
     vignetteDarkness: clamp(input.vignetteDarkness ?? base.vignetteDarkness, 0, 1),
     fogDensity: clamp(input.fogDensity ?? base.fogDensity, 0, 0.03),
+    nodeGlowEnabled: input.nodeGlowEnabled ?? base.nodeGlowEnabled,
     nodeDetail: Math.round(clamp(input.nodeDetail ?? base.nodeDetail, 0, 2)),
   }
 }

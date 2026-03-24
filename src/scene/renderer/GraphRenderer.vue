@@ -210,7 +210,7 @@ useRafFn(({ delta }) => {
     </TresMesh>
 
     <TresMesh
-      v-for="node in snapshot.nodes"
+      v-for="node in settings.graphics.nodeGlowEnabled ? snapshot.nodes : []"
       :key="`halo-${node.id}`"
       :position="[node.x, node.y, node.z]"
       :scale="node.scale * 1.05"
@@ -233,7 +233,13 @@ useRafFn(({ delta }) => {
     :sprite="true"
     :z-index-range="[40, 0]"
   >
-    <div v-if="nodeLabelOpacity(node) > 0.01" class="node-label" :style="{ opacity: nodeLabelOpacity(node) }">
+    <div
+      v-if="nodeLabelOpacity(node) > 0.01"
+      class="node-label"
+      :style="{ opacity: nodeLabelOpacity(node) }"
+      @click.stop="emit('node-clicked', node.id)"
+      @pointerdown.stop
+    >
       <span>{{ node.title }}</span>
       <span class="node-progress-chip" :class="`is-${node.progressStatus}`" :title="`Progress: ${nodeProgressLabel(node)}`">
         {{ nodeProgressLabel(node) }}
@@ -265,7 +271,9 @@ useRafFn(({ delta }) => {
   font-weight: 600;
   letter-spacing: 0.03em;
   white-space: nowrap;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
   text-shadow:
     0 0 6px rgba(0, 0, 0, 0.95),
     0 0 14px rgba(0, 0, 0, 0.8);
