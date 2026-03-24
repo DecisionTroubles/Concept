@@ -26,7 +26,7 @@ function closePicker() {
 
 function openPackLibrary() {
   graphStore.closeWorldPicker()
-  graphStore.openBuffer('packs')
+  graphStore.openPackLibrary()
 }
 
 async function openWorld(worldId: string) {

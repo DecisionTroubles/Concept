@@ -12,33 +12,55 @@ export function useSceneInputRouter(options: SceneInputRouterOptions) {
 
   const activeKeys = new Set<string>()
 
+  function isInteractiveUiTarget(target: EventTarget | null): boolean {
+    const element = target instanceof HTMLElement ? target : null
+    if (!element) return false
+    if (element.isContentEditable) return true
+    return Boolean(
+      element.closest(
+        [
+          'input',
+          'textarea',
+          'select',
+          'button',
+          'a[href]',
+          '[role="button"]',
+          '[role="textbox"]',
+          '[contenteditable="true"]',
+          '[data-hotkey-input="true"]',
+        ].join(', ')
+      )
+    )
+  }
+
   useEventListener(window, 'keydown', event => {
-    const target = event.target as HTMLElement | null
-    const tag = target?.tagName
-    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable
+    const isInteractiveTarget = isInteractiveUiTarget(event.target)
     const key = event.key.toLowerCase()
     const isSpaceFocusKey = event.key === ' '
 
-    if (!isInput && key === settings.keys.pinnedBuffer) {
+    if (!isInteractiveTarget && key === settings.keys.pinnedBuffer) {
       event.preventDefault()
-      graphStore.toggleBuffer('pinned')
+      graphStore.openBuffer('pinned')
       return
     }
-    if (!isInput && key === settings.keys.packsBuffer) {
+    if (!isInteractiveTarget && key === settings.keys.packsBuffer) {
       event.preventDefault()
-      graphStore.toggleBuffer('packs')
+      graphStore.openPackLibrary()
       return
     }
-    if (!isInput && key === settings.keys.mapBuffer) {
+    if (!isInteractiveTarget && key === settings.keys.mapBuffer) {
       event.preventDefault()
-      graphStore.toggleBuffer('map')
+      graphStore.openBuffer('map')
       return
     }
-    if (!isInput && event.key === 'Escape' && graphStore.activeBuffer !== 'none') {
+    if (!isInteractiveTarget && event.key === 'Escape' && graphStore.activeBuffer !== 'none') {
       event.preventDefault()
       graphStore.closeBuffer()
       return
     }
+
+    if (isInteractiveTarget) return
+
     if (graphStore.activeBuffer !== 'none') return
 
     if (editorMode.mode.value === 'fly') {
@@ -62,32 +84,31 @@ export function useSceneInputRouter(options: SceneInputRouterOptions) {
       return
     }
 
-    if (!isInput && key === settings.keys.flyMode) {
+    if (key === settings.keys.flyMode) {
       editorMode.enterFly()
       return
     }
-    if (!isInput && key === settings.keys.graphMode && graphStore.selectedNodeId) {
+    if (key === settings.keys.graphMode && graphStore.selectedNodeId) {
       editorMode.enterGraph()
       return
     }
-    if (!isInput && graphStore.selectedNodeId && (key === settings.keys.openNode || event.key === 'Enter')) {
+    if (graphStore.selectedNodeId && (key === settings.keys.openNode || event.key === 'Enter')) {
       event.preventDefault()
       options.controller.toggleCenteredDetail()
       return
     }
-    if (!isInput && graphStore.selectedNodeId && key === settings.keys.pinNode) {
+    if (graphStore.selectedNodeId && key === settings.keys.pinNode) {
       event.preventDefault()
       options.controller.togglePin(graphStore.selectedNodeId)
       return
     }
-    if (!isInput && graphStore.selectedNodeId && (key === settings.keys.focusView || isSpaceFocusKey)) {
+    if (graphStore.selectedNodeId && (key === settings.keys.focusView || isSpaceFocusKey)) {
       event.preventDefault()
       options.controller.toggleSolar(graphStore.selectedNodeId)
       return
     }
 
     if (
-      !isInput &&
       graphStore.focusViewActive &&
       (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' || event.key === 'ArrowDown')
     ) {
@@ -104,7 +125,7 @@ export function useSceneInputRouter(options: SceneInputRouterOptions) {
       return
     }
 
-    if (graphStore.selectedNodeId && editorMode.mode.value !== 'fly' && !isInput && !graphStore.centeredNodePanel) {
+    if (graphStore.selectedNodeId && editorMode.mode.value !== 'fly' && !graphStore.centeredNodePanel) {
       if (event.key === 'Tab') {
         event.preventDefault()
         options.controller.cycleNeighbor(!event.shiftKey)
@@ -118,7 +139,7 @@ export function useSceneInputRouter(options: SceneInputRouterOptions) {
       }
     }
 
-    if (!isInput && key === settings.keys.jumpBack && editorMode.mode.value !== 'fly') {
+    if (key === settings.keys.jumpBack && editorMode.mode.value !== 'fly') {
       event.preventDefault()
       options.controller.jumpBack()
     }

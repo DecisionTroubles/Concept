@@ -36,4 +36,6 @@ export interface SceneSnapshot {
   activeNodeId: string | null
   focusRootNodeId: string | null
   hoveredNodeId: string | null
+  activeConnectionLayerIds: string[]
+  hasConnectionLayers: boolean
 }

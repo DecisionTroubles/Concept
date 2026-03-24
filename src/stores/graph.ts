@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { useTauRPC } from '@/composables/useTauRPC'
 import { useSettings } from '@/composables/useSettings'
-import type { GitHubPackSourceInput } from '@/bindings'
+import type { GitHubPackSourceInput, LocalPackSourceInput } from '@/bindings'
 import {
   createGraphDerivedState,
   createGraphResourceState,
@@ -60,6 +60,10 @@ export const useGraphStore = defineStore('graph', () => {
   }
 
   async function selectWorld(worldId: string) {
+    if (resources.worldConfig.value?.id === worldId) {
+      await worldActions.reloadActiveWorld(() => useTauRPC().reload_active_world())
+      return
+    }
     await worldActions.switchWorld((id: string) => useTauRPC().select_world(id), worldId)
   }
 
@@ -84,9 +88,34 @@ export const useGraphStore = defineStore('graph', () => {
     return entry
   }
 
+  async function addLocalPackSource(input: LocalPackSourceInput) {
+    const entry = await useTauRPC().add_local_pack_source(input)
+    await refreshPackRegistry()
+    return entry
+  }
+
+  async function inspectLocalPackPath(path: string) {
+    return useTauRPC().inspect_local_pack_path(path)
+  }
+
+  async function updateLocalPackSource(id: string, input: LocalPackSourceInput) {
+    const entry = await useTauRPC().update_local_pack_source(id, input)
+    await refreshPackRegistry()
+    return entry
+  }
+
   async function removePackSource(id: string) {
     await useTauRPC().remove_pack_source(id)
     await refreshPackRegistry()
+  }
+
+  async function deleteLocalWorld(packPath: string) {
+    await useTauRPC().delete_local_world(packPath)
+    await refreshPackRegistry()
+    await resourceActions.loadWorldConfig()
+    await resourceActions.loadLayers()
+    if (resources.layers.value[0]) await resourceActions.loadNodes(resources.layers.value[0].id)
+    else resources.nodes.value = []
   }
 
   async function installPackSource(id: string) {
@@ -131,6 +160,7 @@ export const useGraphStore = defineStore('graph', () => {
     focusCursorNodeId: session.focusCursorNodeId,
     pinnedNodes: derived.pinnedNodes,
     activeBuffer: session.activeBuffer,
+    packLibraryOpen: session.packLibraryOpen,
     progressOverlayOpen: session.progressOverlayOpen,
     worldPickerOpen: session.worldPickerOpen,
     selectedNode: derived.selectedNode,
@@ -175,6 +205,9 @@ export const useGraphStore = defineStore('graph', () => {
     closeBuffer: sessionActions.closeBuffer,
     openBuffer: sessionActions.openBuffer,
     toggleBuffer: sessionActions.toggleBuffer,
+    openPackLibrary: sessionActions.openPackLibrary,
+    closePackLibrary: sessionActions.closePackLibrary,
+    togglePackLibrary: sessionActions.togglePackLibrary,
     openProgressOverlay: sessionActions.openProgressOverlay,
     closeProgressOverlay: sessionActions.closeProgressOverlay,
     toggleProgressOverlay: sessionActions.toggleProgressOverlay,
@@ -191,8 +224,12 @@ export const useGraphStore = defineStore('graph', () => {
     selectWorld,
     reloadActiveWorld,
     addGitHubPackSource,
+    addLocalPackSource,
+    inspectLocalPackPath,
     updatePackSource,
+    updateLocalPackSource,
     removePackSource,
+    deleteLocalWorld,
     installPackSource,
     refreshPackSource,
     checkPackSourceUpdates,

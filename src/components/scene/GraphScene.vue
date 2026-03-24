@@ -94,6 +94,7 @@ const snapshot = useSceneProjection({
   hoveredNodeId: computed(() => hoveredNodeId.value),
   pinnedNodeIds: computed(() => graphStore.pinnedNodeIds),
   activeConnectionLayerIds: computed(() => graphStore.activeConnectionLayerIds),
+  connectionLayers: computed(() => graphStore.connectionLayers),
   hasConnectionLayers: computed(() => graphStore.connectionLayers.length > 0),
   themeVars: computed(() => themeState.activeTheme.value?.vars ?? {}),
   focusViewConfig,

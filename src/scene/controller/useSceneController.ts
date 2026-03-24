@@ -164,12 +164,12 @@ export function useSceneController(options: SceneControllerOptions) {
       graphStore.closeBuffer()
       return
     }
-    if (graphStore.centeredNodePanel) {
-      closeCenteredDetail()
+    if (graphStore.packLibraryOpen) {
+      graphStore.closePackLibrary()
       return
     }
-    if (graphStore.focusViewActive) {
-      exitSolar()
+    if (graphStore.focusViewActive || graphStore.selectedNodeId) {
+      clearSelection()
       return
     }
     editorMode.escapeFromCurrentMode()

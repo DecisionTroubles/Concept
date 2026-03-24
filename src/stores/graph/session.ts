@@ -99,6 +99,7 @@ export function createGraphSessionActions(session: GraphSessionState) {
   }
 
   function openBuffer(buffer: Exclude<BufferId, 'none'>) {
+    session.packLibraryOpen.value = false
     session.activeBuffer.value = buffer
   }
 
@@ -108,6 +109,19 @@ export function createGraphSessionActions(session: GraphSessionState) {
 
   function openProgressOverlay() {
     session.progressOverlayOpen.value = true
+  }
+
+  function openPackLibrary() {
+    session.activeBuffer.value = 'none'
+    session.packLibraryOpen.value = true
+  }
+
+  function closePackLibrary() {
+    session.packLibraryOpen.value = false
+  }
+
+  function togglePackLibrary() {
+    session.packLibraryOpen.value = !session.packLibraryOpen.value
   }
 
   function closeProgressOverlay() {
@@ -136,6 +150,7 @@ export function createGraphSessionActions(session: GraphSessionState) {
     clearSelection()
     session.pinnedNodeIds.value = []
     session.activeBuffer.value = 'none'
+    session.packLibraryOpen.value = false
   }
 
   return {
@@ -154,6 +169,9 @@ export function createGraphSessionActions(session: GraphSessionState) {
     openBuffer,
     toggleBuffer,
     openProgressOverlay,
+    openPackLibrary,
+    closePackLibrary,
+    togglePackLibrary,
     closeProgressOverlay,
     toggleProgressOverlay,
     openWorldPicker,

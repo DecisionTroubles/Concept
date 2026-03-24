@@ -64,6 +64,7 @@ export interface GraphSessionState {
   focusCursorNodeId: Ref<string | null>
   focusOverlayParentSelection: Ref<string[] | null>
   activeBuffer: Ref<BufferId>
+  packLibraryOpen: Ref<boolean>
   progressOverlayOpen: Ref<boolean>
   worldPickerOpen: Ref<boolean>
   focusVersion: Ref<number>
@@ -83,6 +84,7 @@ export function createGraphSessionState(): GraphSessionState {
     focusCursorNodeId: computed(() => focusCursorNodeId(focusState.value)),
     focusOverlayParentSelection: ref<string[] | null>(null),
     activeBuffer: ref<BufferId>('none'),
+    packLibraryOpen: ref(false),
     progressOverlayOpen: ref(false),
     worldPickerOpen: ref(false),
     focusVersion: ref(0),

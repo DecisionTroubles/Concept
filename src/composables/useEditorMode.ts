@@ -40,6 +40,7 @@ export function useEditorMode() {
         if (jumpList.length > 20) jumpList.shift()
       }
       lastNodeId = id
+      mode.value = 'graph'
       return
     }
     lastNodeId = null

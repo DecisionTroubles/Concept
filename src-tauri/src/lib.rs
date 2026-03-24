@@ -21,7 +21,7 @@ use graph::{
 use extensions::NodeExtensionData;
 use scheduler::{ReviewEvent, SchedulerDescriptor};
 use world_registry::{ScanRoot, WorldPackInfo};
-use pack_registry::{GitHubPackSourceInput, PackRegistryEntry};
+use pack_registry::{GitHubPackSourceInput, LocalPackPathProbe, LocalPackSourceInput, PackRegistryEntry};
 
 // ---------------------------------------------------------------------------
 // DB state — initialized once in setup, shared across all resolver calls.
@@ -242,8 +242,12 @@ trait GraphApi {
     async fn select_world(world_id: String) -> Result<(), String>;
     async fn reload_active_world() -> Result<(), String>;
     async fn add_github_pack_source(input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String>;
+    async fn add_local_pack_source(input: LocalPackSourceInput) -> Result<PackRegistryEntry, String>;
+    async fn inspect_local_pack_path(path: String) -> Result<LocalPackPathProbe, String>;
     async fn update_pack_source(id: String, input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String>;
+    async fn update_local_pack_source(id: String, input: LocalPackSourceInput) -> Result<PackRegistryEntry, String>;
     async fn remove_pack_source(id: String) -> Result<(), String>;
+    async fn delete_local_world(pack_path: String) -> Result<(), String>;
     async fn install_pack_source(id: String) -> Result<PackRegistryEntry, String>;
     async fn refresh_pack_source(id: String) -> Result<PackRegistryEntry, String>;
     async fn check_pack_source_updates(id: String) -> Result<PackRegistryEntry, String>;
@@ -450,12 +454,29 @@ impl GraphApi for ApiImpl {
         pack_registry::add_github_pack_source(input).map_err(|e| e.to_string())
     }
 
+    async fn add_local_pack_source(self, input: LocalPackSourceInput) -> Result<PackRegistryEntry, String> {
+        pack_registry::add_local_pack_source(input).map_err(|e| e.to_string())
+    }
+
+    async fn inspect_local_pack_path(self, path: String) -> Result<LocalPackPathProbe, String> {
+        pack_registry::inspect_local_pack_path(&path).map_err(|e| e.to_string())
+    }
+
     async fn update_pack_source(self, id: String, input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String> {
         pack_registry::update_pack_source(&id, input).map_err(|e| e.to_string())
     }
 
+    async fn update_local_pack_source(self, id: String, input: LocalPackSourceInput) -> Result<PackRegistryEntry, String> {
+        pack_registry::update_local_pack_source(&id, input).map_err(|e| e.to_string())
+    }
+
     async fn remove_pack_source(self, id: String) -> Result<(), String> {
         pack_registry::remove_pack_source(&id).map_err(|e| e.to_string())
+    }
+
+    async fn delete_local_world(self, pack_path: String) -> Result<(), String> {
+        let conn = db().lock().await;
+        world_registry::delete_local_world(&conn, &pack_path).map_err(|e| e.to_string())
     }
 
     async fn install_pack_source(self, id: String) -> Result<PackRegistryEntry, String> {
@@ -519,6 +540,7 @@ pub async fn run() {
 
             Ok(())
         })
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_prevent_default::init())
         .invoke_handler(taurpc::create_ipc_handler(ApiImpl.into_handler()))

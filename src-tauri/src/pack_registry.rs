@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, USER_AGENT};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use walkdir::WalkDir;
 
 use crate::error::AppError;
 use crate::world_registry::{self, WorldPackInfo};
@@ -13,6 +14,7 @@ use crate::world_registry::{self, WorldPackInfo};
 struct RegistryPaths {
     registry_path: PathBuf,
     installed_dir: PathBuf,
+    local_dir: PathBuf,
 }
 
 static REGISTRY_PATHS: OnceLock<RegistryPaths> = OnceLock::new();
@@ -51,6 +53,24 @@ pub struct GitHubPackSourceInput {
     pub enabled: bool,
 }
 
+#[taurpc::ipc_type]
+pub struct LocalPackSourceInput {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub enabled: bool,
+}
+
+#[taurpc::ipc_type]
+pub struct LocalPackPathProbe {
+    pub input_path: String,
+    pub resolved_pack_path: String,
+    pub world_id: Option<String>,
+    pub world_name: Option<String>,
+    pub suggested_id: String,
+    pub suggested_name: String,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 struct RegistrySource {
     id: String,
@@ -87,6 +107,7 @@ pub fn configure(root_dir: PathBuf) -> Result<(), AppError> {
         .set(RegistryPaths {
             registry_path: root_dir.join("registry.toml"),
             installed_dir: root_dir.join("installed"),
+            local_dir: root_dir.join("local"),
         })
         .map_err(|_| AppError::Other("Pack registry already configured".into()))
 }
@@ -129,12 +150,161 @@ fn to_pack_source(source: &RegistrySource) -> PackSource {
     }
 }
 
-fn install_dir_for(source_id: &str) -> Result<PathBuf, AppError> {
-    Ok(paths()?.installed_dir.join(source_id))
+fn managed_dir_for(source: &RegistrySource) -> Result<PathBuf, AppError> {
+    let paths = paths()?;
+    let root = if source.provider == "local" {
+        &paths.local_dir
+    } else {
+        &paths.installed_dir
+    };
+    Ok(root.join(&source.id))
 }
 
-fn pack_file_for(source_id: &str) -> Result<PathBuf, AppError> {
-    Ok(install_dir_for(source_id)?.join("pack.json"))
+fn managed_pack_file_for(source: &RegistrySource) -> Result<PathBuf, AppError> {
+    Ok(managed_dir_for(source)?.join("pack.json"))
+}
+
+fn local_source_pack_file(source: &RegistrySource) -> Result<PathBuf, AppError> {
+    resolve_local_pack_path(source.path.trim())
+}
+
+fn slugify(value: &str) -> String {
+    let mut slug = String::new();
+    let mut last_dash = false;
+    for ch in value.chars() {
+        let lower = ch.to_ascii_lowercase();
+        if lower.is_ascii_alphanumeric() {
+            slug.push(lower);
+            last_dash = false;
+            continue;
+        }
+        if !last_dash {
+            slug.push('-');
+            last_dash = true;
+        }
+    }
+    slug.trim_matches('-').to_string()
+}
+
+fn inspect_pack_value(raw: &str) -> Result<(Option<String>, Option<String>), AppError> {
+    let value: Value = serde_json::from_str(raw).map_err(|e| AppError::Other(format!("Invalid JSON: {e}")))?;
+    let version = value.get("version").and_then(Value::as_str);
+    let world_id = value
+        .get("world")
+        .and_then(|world| world.get("id"))
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let world_name = value
+        .get("world")
+        .and_then(|world| world.get("name"))
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    if version != Some("2") {
+        return Err(AppError::Other("Unsupported pack version. Only version \"2\" is supported.".into()));
+    }
+    if world_id.is_none() || world_name.is_none() {
+        return Err(AppError::Other("Pack is missing world.id or world.name.".into()));
+    }
+    Ok((world_id, world_name))
+}
+
+fn probe_pack_file(path: &PathBuf) -> Option<(PathBuf, Option<String>, Option<String>)> {
+    let raw = fs::read_to_string(path).ok()?;
+    let (world_id, world_name) = inspect_pack_value(&raw).ok()?;
+    Some((path.clone(), world_id, world_name))
+}
+
+fn resolve_local_pack_probe(input_path: &str) -> Result<LocalPackPathProbe, AppError> {
+    let trimmed = input_path.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::Other("Local pack path is required".into()));
+    }
+
+    let path = PathBuf::from(trimmed);
+    let resolved = if path.is_file() {
+        probe_pack_file(&path).ok_or_else(|| AppError::Other(format!("Local pack not found: {}", path.to_string_lossy())))?
+    } else if path.is_dir() {
+        let direct_pack = path.join("pack.json");
+        if let Some(found) = probe_pack_file(&direct_pack) {
+            found
+        } else {
+            let mut fallback: Option<(PathBuf, Option<String>, Option<String>)> = None;
+            for entry in WalkDir::new(&path).max_depth(3).into_iter().filter_map(Result::ok) {
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                let candidate = entry.into_path();
+                let is_json = candidate
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| ext.eq_ignore_ascii_case("json"))
+                    .unwrap_or(false);
+                if !is_json {
+                    continue;
+                }
+                if let Some(found) = probe_pack_file(&candidate) {
+                    let is_pack_json = candidate
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .map(|name| name.eq_ignore_ascii_case("pack.json"))
+                        .unwrap_or(false);
+                    if is_pack_json {
+                        fallback = Some(found);
+                        break;
+                    }
+                    if fallback.is_none() {
+                        fallback = Some(found);
+                    }
+                }
+            }
+            fallback.ok_or_else(|| AppError::Other(format!("No valid pack found under: {}", path.to_string_lossy())))?
+        }
+    } else {
+        return Err(AppError::Other(format!("Local pack not found: {}", path.to_string_lossy())));
+    };
+
+    let suggested_id = resolved
+        .1
+        .as_deref()
+        .map(slugify)
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| {
+            slugify(
+                resolved
+                    .0
+                    .file_stem()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("local-pack"),
+            )
+        });
+    let suggested_name = resolved
+        .2
+        .clone()
+        .unwrap_or_else(|| {
+            resolved
+                .0
+                .file_stem()
+                .and_then(|name| name.to_str())
+                .unwrap_or("Local Pack")
+                .to_string()
+        });
+
+    Ok(LocalPackPathProbe {
+        input_path: trimmed.to_string(),
+        resolved_pack_path: resolved.0.to_string_lossy().to_string(),
+        world_id: resolved.1,
+        world_name: resolved.2,
+        suggested_id,
+        suggested_name,
+    })
+}
+
+fn resolve_local_pack_path(input_path: &str) -> Result<PathBuf, AppError> {
+    Ok(PathBuf::from(resolve_local_pack_probe(input_path)?.resolved_pack_path))
+}
+
+pub fn inspect_local_pack_path(input_path: &str) -> Result<LocalPackPathProbe, AppError> {
+    resolve_local_pack_probe(input_path)
 }
 
 fn source_ref(source: &RegistrySource) -> &str {
@@ -214,7 +384,7 @@ async fn fetch_remote_pack(source: &RegistrySource) -> Result<(String, String), 
     Ok((pack_json, sha))
 }
 
-fn validate_source_input(input: &GitHubPackSourceInput) -> Result<(), AppError> {
+fn validate_github_source_input(input: &GitHubPackSourceInput) -> Result<(), AppError> {
     if input.id.trim().is_empty() {
         return Err(AppError::Other("Source id is required".into()));
     }
@@ -233,34 +403,74 @@ fn validate_source_input(input: &GitHubPackSourceInput) -> Result<(), AppError> 
     Ok(())
 }
 
-fn installed_pack_info(source: &RegistrySource) -> Result<Option<WorldPackInfo>, AppError> {
-    let pack_path = pack_file_for(&source.id)?;
+fn validate_local_source_input(input: &LocalPackSourceInput) -> Result<(), AppError> {
+    if input.id.trim().is_empty() {
+        return Err(AppError::Other("Source id is required".into()));
+    }
+    if input.name.trim().is_empty() {
+        return Err(AppError::Other("Source name is required".into()));
+    }
+    if input.path.trim().is_empty() {
+        return Err(AppError::Other("Local pack path is required".into()));
+    }
+    Ok(())
+}
+
+fn managed_pack_info(source: &RegistrySource) -> Result<Option<WorldPackInfo>, AppError> {
+    let pack_path = managed_pack_file_for(source)?;
     if !pack_path.exists() {
         return Ok(None);
     }
-    Ok(Some(world_registry::inspect_pack_file(&pack_path, "installed")))
+    let source_kind = if source.provider == "local" { "local" } else { "installed" };
+    Ok(Some(world_registry::inspect_pack_file(&pack_path, source_kind)))
+}
+
+fn local_source_pack_info(source: &RegistrySource) -> Result<Option<WorldPackInfo>, AppError> {
+    let pack_path = local_source_pack_file(source)?;
+    if !pack_path.exists() {
+        return Ok(None);
+    }
+    Ok(Some(world_registry::inspect_pack_file(&pack_path, "local")))
 }
 
 fn entry_from_source(source: &RegistrySource) -> Result<PackRegistryEntry, AppError> {
-    let pack_info = installed_pack_info(source)?;
-    let install_status = if source.last_error.is_some() && pack_info.is_none() {
-        "error"
-    } else if let Some(info) = &pack_info {
-        if !info.valid {
-            "invalid"
-        } else if source
-            .latest_known_version
-            .as_ref()
-            .zip(source.installed_version.as_ref())
-            .map(|(latest, installed)| latest != installed)
-            .unwrap_or(false)
-        {
-            "update_available"
+    let pack_info = if source.provider == "local" {
+        local_source_pack_info(source)?
+    } else {
+        managed_pack_info(source)?
+    };
+    let install_status = if source.provider == "local" {
+        if source.last_error.is_some() && pack_info.is_none() {
+            "error"
+        } else if let Some(info) = &pack_info {
+            if !info.valid {
+                "invalid"
+            } else {
+                "tracked_local"
+            }
         } else {
-            "installed"
+            "not_synced"
         }
     } else {
-        "not_installed"
+        if source.last_error.is_some() && pack_info.is_none() {
+            "error"
+        } else if let Some(info) = &pack_info {
+            if !info.valid {
+                "invalid"
+            } else if source
+                .latest_known_version
+                .as_ref()
+                .zip(source.installed_version.as_ref())
+                .map(|(latest, installed)| latest != installed)
+                .unwrap_or(false)
+            {
+                "update_available"
+            } else {
+                "installed"
+            }
+        } else {
+            "not_installed"
+        }
     };
 
     Ok(PackRegistryEntry {
@@ -271,13 +481,50 @@ fn entry_from_source(source: &RegistrySource) -> Result<PackRegistryEntry, AppEr
     })
 }
 
+pub fn tracked_local_source_pack_infos() -> Result<Vec<WorldPackInfo>, AppError> {
+    let manifest = read_manifest()?;
+    let mut infos = Vec::new();
+
+    for source in manifest.sources.iter().filter(|source| source.provider == "local" && source.enabled) {
+        match local_source_pack_info(source) {
+            Ok(Some(info)) => infos.push(info),
+            Ok(None) => {
+                infos.push(WorldPackInfo {
+                    world_id: None,
+                    world_name: None,
+                    pack_path: source.path.clone(),
+                    source_kind: "local".into(),
+                    valid: false,
+                    is_active: false,
+                    is_loaded: false,
+                    error: Some(format!("Local pack not found: {}", source.path)),
+                });
+            }
+            Err(err) => {
+                infos.push(WorldPackInfo {
+                    world_id: None,
+                    world_name: None,
+                    pack_path: source.path.clone(),
+                    source_kind: "local".into(),
+                    valid: false,
+                    is_active: false,
+                    is_loaded: false,
+                    error: Some(err.to_string()),
+                });
+            }
+        }
+    }
+
+    Ok(infos)
+}
+
 pub fn get_pack_registry() -> Result<Vec<PackRegistryEntry>, AppError> {
     let manifest = read_manifest()?;
     manifest.sources.iter().map(entry_from_source).collect()
 }
 
 pub fn add_github_pack_source(input: GitHubPackSourceInput) -> Result<PackRegistryEntry, AppError> {
-    validate_source_input(&input)?;
+    validate_github_source_input(&input)?;
     let mut manifest = read_manifest()?;
     if manifest.sources.iter().any(|source| source.id == input.id) {
         return Err(AppError::Other(format!("Pack source '{}' already exists", input.id)));
@@ -303,14 +550,44 @@ pub fn add_github_pack_source(input: GitHubPackSourceInput) -> Result<PackRegist
     entry_from_source(&source)
 }
 
+pub fn add_local_pack_source(input: LocalPackSourceInput) -> Result<PackRegistryEntry, AppError> {
+    validate_local_source_input(&input)?;
+    let mut manifest = read_manifest()?;
+    if manifest.sources.iter().any(|source| source.id == input.id) {
+        return Err(AppError::Other(format!("Pack source '{}' already exists", input.id)));
+    }
+    let source = RegistrySource {
+        id: input.id,
+        name: input.name,
+        provider: "local".into(),
+        repo: String::new(),
+        path: input.path,
+        branch: String::new(),
+        enabled: input.enabled,
+        installed_version: None,
+        last_checked_at: None,
+        last_installed_at: None,
+        pinned_ref: None,
+        latest_known_version: None,
+        last_error: None,
+    };
+    manifest.sources.push(source.clone());
+    manifest.sources.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
+    write_manifest(&manifest)?;
+    entry_from_source(&source)
+}
+
 pub fn update_pack_source(id: &str, input: GitHubPackSourceInput) -> Result<PackRegistryEntry, AppError> {
-    validate_source_input(&input)?;
+    validate_github_source_input(&input)?;
     let mut manifest = read_manifest()?;
     let source = manifest
         .sources
         .iter_mut()
         .find(|source| source.id == id)
         .ok_or_else(|| AppError::NotFound(format!("Pack source '{id}' not found")))?;
+    if source.provider != "github" {
+        return Err(AppError::Other(format!("Pack source '{id}' is not a GitHub source")));
+    }
     source.name = input.name;
     source.repo = input.repo;
     source.path = input.path;
@@ -322,11 +599,41 @@ pub fn update_pack_source(id: &str, input: GitHubPackSourceInput) -> Result<Pack
     Ok(entry)
 }
 
+pub fn update_local_pack_source(id: &str, input: LocalPackSourceInput) -> Result<PackRegistryEntry, AppError> {
+    validate_local_source_input(&input)?;
+    let mut manifest = read_manifest()?;
+    let source = manifest
+        .sources
+        .iter_mut()
+        .find(|source| source.id == id)
+        .ok_or_else(|| AppError::NotFound(format!("Pack source '{id}' not found")))?;
+    if source.provider != "local" {
+        return Err(AppError::Other(format!("Pack source '{id}' is not a local source")));
+    }
+    source.name = input.name;
+    source.path = input.path;
+    source.enabled = input.enabled;
+    let entry = entry_from_source(source)?;
+    write_manifest(&manifest)?;
+    Ok(entry)
+}
+
 pub fn remove_pack_source(id: &str) -> Result<(), AppError> {
     let mut manifest = read_manifest()?;
-    let previous_len = manifest.sources.len();
-    manifest.sources.retain(|source| source.id != id);
-    if manifest.sources.len() == previous_len {
+    let source = manifest
+        .sources
+        .iter()
+        .find(|source| source.id == id)
+        .cloned()
+        .ok_or_else(|| AppError::NotFound(format!("Pack source '{id}' not found")))?;
+    manifest.sources.retain(|entry| entry.id != id);
+
+    let managed_dir = managed_dir_for(&source)?;
+    if managed_dir.exists() {
+        fs::remove_dir_all(&managed_dir).map_err(|e| AppError::Other(e.to_string()))?;
+    }
+
+    if manifest.sources.iter().any(|entry| entry.id == id) {
         return Err(AppError::NotFound(format!("Pack source '{id}' not found")));
     }
     write_manifest(&manifest)?;
@@ -335,7 +642,7 @@ pub fn remove_pack_source(id: &str) -> Result<(), AppError> {
 
 async fn install_source(source: &mut RegistrySource) -> Result<(), AppError> {
     let (pack_json, sha) = fetch_remote_pack(source).await?;
-    let install_dir = install_dir_for(&source.id)?;
+    let install_dir = managed_dir_for(source)?;
     fs::create_dir_all(&install_dir).map_err(|e| AppError::Other(e.to_string()))?;
     let pack_path = install_dir.join("pack.json");
     fs::write(&pack_path, pack_json).map_err(|e| AppError::Other(e.to_string()))?;
@@ -352,6 +659,33 @@ async fn install_source(source: &mut RegistrySource) -> Result<(), AppError> {
     Ok(())
 }
 
+fn sync_local_source(source: &mut RegistrySource) -> Result<(), AppError> {
+    let source_pack_path = local_source_pack_file(source)?;
+    if !source_pack_path.exists() {
+        return Err(AppError::Other(format!(
+            "Local pack not found: {}",
+            source_pack_path.to_string_lossy()
+        )));
+    }
+
+    let pack_json = fs::read_to_string(&source_pack_path).map_err(|e| AppError::Other(e.to_string()))?;
+    inspect_pack_value(&pack_json)?;
+
+    let local_dir = managed_dir_for(source)?;
+    fs::create_dir_all(&local_dir).map_err(|e| AppError::Other(e.to_string()))?;
+    let pack_path = local_dir.join("pack.json");
+    fs::write(&pack_path, pack_json).map_err(|e| AppError::Other(e.to_string()))?;
+    let info = world_registry::inspect_pack_file(&pack_path, "local");
+    if !info.valid {
+        return Err(AppError::Other(info.error.unwrap_or_else(|| "Synced local pack is invalid".into())));
+    }
+    let now = now_ts();
+    source.last_checked_at = Some(now.clone());
+    source.last_installed_at = Some(now);
+    source.last_error = None;
+    Ok(())
+}
+
 pub async fn install_pack_source(id: &str) -> Result<PackRegistryEntry, AppError> {
     let mut manifest = read_manifest()?;
     let source = manifest
@@ -360,10 +694,21 @@ pub async fn install_pack_source(id: &str) -> Result<PackRegistryEntry, AppError
         .find(|source| source.id == id)
         .ok_or_else(|| AppError::NotFound(format!("Pack source '{id}' not found")))?;
 
-    match install_source(source).await {
-        Ok(()) => {}
-        Err(err) => {
-            source.last_error = Some(err.to_string());
+    match source.provider.as_str() {
+        "github" => match install_source(source).await {
+            Ok(()) => {}
+            Err(err) => {
+                source.last_error = Some(err.to_string());
+            }
+        },
+        "local" => match sync_local_source(source) {
+            Ok(()) => {}
+            Err(err) => {
+                source.last_error = Some(err.to_string());
+            }
+        },
+        other => {
+            source.last_error = Some(format!("Unsupported provider '{other}'"));
         }
     }
     let entry = entry_from_source(source)?;
@@ -383,14 +728,28 @@ pub async fn check_pack_source_updates(id: &str) -> Result<PackRegistryEntry, Ap
         .find(|source| source.id == id)
         .ok_or_else(|| AppError::NotFound(format!("Pack source '{id}' not found")))?;
 
-    match fetch_remote_commit_sha(source).await {
-        Ok(sha) => {
-            source.latest_known_version = Some(sha);
+    match source.provider.as_str() {
+        "github" => match fetch_remote_commit_sha(source).await {
+            Ok(sha) => {
+                source.latest_known_version = Some(sha);
+                source.last_checked_at = Some(now_ts());
+                source.last_error = None;
+            }
+            Err(err) => {
+                source.last_error = Some(err.to_string());
+            }
+        },
+        "local" => {
+            let source_pack_path = local_source_pack_file(source)?;
             source.last_checked_at = Some(now_ts());
-            source.last_error = None;
+            source.last_error = if source_pack_path.exists() {
+                None
+            } else {
+                Some(format!("Local pack not found: {}", source_pack_path.to_string_lossy()))
+            };
         }
-        Err(err) => {
-            source.last_error = Some(err.to_string());
+        other => {
+            source.last_error = Some(format!("Unsupported provider '{other}'"));
         }
     }
 

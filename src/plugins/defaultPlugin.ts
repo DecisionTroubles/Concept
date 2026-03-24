@@ -6,6 +6,7 @@ import NodeEditorOverlay from '@/components/NodeEditorOverlay.vue'
 import ProgressOverlay from '@/components/ProgressOverlay.vue'
 import ModeIndicator from '@/components/ModeIndicator.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
+import PackLibraryOverlay from '@/components/packs/PackLibraryOverlay.vue'
 import WorldPickerOverlay from '@/components/WorldPickerOverlay.vue'
 import NodeSearch from '@/components/NodeSearch.vue'
 import CompassHUD from '@/components/CompassHUD.vue'
@@ -24,6 +25,7 @@ export const defaultPlugin: AppPlugin = {
     ProgressOverlay,
     ModeIndicator,
     SettingsPanel,
+    PackLibraryOverlay,
     WorldPickerOverlay,
     NodeSearch,
     CompassHUD,

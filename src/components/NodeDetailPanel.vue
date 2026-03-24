@@ -760,7 +760,7 @@ useEventListener(
 }
 
 .viewer-reading {
-  width: min(920px, 100%);
+  width: min(1120px, 100%);
   margin: 0 auto;
 }
 

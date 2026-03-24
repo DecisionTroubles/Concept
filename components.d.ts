@@ -35,6 +35,7 @@ declare module 'vue' {
     NodeViewerTabBar: typeof import('./src/components/node/NodeViewerTabBar.vue')['default']
     NoteTypePageRenderer: typeof import('./src/components/node/NoteTypePageRenderer.vue')['default']
     OverlayShell: typeof import('./src/components/ui/OverlayShell.vue')['default']
+    PackLibraryOverlay: typeof import('./src/components/packs/PackLibraryOverlay.vue')['default']
     PackLibraryPane: typeof import('./src/components/packs/PackLibraryPane.vue')['default']
     ProgressOverlay: typeof import('./src/components/ProgressOverlay.vue')['default']
     ScrollArea: typeof import('./src/components/ui/scroll-area/ScrollArea.vue')['default']

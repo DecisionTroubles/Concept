@@ -72,6 +72,11 @@ fn set_app_state(conn: &Connection, key: &str, value: &str) -> Result<(), AppErr
     Ok(())
 }
 
+fn clear_app_state(conn: &Connection, key: &str) -> Result<(), AppError> {
+    conn.execute("DELETE FROM app_state WHERE key = ?1", [key])?;
+    Ok(())
+}
+
 fn current_loaded_world_id(conn: &Connection) -> Result<Option<String>, AppError> {
     let value = conn.query_row(
         "SELECT id FROM worlds ORDER BY created_at DESC LIMIT 1",
@@ -193,6 +198,24 @@ pub fn list_world_packs(conn: &Connection) -> Result<Vec<WorldPackInfo>, AppErro
         }
     }
 
+    let tracked_local_infos = crate::pack_registry::tracked_local_source_pack_infos()?;
+    let tracked_local_world_ids: Vec<String> = tracked_local_infos
+        .iter()
+        .filter_map(|info| info.world_id.clone())
+        .collect();
+
+    infos.retain(|info| {
+        if info.source_kind != "local" {
+            return true;
+        }
+        match &info.world_id {
+            Some(world_id) => !tracked_local_world_ids.iter().any(|tracked_id| tracked_id == world_id),
+            None => true,
+        }
+    });
+
+    infos.extend(tracked_local_infos);
+
     infos.sort_by(|a, b| {
         let a_name = a.world_name.as_deref().unwrap_or(&a.pack_path);
         let b_name = b.world_name.as_deref().unwrap_or(&b.pack_path);
@@ -203,9 +226,20 @@ pub fn list_world_packs(conn: &Connection) -> Result<Vec<WorldPackInfo>, AppErro
 }
 
 fn find_pack_by_world_id(conn: &Connection, world_id: &str) -> Result<WorldPackInfo, AppError> {
-    list_world_packs(conn)?
+    let mut matches: Vec<WorldPackInfo> = list_world_packs(conn)?
         .into_iter()
-        .find(|info| info.valid && info.world_id.as_deref() == Some(world_id))
+        .filter(|info| info.valid && info.world_id.as_deref() == Some(world_id))
+        .collect();
+
+    matches.sort_by_key(|info| match info.source_kind.as_str() {
+        "local" => 0,
+        "installed" => 1,
+        _ => 2,
+    });
+
+    matches
+        .into_iter()
+        .next()
         .ok_or_else(|| AppError::NotFound(format!("World pack '{world_id}' not found")))
 }
 
@@ -251,4 +285,48 @@ pub fn reload_active_world(conn: &Connection) -> Result<(), AppError> {
         .or_else(|| current_loaded_world_id(conn).ok().flatten())
         .ok_or_else(|| AppError::Other("No active world selected".into()))?;
     load_pack_file(conn, &active_world_id)
+}
+
+pub fn delete_local_world(conn: &Connection, pack_path: &str) -> Result<(), AppError> {
+    let target = PathBuf::from(pack_path);
+    let local_root = scan_roots()
+        .iter()
+        .find(|root| root.kind == "local")
+        .map(|root| root.path.clone())
+        .ok_or_else(|| AppError::Other("Local world root is not configured".into()))?;
+
+    if !target.exists() {
+        return Err(AppError::NotFound(format!("Local pack '{pack_path}' not found")));
+    }
+
+    let canonical_target = fs::canonicalize(&target).map_err(|e| AppError::Other(e.to_string()))?;
+    let canonical_local_root = fs::canonicalize(&local_root).map_err(|e| AppError::Other(e.to_string()))?;
+    if !canonical_target.starts_with(&canonical_local_root) {
+        return Err(AppError::Other("Only managed local world copies can be deleted".into()));
+    }
+
+    let info = inspect_pack_file(&canonical_target, "local");
+    let active_world_id = get_app_state(conn, "active_world_id")?;
+    let loaded_world_id = current_loaded_world_id(conn)?;
+    let deleted_world_id = info.world_id.clone();
+
+    let delete_root = canonical_target
+        .parent()
+        .filter(|parent| parent.starts_with(&canonical_local_root))
+        .map(Path::to_path_buf)
+        .unwrap_or(canonical_target.clone());
+
+    if delete_root.is_dir() {
+        fs::remove_dir_all(&delete_root).map_err(|e| AppError::Other(e.to_string()))?;
+    } else {
+        fs::remove_file(&delete_root).map_err(|e| AppError::Other(e.to_string()))?;
+    }
+
+    if deleted_world_id.as_ref() == active_world_id.as_ref() || deleted_world_id.as_ref() == loaded_world_id.as_ref() {
+        graph::reset_data(conn, false)?;
+        clear_app_state(conn, "active_world_id")?;
+        ensure_active_world_loaded(conn)?;
+    }
+
+    Ok(())
 }

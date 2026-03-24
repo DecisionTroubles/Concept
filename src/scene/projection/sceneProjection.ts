@@ -1,5 +1,6 @@
 import { computed, type ComputedRef } from 'vue'
 import type { PositionedNode } from '@/composables/useForceLayout'
+import type { ConnectionLayer } from '@/bindings'
 import type { GraphFocusState } from '@/scene/model/focusState'
 import type { SceneSnapshot } from '@/scene/model/sceneSnapshot'
 import { projectFocusNodes } from '@/scene/projection/focusProjection'
@@ -13,6 +14,7 @@ interface SceneProjectionInput {
   hoveredNodeId: ComputedRef<string | null>
   pinnedNodeIds: ComputedRef<string[]>
   activeConnectionLayerIds: ComputedRef<string[]>
+  connectionLayers: ComputedRef<ConnectionLayer[]>
   hasConnectionLayers: ComputedRef<boolean>
   themeVars: ComputedRef<Record<string, string>>
   focusViewConfig: ComputedRef<{ rings: number; ringRadius: number; maxNeighbors: number }>
@@ -55,6 +57,7 @@ export function useSceneProjection(input: SceneProjectionInput) {
       focusProjection.nodes,
       input.focusState.value,
       input.activeConnectionLayerIds.value,
+      input.connectionLayers.value,
       input.hasConnectionLayers.value,
     )
 
@@ -65,6 +68,8 @@ export function useSceneProjection(input: SceneProjectionInput) {
       activeNodeId,
       focusRootNodeId: input.focusState.value.mode === 'solar' ? input.focusState.value.rootNodeId : null,
       hoveredNodeId: input.hoveredNodeId.value,
+      activeConnectionLayerIds: [...input.activeConnectionLayerIds.value],
+      hasConnectionLayers: input.hasConnectionLayers.value,
     }
   })
 }
