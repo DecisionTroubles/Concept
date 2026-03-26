@@ -260,6 +260,32 @@ pub fn insert_layer(conn: &Connection, name: &str, display_order: i32) -> Result
     })
 }
 
+pub fn insert_connection_layer(
+    conn: &Connection,
+    id: Option<&str>,
+    name: &str,
+    display_order: i32,
+    metadata: Option<&str>,
+) -> Result<ConnectionLayer, AppError> {
+    let id = id
+        .map(str::to_string)
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    let created_at = now_ts();
+    let metadata = metadata.unwrap_or("{}");
+    conn.execute(
+        "INSERT INTO connection_layers (id, name, display_order, metadata, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![id, name, display_order, metadata, created_at],
+    )?;
+    Ok(ConnectionLayer {
+        id,
+        name: name.to_string(),
+        display_order,
+        metadata: metadata.to_string(),
+        created_at,
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Edge helpers
 // ---------------------------------------------------------------------------
@@ -692,7 +718,7 @@ pub fn insert_edge(
     target_id: &str,
     edge_type: &str,
 ) -> Result<Edge, AppError> {
-    insert_edge_with_relation(conn, source_id, target_id, edge_type, None)
+    insert_edge_with_relation(conn, source_id, target_id, edge_type, None, None)
 }
 
 pub fn insert_edge_with_relation(
@@ -701,6 +727,7 @@ pub fn insert_edge_with_relation(
     target_id: &str,
     edge_type: &str,
     relation_id: Option<&str>,
+    connection_layer_id: Option<&str>,
 ) -> Result<Edge, AppError> {
     let id = Uuid::new_v4().to_string();
     let created_at = now_ts();
@@ -730,11 +757,18 @@ pub fn insert_edge_with_relation(
         );
     }
 
-    if let Ok(default_connection_layer_id) = conn.query_row(
-        "SELECT id FROM connection_layers ORDER BY display_order ASC, name ASC LIMIT 1",
-        [],
-        |row| row.get::<_, String>(0),
-    ) {
+    let selected_connection_layer_id = if let Some(connection_layer_id) = connection_layer_id {
+        Some(connection_layer_id.to_string())
+    } else {
+        conn.query_row(
+            "SELECT id FROM connection_layers ORDER BY display_order ASC, name ASC LIMIT 1",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+    };
+
+    if let Some(default_connection_layer_id) = selected_connection_layer_id {
         let _ = conn.execute(
             "INSERT OR IGNORE INTO edge_connection_layers (edge_id, connection_layer_id, created_at) VALUES (?1, ?2, ?3)",
             params![id, default_connection_layer_id, now_ts()],

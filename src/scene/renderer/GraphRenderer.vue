@@ -13,12 +13,15 @@ const props = defineProps<{
   snapshot: SceneSnapshot
   cameraController: ReturnType<typeof useCameraController>
   activeKeys: Set<string>
+  authorMode: boolean
+  placementPreview: { x: number; y: number; z: number } | null
 }>()
 
 const emit = defineEmits<{
   'node-clicked': [nodeId: string]
   'node-hovered': [nodeId: string | null]
-  'background-clicked': []
+  'background-hovered': [position: { x: number; y: number; z: number } | null]
+  'background-clicked': [position: { x: number; y: number; z: number }]
 }>()
 
 const controlsRef = shallowRef()
@@ -32,6 +35,10 @@ const tres = useTres() as any
 
 const cameraPos = new THREE.Vector3()
 let pulseT = 0
+const placementY = computed(() => {
+  const activeNode = props.snapshot.nodes.find(node => node.id === props.snapshot.activeNodeId)
+  return activeNode?.y ?? 0
+})
 
 const activeIndex = computed(() => hudState.activeIndex.value)
 
@@ -87,6 +94,17 @@ function nodeProgressLabel(node: SceneSnapshotNode): string {
     default:
       return 'New'
   }
+}
+
+function emitPlacement(event: { point?: THREE.Vector3 }, click: boolean) {
+  if (!props.authorMode || !event.point) return
+  const position = {
+    x: event.point.x,
+    y: placementY.value,
+    z: event.point.z,
+  }
+  if (click) emit('background-clicked', position)
+  else emit('background-hovered', position)
 }
 
 watch(
@@ -179,6 +197,18 @@ useRafFn(({ delta }) => {
     :dash-scale="edge.dashScale"
   />
 
+  <TresMesh
+    v-if="authorMode"
+    :position="[0, placementY, 0]"
+    :rotation="[-Math.PI / 2, 0, 0]"
+    @pointer-move="($event: any) => emitPlacement($event, false)"
+    @pointer-leave="emit('background-hovered', null)"
+    @click="($event: any) => emitPlacement($event, true)"
+  >
+    <TresPlaneGeometry :args="[1500, 1500]" />
+    <TresMeshBasicMaterial :opacity="0.001" transparent :depth-write="false" />
+  </TresMesh>
+
   <TresGroup>
     <TresMesh
       v-for="node in snapshot.nodes"
@@ -224,6 +254,15 @@ useRafFn(({ delta }) => {
       />
     </TresMesh>
   </TresGroup>
+
+  <TresMesh
+    v-if="authorMode && placementPreview"
+    :position="[placementPreview.x, placementPreview.y, placementPreview.z]"
+    :scale="0.9"
+  >
+    <TresIcosahedronGeometry :args="[0.7, 1]" />
+    <TresMeshBasicMaterial color="#7cc8ff" :opacity="0.35" transparent />
+  </TresMesh>
 
   <Html
     v-for="node in snapshot.nodes"

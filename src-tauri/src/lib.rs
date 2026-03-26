@@ -1,3 +1,4 @@
+mod anki;
 mod db;
 mod domain;
 mod error;
@@ -20,7 +21,8 @@ use graph::{
 };
 use extensions::NodeExtensionData;
 use scheduler::{ReviewEvent, SchedulerDescriptor};
-use world_registry::{ScanRoot, WorldPackInfo};
+use world_registry::{CreateLocalWorldInput, ScanRoot, WorldPackInfo};
+use anki::{AnkiConnectPackSourceInput, AnkiDeckInspectInput, AnkiDeckProbe};
 use pack_registry::{GitHubPackSourceInput, LocalPackPathProbe, LocalPackSourceInput, PackRegistryEntry};
 
 // ---------------------------------------------------------------------------
@@ -183,6 +185,12 @@ trait GraphApi {
     async fn get_relation_kinds() -> Result<Vec<RelationKind>, String>;
     async fn get_connection_layers() -> Result<Vec<ConnectionLayer>, String>;
     async fn create_layer(name: String, display_order: i32) -> Result<Layer, String>;
+    async fn create_connection_layer(
+        id: Option<String>,
+        name: String,
+        display_order: i32,
+        metadata: Option<String>,
+    ) -> Result<ConnectionLayer, String>;
 
     // Nodes — edges embedded, no second IPC round-trip
     async fn get_nodes(layer_id: String) -> Result<Vec<Node>, String>;
@@ -233,19 +241,25 @@ trait GraphApi {
         source_id: String,
         target_id: String,
         edge_type: String,
+        connection_layer_id: Option<String>,
     ) -> Result<Edge, String>;
     async fn delete_edge(id: String) -> Result<(), String>;
 
     // Dev / seed
     async fn seed_sample_data() -> Result<(), String>;
     async fn reset_data(reseed: Option<bool>) -> Result<(), String>;
+    async fn create_local_world(input: CreateLocalWorldInput) -> Result<WorldPackInfo, String>;
     async fn select_world(world_id: String) -> Result<(), String>;
     async fn reload_active_world() -> Result<(), String>;
     async fn add_github_pack_source(input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String>;
     async fn add_local_pack_source(input: LocalPackSourceInput) -> Result<PackRegistryEntry, String>;
+    async fn list_anki_decks(base_url: Option<String>) -> Result<Vec<String>, String>;
+    async fn inspect_anki_deck(input: AnkiDeckInspectInput) -> Result<AnkiDeckProbe, String>;
+    async fn add_anki_pack_source(input: AnkiConnectPackSourceInput) -> Result<PackRegistryEntry, String>;
     async fn inspect_local_pack_path(path: String) -> Result<LocalPackPathProbe, String>;
     async fn update_pack_source(id: String, input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String>;
     async fn update_local_pack_source(id: String, input: LocalPackSourceInput) -> Result<PackRegistryEntry, String>;
+    async fn update_anki_pack_source(id: String, input: AnkiConnectPackSourceInput) -> Result<PackRegistryEntry, String>;
     async fn remove_pack_source(id: String) -> Result<(), String>;
     async fn delete_local_world(pack_path: String) -> Result<(), String>;
     async fn install_pack_source(id: String) -> Result<PackRegistryEntry, String>;
@@ -294,6 +308,18 @@ impl GraphApi for ApiImpl {
     async fn create_layer(self, name: String, display_order: i32) -> Result<Layer, String> {
         let conn = db().lock().await;
         graph::insert_layer(&conn, &name, display_order).map_err(|e| e.to_string())
+    }
+
+    async fn create_connection_layer(
+        self,
+        id: Option<String>,
+        name: String,
+        display_order: i32,
+        metadata: Option<String>,
+    ) -> Result<ConnectionLayer, String> {
+        let conn = db().lock().await;
+        graph::insert_connection_layer(&conn, id.as_deref(), &name, display_order, metadata.as_deref())
+            .map_err(|e| e.to_string())
     }
 
     async fn get_nodes(self, layer_id: String) -> Result<Vec<Node>, String> {
@@ -420,9 +446,18 @@ impl GraphApi for ApiImpl {
         source_id: String,
         target_id: String,
         edge_type: String,
+        connection_layer_id: Option<String>,
     ) -> Result<Edge, String> {
         let conn = db().lock().await;
-        graph::insert_edge(&conn, &source_id, &target_id, &edge_type).map_err(|e| e.to_string())
+        graph::insert_edge_with_relation(
+            &conn,
+            &source_id,
+            &target_id,
+            &edge_type,
+            None,
+            connection_layer_id.as_deref(),
+        )
+        .map_err(|e| e.to_string())
     }
 
     async fn delete_edge(self, id: String) -> Result<(), String> {
@@ -438,6 +473,11 @@ impl GraphApi for ApiImpl {
     async fn reset_data(self, reseed: Option<bool>) -> Result<(), String> {
         let conn = db().lock().await;
         graph::reset_data(&conn, reseed.unwrap_or(true)).map_err(|e| e.to_string())
+    }
+
+    async fn create_local_world(self, input: CreateLocalWorldInput) -> Result<WorldPackInfo, String> {
+        let conn = db().lock().await;
+        world_registry::create_local_world(&conn, input).map_err(|e| e.to_string())
     }
 
     async fn select_world(self, world_id: String) -> Result<(), String> {
@@ -458,6 +498,18 @@ impl GraphApi for ApiImpl {
         pack_registry::add_local_pack_source(input).map_err(|e| e.to_string())
     }
 
+    async fn list_anki_decks(self, base_url: Option<String>) -> Result<Vec<String>, String> {
+        pack_registry::list_anki_decks(base_url.as_deref()).await.map_err(|e| e.to_string())
+    }
+
+    async fn inspect_anki_deck(self, input: AnkiDeckInspectInput) -> Result<AnkiDeckProbe, String> {
+        pack_registry::inspect_anki_deck(input).await.map_err(|e| e.to_string())
+    }
+
+    async fn add_anki_pack_source(self, input: AnkiConnectPackSourceInput) -> Result<PackRegistryEntry, String> {
+        pack_registry::add_anki_pack_source(input).map_err(|e| e.to_string())
+    }
+
     async fn inspect_local_pack_path(self, path: String) -> Result<LocalPackPathProbe, String> {
         pack_registry::inspect_local_pack_path(&path).map_err(|e| e.to_string())
     }
@@ -468,6 +520,10 @@ impl GraphApi for ApiImpl {
 
     async fn update_local_pack_source(self, id: String, input: LocalPackSourceInput) -> Result<PackRegistryEntry, String> {
         pack_registry::update_local_pack_source(&id, input).map_err(|e| e.to_string())
+    }
+
+    async fn update_anki_pack_source(self, id: String, input: AnkiConnectPackSourceInput) -> Result<PackRegistryEntry, String> {
+        pack_registry::update_anki_pack_source(&id, input).map_err(|e| e.to_string())
     }
 
     async fn remove_pack_source(self, id: String) -> Result<(), String> {

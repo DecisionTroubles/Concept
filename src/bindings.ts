@@ -4,6 +4,18 @@ import { createTauRPCProxy as createProxy, type InferCommandOutput } from 'taurp
 type TAURI_CHANNEL<T> = (response: T) => void
 
 
+export type AnkiConnectPackSourceInput = { id: string; name: string; deck_name: string; enabled: boolean; anki_base_url: string | null; grouping_tag_prefix: string; include_media: boolean; enforce_own_styles: boolean; note_model_mappings: AnkiNoteModelMapping[] | null }
+
+export type AnkiDeckInspectInput = { deck_name: string; anki_base_url: string | null }
+
+export type AnkiDeckProbe = { deck_name: string; card_count: number; suggested_id: string; suggested_name: string; available_tags: string[]; available_note_types: string[]; available_fields: string[]; note_type_fields: AnkiNoteTypeFields[] }
+
+export type AnkiNoteModelMapping = { note_type: string; title_fields: string[]; overview_fields: AnkiOverviewFieldMapping; rendered_front_fields: string[]; rendered_back_fields: string[]; css_mode: string | null }
+
+export type AnkiNoteTypeFields = { note_type: string; fields: string[] }
+
+export type AnkiOverviewFieldMapping = { expression: string | null; reading: string | null; sentence: string | null; definition: string | null; context: string | null }
+
 export type ConnectionLayer = { id: string; name: string; display_order: number; metadata: string; created_at: string }
 
 export type CreateNodeInput = { title: string; layer_id: string; parent_node_id: string | null; node_type: string; note_type_id: string | null; note_fields: Partial<{ [key in string]: string }> | null; content_data: string | null; tags: string[]; weight: number }
@@ -36,7 +48,7 @@ export type NoteTypeInput = { name: string; world_id: string | null; base_note_t
 
 export type PackRegistryEntry = { source: PackSource; pack_info: WorldPackInfo | null; install_status: string; last_error: string | null }
 
-export type PackSource = { id: string; name: string; provider: string; repo: string; path: string; branch: string; enabled: boolean; installed_version: string | null; last_checked_at: string | null; last_installed_at: string | null; pinned_ref: string | null }
+export type PackSource = { id: string; name: string; provider: string; repo: string; path: string; branch: string; enabled: boolean; installed_version: string | null; last_checked_at: string | null; last_installed_at: string | null; pinned_ref: string | null; deck_name: string | null; anki_base_url: string | null; grouping_tag_prefix: string | null; include_media: boolean; enforce_own_styles: boolean; note_model_mappings: AnkiNoteModelMapping[] | null }
 
 export type RelationKind = { id: string; world_id: string; label: string; directed: boolean; default_weight: number; metadata: string; created_at: string }
 
@@ -48,8 +60,9 @@ export type WorldConfig = { id: string; name: string; config_json: string; creat
 
 export type WorldPackInfo = { world_id: string | null; world_name: string | null; pack_path: string; source_kind: string; valid: boolean; is_active: boolean; is_loaded: boolean; error: string | null }
 
-const ARGS_MAP = { '':'{"add_github_pack_source":["input"],"add_local_pack_source":["input"],"check_pack_source_updates":["id"],"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["input"],"delete_edge":["id"],"delete_local_world":["pack_path"],"duplicate_note_type":["source_id","name","world_id"],"get_connection_layers":[],"get_layers":[],"get_node_extension_data":["node_id","extension_key"],"get_node_progress":[],"get_nodes":["layer_id"],"get_note_type":["id"],"get_note_types":[],"get_pack_registry":[],"get_relation_kinds":[],"get_review_events":[],"get_scheduler_algorithms":[],"get_world_config":[],"get_world_packs":[],"inspect_local_pack_path":["path"],"install_pack_source":["id"],"mark_learned":["id","learned"],"refresh_pack_source":["id"],"reload_active_world":[],"remove_pack_source":["id"],"reset_data":["reseed"],"review_node":["node_id","grade","scheduler_key"],"seed_sample_data":[],"select_world":["world_id"],"set_node_extension_data":["node_id","extension_key","data_json"],"set_node_note_type":["node_id","note_type_id"],"set_node_progress_status":["node_id","status"],"update_local_pack_source":["id","input"],"update_node_content":["node_id","title","note_fields","content_data","tags"],"update_node_position":["id","x","y","z"],"update_note_type":["id","input"],"update_pack_source":["id","input"]}' }
-export type Router = { "": {add_github_pack_source: (input: GitHubPackSourceInput) => Promise<PackRegistryEntry>, 
+const ARGS_MAP = { '':'{"add_anki_pack_source":["input"],"add_github_pack_source":["input"],"add_local_pack_source":["input"],"check_pack_source_updates":["id"],"create_edge":["source_id","target_id","edge_type"],"create_layer":["name","display_order"],"create_node":["input"],"create_note_type":["input"],"delete_edge":["id"],"delete_local_world":["pack_path"],"duplicate_note_type":["source_id","name","world_id"],"get_connection_layers":[],"get_layers":[],"get_node_extension_data":["node_id","extension_key"],"get_node_progress":[],"get_nodes":["layer_id"],"get_note_type":["id"],"get_note_types":[],"get_pack_registry":[],"get_relation_kinds":[],"get_review_events":[],"get_scheduler_algorithms":[],"get_world_config":[],"get_world_packs":[],"inspect_anki_deck":["input"],"inspect_local_pack_path":["path"],"install_pack_source":["id"],"list_anki_decks":["base_url"],"mark_learned":["id","learned"],"refresh_pack_source":["id"],"reload_active_world":[],"remove_pack_source":["id"],"reset_data":["reseed"],"review_node":["node_id","grade","scheduler_key"],"seed_sample_data":[],"select_world":["world_id"],"set_node_extension_data":["node_id","extension_key","data_json"],"set_node_note_type":["node_id","note_type_id"],"set_node_progress_status":["node_id","status"],"update_anki_pack_source":["id","input"],"update_local_pack_source":["id","input"],"update_node_content":["node_id","title","note_fields","content_data","tags"],"update_node_position":["id","x","y","z"],"update_note_type":["id","input"],"update_pack_source":["id","input"]}' }
+export type Router = { "": {add_anki_pack_source: (input: AnkiConnectPackSourceInput) => Promise<PackRegistryEntry>, 
+add_github_pack_source: (input: GitHubPackSourceInput) => Promise<PackRegistryEntry>, 
 add_local_pack_source: (input: LocalPackSourceInput) => Promise<PackRegistryEntry>, 
 check_pack_source_updates: (id: string) => Promise<PackRegistryEntry>, 
 create_edge: (sourceId: string, targetId: string, edgeType: string) => Promise<Edge>, 
@@ -72,8 +85,10 @@ get_review_events: () => Promise<ReviewEvent[]>,
 get_scheduler_algorithms: () => Promise<SchedulerDescriptor[]>, 
 get_world_config: () => Promise<WorldConfig | null>, 
 get_world_packs: () => Promise<WorldPackInfo[]>, 
+inspect_anki_deck: (input: AnkiDeckInspectInput) => Promise<AnkiDeckProbe>, 
 inspect_local_pack_path: (path: string) => Promise<LocalPackPathProbe>, 
 install_pack_source: (id: string) => Promise<PackRegistryEntry>, 
+list_anki_decks: (baseUrl: string | null) => Promise<string[]>, 
 mark_learned: (id: string, learned: boolean) => Promise<Node>, 
 refresh_pack_source: (id: string) => Promise<PackRegistryEntry>, 
 reload_active_world: () => Promise<null>, 
@@ -85,6 +100,7 @@ select_world: (worldId: string) => Promise<null>,
 set_node_extension_data: (nodeId: string, extensionKey: string, dataJson: string) => Promise<NodeExtensionData>, 
 set_node_note_type: (nodeId: string, noteTypeId: string | null) => Promise<Node>, 
 set_node_progress_status: (nodeId: string, status: string) => Promise<Node>, 
+update_anki_pack_source: (id: string, input: AnkiConnectPackSourceInput) => Promise<PackRegistryEntry>, 
 update_local_pack_source: (id: string, input: LocalPackSourceInput) => Promise<PackRegistryEntry>, 
 update_node_content: (nodeId: string, title: string, noteFields: Partial<{ [key in string]: string }>, contentData: string | null, tags: string[]) => Promise<Node>, 
 update_node_position: (id: string, x: number, y: number, z: number) => Promise<null>, 

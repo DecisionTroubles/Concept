@@ -3,11 +3,19 @@ import { computed, ref, watch } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { ArrowUpRight, Download, FolderOpen, Github, GitBranch, Plus, RefreshCcw, Save, Search, Trash2 } from 'lucide-vue-next'
-import type { GitHubPackSourceInput, LocalPackSourceInput, PackRegistryEntry, WorldPackInfo } from '@/bindings'
+import type {
+  AnkiConnectPackSourceInput,
+  AnkiDeckProbe,
+  AnkiNoteModelMapping,
+  GitHubPackSourceInput,
+  LocalPackSourceInput,
+  PackRegistryEntry,
+  WorldPackInfo,
+} from '@/bindings'
 import OverlayShell from '@/components/ui/OverlayShell.vue'
 
-type LibrarySection = 'remote' | 'local'
-type AddMode = 'github' | 'local'
+type LibrarySection = 'remote' | 'local' | 'anki'
+type AddMode = 'github' | 'local' | 'anki'
 type Selection =
   | { kind: 'source'; id: string }
   | { kind: 'world'; packPath: string }
@@ -35,6 +43,21 @@ const localDraft = ref<LocalPackSourceInput>({
   path: '',
   enabled: true,
 })
+const ankiDraft = ref<AnkiConnectPackSourceInput>({
+  id: '',
+  name: '',
+  deck_name: '',
+  enabled: true,
+  anki_base_url: 'http://127.0.0.1:8765',
+  grouping_tag_prefix: 'group:',
+  include_media: true,
+  enforce_own_styles: true,
+  note_model_mappings: [],
+})
+const ankiDecks = ref<string[]>([])
+const ankiProbe = ref<AnkiDeckProbe | null>(null)
+const ankiDecksLoading = ref(false)
+const selectedAnkiNoteType = ref('')
 
 const remoteSources = computed(() =>
   [...graphStore.packRegistry]
@@ -45,6 +68,12 @@ const remoteSources = computed(() =>
 const trackedLocalSources = computed(() =>
   [...graphStore.packRegistry]
     .filter(entry => entry.source.provider === 'local')
+    .sort((a, b) => a.source.name.localeCompare(b.source.name))
+)
+
+const ankiSources = computed(() =>
+  [...graphStore.packRegistry]
+    .filter(entry => entry.source.provider === 'anki-connect')
     .sort((a, b) => a.source.name.localeCompare(b.source.name))
 )
 
@@ -82,6 +111,10 @@ const selectedLocalSource = computed(() => (
   selectedSource.value?.source.provider === 'local' ? selectedSource.value : null
 ))
 
+const selectedAnkiSource = computed(() => (
+  selectedSource.value?.source.provider === 'anki-connect' ? selectedSource.value : null
+))
+
 function resetRemoteDraft() {
   remoteDraft.value = {
     id: '',
@@ -101,6 +134,23 @@ function resetLocalDraft() {
     path: '',
     enabled: true,
   }
+}
+
+function resetAnkiDraft() {
+  ankiDraft.value = {
+    id: '',
+    name: '',
+    deck_name: '',
+    enabled: true,
+    anki_base_url: 'http://127.0.0.1:8765',
+    grouping_tag_prefix: 'group:',
+    include_media: true,
+    enforce_own_styles: true,
+    note_model_mappings: [],
+  }
+  ankiProbe.value = null
+  ankiDecks.value = []
+  selectedAnkiNoteType.value = ''
 }
 
 function sourceToDraft(entry: PackRegistryEntry): GitHubPackSourceInput {
@@ -124,10 +174,41 @@ function localSourceToDraft(entry: PackRegistryEntry): LocalPackSourceInput {
   }
 }
 
+function ankiSourceToDraft(entry: PackRegistryEntry): AnkiConnectPackSourceInput {
+  return {
+    id: entry.source.id,
+    name: entry.source.name,
+    deck_name: entry.source.deck_name ?? '',
+    enabled: entry.source.enabled,
+    anki_base_url: entry.source.anki_base_url ?? 'http://127.0.0.1:8765',
+    grouping_tag_prefix: entry.source.grouping_tag_prefix ?? 'group:',
+    include_media: entry.source.include_media,
+    enforce_own_styles: entry.source.enforce_own_styles,
+    note_model_mappings: entry.source.note_model_mappings ?? [],
+  }
+}
+
+const availableAnkiNoteTypes = computed(() => {
+  const fromProbe = ankiProbe.value?.note_type_fields.map(item => item.note_type) ?? []
+  const fromDraft = (ankiDraft.value.note_model_mappings ?? []).map(item => item.note_type)
+  return Array.from(new Set([...fromProbe, ...fromDraft]))
+})
+
+const selectedAnkiNoteTypeFields = computed(() => {
+  if (!selectedAnkiNoteType.value) return []
+  return ankiProbe.value?.note_type_fields.find(item => item.note_type === selectedAnkiNoteType.value)?.fields ?? []
+})
+
+const selectedAnkiMapping = computed<AnkiNoteModelMapping | null>(() => {
+  if (!selectedAnkiNoteType.value) return null
+  return (ankiDraft.value.note_model_mappings ?? []).find(item => item.note_type === selectedAnkiNoteType.value) ?? null
+})
+
 function openAddModal(mode: AddMode) {
   addMode.value = mode
   if (mode === 'github') resetRemoteDraft()
-  else resetLocalDraft()
+  else if (mode === 'local') resetLocalDraft()
+  else resetAnkiDraft()
   showAddModal.value = true
 }
 
@@ -161,9 +242,109 @@ async function hydrateLocalDraftFromPath(path: string) {
   }
 }
 
+async function loadAnkiDecks() {
+  ankiDecksLoading.value = true
+  try {
+    ankiDecks.value = await graphStore.listAnkiDecks(ankiDraft.value.anki_base_url ?? null)
+  } finally {
+    ankiDecksLoading.value = false
+  }
+}
+
+async function ensureAnkiDecksLoaded() {
+  if (ankiDecksLoading.value || ankiDecks.value.length > 0) return
+  try {
+    await loadAnkiDecks()
+  } catch {
+    // Keep the panel usable even if AnkiConnect is offline.
+  }
+}
+
+async function inspectAnkiDeckSelection() {
+  const deckName = ankiDraft.value.deck_name.trim()
+  if (!deckName) {
+    ankiProbe.value = null
+    return
+  }
+  const probe = await graphStore.inspectAnkiDeck({
+    deck_name: deckName,
+    anki_base_url: ankiDraft.value.anki_base_url?.trim() ? ankiDraft.value.anki_base_url.trim() : null,
+  })
+  ankiProbe.value = probe
+  if (!ankiDraft.value.id.trim()) ankiDraft.value.id = probe.suggested_id
+  if (!ankiDraft.value.name.trim()) ankiDraft.value.name = probe.suggested_name
+  if (!selectedAnkiNoteType.value && probe.note_type_fields[0]) {
+    selectedAnkiNoteType.value = probe.note_type_fields[0].note_type
+  }
+}
+
+function ensureAnkiMappings() {
+  if (!ankiDraft.value.note_model_mappings) {
+    ankiDraft.value.note_model_mappings = []
+  }
+  return ankiDraft.value.note_model_mappings
+}
+
+function ensureSelectedAnkiMapping() {
+  const noteType = selectedAnkiNoteType.value
+  if (!noteType) return null
+  const mappings = ensureAnkiMappings()
+  let mapping = mappings.find(item => item.note_type === noteType) ?? null
+  if (!mapping) {
+    mapping = {
+      note_type: noteType,
+      title_fields: [],
+      overview_fields: {
+        expression: null,
+        reading: null,
+        sentence: null,
+        definition: null,
+        context: null,
+      },
+      rendered_front_fields: [],
+      rendered_back_fields: [],
+      css_mode: ankiDraft.value.enforce_own_styles ? 'source' : 'clean',
+    }
+    mappings.push(mapping)
+  }
+  return mapping
+}
+
+function joinMappingFields(values: string[] | null | undefined): string {
+  return (values ?? []).join(', ')
+}
+
+function updateSelectedMappingListField(field: 'title_fields' | 'rendered_front_fields' | 'rendered_back_fields', raw: string) {
+  const mapping = ensureSelectedAnkiMapping()
+  if (!mapping) return
+  mapping[field] = raw
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean)
+}
+
+function updateSelectedMappingOverviewField(
+  key: keyof AnkiNoteModelMapping['overview_fields'],
+  raw: string,
+) {
+  const mapping = ensureSelectedAnkiMapping()
+  if (!mapping) return
+  mapping.overview_fields[key] = raw.trim() || null
+}
+
+function updateSelectedMappingCssMode(raw: string) {
+  const mapping = ensureSelectedAnkiMapping()
+  if (!mapping) return
+  mapping.css_mode = raw || null
+}
+
 function selectSource(id: string) {
   const provider = graphStore.packRegistry.find(entry => entry.source.id === id)?.source.provider
-  activeSection.value = provider === 'local' ? 'local' : 'remote'
+  activeSection.value = provider === 'local'
+    ? 'local'
+    : provider === 'anki-connect'
+      ? 'anki'
+      : 'remote'
   selection.value = { kind: 'source', id }
 }
 
@@ -176,6 +357,12 @@ function ensureSelection() {
   if (activeSection.value === 'remote') {
     if (selectedRemoteSource.value) return
     const first = remoteSources.value[0]
+    selection.value = first ? { kind: 'source', id: first.source.id } : null
+    return
+  }
+  if (activeSection.value === 'anki') {
+    if (selectedAnkiSource.value) return
+    const first = ankiSources.value[0]
     selection.value = first ? { kind: 'source', id: first.source.id } : null
     return
   }
@@ -202,6 +389,26 @@ async function saveNewSource() {
     const entry = await graphStore.refreshPackSource(payload.id)
     closeAddModal()
     activeSection.value = 'local'
+    selection.value = { kind: 'source', id: payload.id }
+    await openWorld(entry.pack_info?.world_id)
+    return
+  }
+  if (addMode.value === 'anki') {
+    const payload: AnkiConnectPackSourceInput = {
+      id: ankiDraft.value.id.trim(),
+      name: ankiDraft.value.name.trim(),
+      deck_name: ankiDraft.value.deck_name.trim(),
+      enabled: ankiDraft.value.enabled,
+      anki_base_url: ankiDraft.value.anki_base_url?.trim() ? ankiDraft.value.anki_base_url.trim() : null,
+      grouping_tag_prefix: ankiDraft.value.grouping_tag_prefix.trim() || 'group:',
+      include_media: ankiDraft.value.include_media,
+      enforce_own_styles: ankiDraft.value.enforce_own_styles,
+      note_model_mappings: ankiDraft.value.note_model_mappings ?? [],
+    }
+    await graphStore.addAnkiPackSource(payload)
+    const entry = await graphStore.refreshPackSource(payload.id)
+    closeAddModal()
+    activeSection.value = 'anki'
     selection.value = { kind: 'source', id: payload.id }
     await openWorld(entry.pack_info?.world_id)
     return
@@ -235,6 +442,25 @@ async function saveSelectedSource() {
     await graphStore.updateLocalPackSource(sourceId, payload)
     const entry = await graphStore.refreshPackSource(sourceId)
     activeSection.value = 'local'
+    selection.value = { kind: 'source', id: sourceId }
+    await openWorld(entry.pack_info?.world_id)
+    return
+  }
+  if (selectedSource.value.source.provider === 'anki-connect') {
+    const payload: AnkiConnectPackSourceInput = {
+      id: ankiDraft.value.id.trim(),
+      name: ankiDraft.value.name.trim(),
+      deck_name: ankiDraft.value.deck_name.trim(),
+      enabled: ankiDraft.value.enabled,
+      anki_base_url: ankiDraft.value.anki_base_url?.trim() ? ankiDraft.value.anki_base_url.trim() : null,
+      grouping_tag_prefix: ankiDraft.value.grouping_tag_prefix.trim() || 'group:',
+      include_media: ankiDraft.value.include_media,
+      enforce_own_styles: ankiDraft.value.enforce_own_styles,
+      note_model_mappings: ankiDraft.value.note_model_mappings ?? [],
+    }
+    await graphStore.updateAnkiPackSource(sourceId, payload)
+    const entry = await graphStore.refreshPackSource(sourceId)
+    activeSection.value = 'anki'
     selection.value = { kind: 'source', id: sourceId }
     await openWorld(entry.pack_info?.world_id)
     return
@@ -281,6 +507,9 @@ async function openWorld(worldId: string | null | undefined) {
 
 function sourceStatusText(entry: PackRegistryEntry): string {
   if (entry.source.provider === 'local') return entry.source.path
+  if (entry.source.provider === 'anki-connect') {
+    return [entry.source.deck_name, entry.source.anki_base_url].filter(Boolean).join(' · ')
+  }
   const parts = [entry.source.repo]
   if (entry.source.branch) parts.push(entry.source.branch)
   return parts.join(' · ')
@@ -301,16 +530,34 @@ watch(
       localDraft.value = localSourceToDraft(entry)
       return
     }
+    if (entry.source.provider === 'anki-connect') {
+      ankiDraft.value = ankiSourceToDraft(entry)
+      ankiProbe.value = null
+      selectedAnkiNoteType.value = ankiDraft.value.note_model_mappings?.[0]?.note_type ?? ''
+      return
+    }
     remoteDraft.value = sourceToDraft(entry)
   },
   { immediate: true }
 )
 
 watch(activeSection, () => {
+  if (activeSection.value === 'anki') {
+    void ensureAnkiDecksLoaded()
+  }
   ensureSelection()
 })
 
-watch([remoteSources, trackedLocalSources, visibleLocalWorlds], () => {
+watch(
+  () => showAddModal.value && addMode.value === 'anki',
+  open => {
+    if (open) {
+      void ensureAnkiDecksLoaded()
+    }
+  }
+)
+
+watch([remoteSources, trackedLocalSources, ankiSources, visibleLocalWorlds], () => {
   ensureSelection()
 }, { immediate: true })
 
@@ -355,7 +602,7 @@ useEventListener(
   <OverlayShell
     :open="graphStore.packLibraryOpen"
     title="Pack Library"
-    subtitle="Track GitHub sources and your own local pack folders in one place"
+    subtitle="Track GitHub packs, local packs, and Anki decks in one place"
     width-class="pack-library-shell"
     height-class="pack-library-shell"
     @close="graphStore.closePackLibrary()"
@@ -372,6 +619,10 @@ useEventListener(
               Local
               <span>{{ localWorlds.length }}</span>
             </button>
+            <button class="switch-btn" :class="{ active: activeSection === 'anki' }" @click="activeSection = 'anki'">
+              Anki
+              <span>{{ ankiSources.length }}</span>
+            </button>
           </div>
           <div class="sidebar-actions">
             <button class="icon-btn" title="Refresh pack library" @click="graphStore.refreshPackRegistry()">
@@ -379,8 +630,8 @@ useEventListener(
             </button>
             <button
               class="icon-btn accent"
-              :title="activeSection === 'remote' ? 'Add GitHub source' : 'Add local source'"
-              @click="openAddModal(activeSection === 'remote' ? 'github' : 'local')"
+              :title="activeSection === 'remote' ? 'Add GitHub source' : activeSection === 'local' ? 'Add local source' : 'Add Anki source'"
+              @click="openAddModal(activeSection === 'remote' ? 'github' : activeSection === 'local' ? 'local' : 'anki')"
             >
               <Plus :size="14" />
             </button>
@@ -407,7 +658,7 @@ useEventListener(
           </div>
         </div>
 
-        <div v-else class="list-wrap">
+        <div v-else-if="activeSection === 'local'" class="list-wrap">
           <div v-if="trackedLocalSources.length" class="sidebar-section-label">Tracked local sources</div>
           <button
             v-for="entry in trackedLocalSources"
@@ -440,6 +691,26 @@ useEventListener(
           </button>
           <div v-if="trackedLocalSources.length === 0 && visibleLocalWorlds.length === 0" class="empty-state">
             No tracked local sources or discovered local packs yet.
+          </div>
+        </div>
+
+        <div v-else class="list-wrap">
+          <button
+            v-for="entry in ankiSources"
+            :key="entry.source.id"
+            class="list-item"
+            :class="{ active: selectedSourceId === entry.source.id }"
+            @click="selectSource(entry.source.id)"
+          >
+            <div class="list-item-head">
+              <strong>{{ entry.source.name }}</strong>
+              <span class="item-badge">{{ entry.install_status }}</span>
+            </div>
+            <div class="list-item-sub">{{ sourceStatusText(entry) }}</div>
+            <div v-if="entry.pack_info?.world_name" class="list-item-meta">{{ entry.pack_info.world_name }}</div>
+          </button>
+          <div v-if="ankiSources.length === 0" class="empty-state">
+            No tracked Anki imports yet.
           </div>
         </div>
       </aside>
@@ -558,6 +829,194 @@ useEventListener(
               </div>
               <div v-if="selectedRemoteSource.last_error" class="error-box">
                 {{ selectedRemoteSource.last_error }}
+              </div>
+            </section>
+          </div>
+        </template>
+
+        <template v-else-if="activeSection === 'anki' && selectedAnkiSource">
+          <div class="detail-hero">
+            <div>
+              <div class="detail-kicker">Tracked Anki Import</div>
+              <h2>{{ selectedAnkiSource.source.name }}</h2>
+              <p>{{ selectedAnkiSource.source.deck_name }} · {{ selectedAnkiSource.source.anki_base_url }}</p>
+            </div>
+            <div class="detail-hero-actions">
+              <button class="action-btn primary" @click="refreshAndOpenSource(selectedAnkiSource.source.id)">
+                <RefreshCcw :size="14" />
+                Refresh from Anki
+              </button>
+              <button class="action-btn" @click="loadAnkiDecks()">
+                <Search :size="14" />
+                {{ ankiDecksLoading ? 'Loading decks' : 'Load decks' }}
+              </button>
+              <button
+                v-if="selectedAnkiSource.pack_info?.world_id"
+                class="action-btn"
+                @click="openWorld(selectedAnkiSource.pack_info.world_id)"
+              >
+                <FolderOpen :size="14" />
+                Open world
+              </button>
+            </div>
+          </div>
+
+          <div class="detail-grid">
+            <section class="detail-card">
+              <div class="card-head">
+                <strong>Anki Source</strong>
+                <span>Track a deck through AnkiConnect, regenerate a managed pack, then open it like any other world.</span>
+              </div>
+              <div class="form-grid">
+                <label class="field">
+                  <span>Pack id</span>
+                  <input v-model="ankiDraft.id" type="text" />
+                </label>
+                <label class="field">
+                  <span>Name</span>
+                  <input v-model="ankiDraft.name" type="text" />
+                </label>
+                <label class="field field-span-2">
+                  <span>Anki URL</span>
+                  <input v-model="ankiDraft.anki_base_url" type="text" placeholder="http://127.0.0.1:8765" />
+                </label>
+                <label class="field">
+                  <span>Deck name</span>
+                  <input v-model="ankiDraft.deck_name" type="text" list="anki-deck-options" @blur="inspectAnkiDeckSelection()" />
+                  <datalist id="anki-deck-options">
+                    <option v-for="deck in ankiDecks" :key="deck" :value="deck" />
+                  </datalist>
+                </label>
+                <label class="field">
+                  <span>Grouping tag prefix</span>
+                  <input v-model="ankiDraft.grouping_tag_prefix" type="text" placeholder="group:" />
+                </label>
+              </div>
+              <label class="toggle-row">
+                <span>Enabled</span>
+                <input v-model="ankiDraft.enabled" type="checkbox" />
+              </label>
+              <label class="toggle-row">
+                <span>Import images and audio</span>
+                <input v-model="ankiDraft.include_media" type="checkbox" />
+              </label>
+              <label class="toggle-row">
+                <span>Enforce note CSS</span>
+                <input v-model="ankiDraft.enforce_own_styles" type="checkbox" />
+              </label>
+              <div class="detail-actions">
+                <button class="action-btn primary" @click="saveSelectedSource()">
+                  <Save :size="14" />
+                  Save and refresh
+                </button>
+                <button class="action-btn danger" @click="removeSelectedSource()">
+                  <Trash2 :size="14" />
+                  Remove
+                </button>
+              </div>
+            </section>
+
+            <section class="detail-card">
+              <div class="card-head">
+                <strong>Import Preview</strong>
+                <span>Probe the selected deck before regenerating the managed pack.</span>
+              </div>
+              <div class="meta-stack">
+                <div class="meta-row">
+                  <span>Status</span>
+                  <strong>{{ selectedAnkiSource.install_status }}</strong>
+                </div>
+                <div class="meta-row">
+                  <span>Deck</span>
+                  <strong>{{ ankiProbe?.deck_name ?? selectedAnkiSource.source.deck_name ?? 'not set' }}</strong>
+                </div>
+                <div class="meta-row">
+                  <span>Card count</span>
+                  <strong>{{ ankiProbe?.card_count ?? 'unknown' }}</strong>
+                </div>
+                <div class="meta-row">
+                  <span>Last refreshed</span>
+                  <strong>{{ selectedAnkiSource.source.last_installed_at ?? 'never' }}</strong>
+                </div>
+                <div class="meta-row">
+                  <span>Managed world</span>
+                  <strong>{{ selectedAnkiSource.pack_info?.world_name ?? 'not generated yet' }}</strong>
+                </div>
+                <div class="meta-row">
+                  <span>Media</span>
+                  <strong>{{ ankiDraft.include_media ? 'included' : 'omitted' }}</strong>
+                </div>
+                <div class="meta-row">
+                  <span>CSS</span>
+                  <strong>{{ ankiDraft.enforce_own_styles ? 'enforced' : 'cleaned' }}</strong>
+                </div>
+              </div>
+              <div v-if="ankiProbe?.available_tags.length" class="meta-chip-row">
+                <span v-for="tag in ankiProbe.available_tags.slice(0, 8)" :key="tag" class="meta-chip">{{ tag }}</span>
+              </div>
+              <div v-if="ankiProbe?.available_fields.length" class="meta-chip-row">
+                <span v-for="field in ankiProbe.available_fields.slice(0, 12)" :key="field" class="meta-chip">{{ field }}</span>
+              </div>
+              <div v-if="availableAnkiNoteTypes.length" class="mapping-editor">
+                <div class="card-head">
+                  <strong>Note model mapping</strong>
+                  <span>Pick one note type and decide which fields drive title, summary, and the rich card surface.</span>
+                </div>
+                <label class="field">
+                  <span>Note type</span>
+                  <select v-model="selectedAnkiNoteType" @change="ensureSelectedAnkiMapping()">
+                    <option v-for="noteType in availableAnkiNoteTypes" :key="noteType" :value="noteType">{{ noteType }}</option>
+                  </select>
+                </label>
+                <template v-if="selectedAnkiNoteType && selectedAnkiMapping">
+                  <div v-if="selectedAnkiNoteTypeFields.length" class="meta-chip-row">
+                    <span v-for="field in selectedAnkiNoteTypeFields" :key="`${selectedAnkiNoteType}-${field}`" class="meta-chip">{{ field }}</span>
+                  </div>
+                  <div class="form-grid detail-grid-single">
+                    <label class="field field-span-2">
+                      <span>Title source fields</span>
+                      <input :value="joinMappingFields(selectedAnkiMapping.title_fields)" type="text" placeholder="Expression, ExpressionReading, MainDefinition" @input="updateSelectedMappingListField('title_fields', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="field">
+                      <span>Expression</span>
+                      <input :value="selectedAnkiMapping.overview_fields.expression ?? ''" type="text" placeholder="Expression" @input="updateSelectedMappingOverviewField('expression', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="field">
+                      <span>Reading</span>
+                      <input :value="selectedAnkiMapping.overview_fields.reading ?? ''" type="text" placeholder="ExpressionReading" @input="updateSelectedMappingOverviewField('reading', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="field">
+                      <span>Sentence</span>
+                      <input :value="selectedAnkiMapping.overview_fields.sentence ?? ''" type="text" placeholder="Sentence" @input="updateSelectedMappingOverviewField('sentence', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="field">
+                      <span>Definition</span>
+                      <input :value="selectedAnkiMapping.overview_fields.definition ?? ''" type="text" placeholder="MainDefinition" @input="updateSelectedMappingOverviewField('definition', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="field field-span-2">
+                      <span>Context</span>
+                      <input :value="selectedAnkiMapping.overview_fields.context ?? ''" type="text" placeholder="MiscInfo" @input="updateSelectedMappingOverviewField('context', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="field field-span-2">
+                      <span>Rendered front fields</span>
+                      <input :value="joinMappingFields(selectedAnkiMapping.rendered_front_fields)" type="text" placeholder="Expression, Sentence, Picture, ExpressionAudio" @input="updateSelectedMappingListField('rendered_front_fields', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="field field-span-2">
+                      <span>Rendered back fields</span>
+                      <input :value="joinMappingFields(selectedAnkiMapping.rendered_back_fields)" type="text" placeholder="MainDefinition, Glossary, MiscInfo" @input="updateSelectedMappingListField('rendered_back_fields', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="field">
+                      <span>CSS mode</span>
+                      <select :value="selectedAnkiMapping.css_mode ?? 'source'" @change="updateSelectedMappingCssMode(($event.target as HTMLSelectElement).value)">
+                        <option value="source">source</option>
+                        <option value="clean">clean</option>
+                      </select>
+                    </label>
+                  </div>
+                </template>
+              </div>
+              <div v-if="selectedAnkiSource.last_error" class="error-box">
+                {{ selectedAnkiSource.last_error }}
               </div>
             </section>
           </div>
@@ -733,7 +1192,7 @@ useEventListener(
 
         <div v-else class="detail-empty">
           <strong>No pack selected</strong>
-          <span>Choose a remote source or a local pack from the list.</span>
+          <span>Choose a remote source, local pack, or tracked Anki deck from the list.</span>
         </div>
       </section>
     </div>
@@ -741,10 +1200,12 @@ useEventListener(
 
   <OverlayShell
     :open="showAddModal"
-    :title="addMode === 'github' ? 'Add GitHub Source' : 'Add Local Pack Source'"
+    :title="addMode === 'github' ? 'Add GitHub Source' : addMode === 'local' ? 'Add Local Pack Source' : 'Add Anki Import'"
     :subtitle="addMode === 'github'
       ? 'Create a new tracked GitHub source without crowding the main pack window'
-      : 'Track a local pack folder or direct pack.json path without crowding the main pack window'"
+      : addMode === 'local'
+        ? 'Track a local pack folder or direct pack.json path without crowding the main pack window'
+        : 'Track an Anki deck through AnkiConnect and generate a managed Concept pack'"
     width-class="pack-add-shell"
     @close="closeAddModal()"
   >
@@ -781,7 +1242,7 @@ useEventListener(
           <input v-model="remoteDraft.pinned_ref" type="text" placeholder="optional tag or sha" />
         </label>
       </div>
-      <div v-else class="form-grid detail-grid-single">
+      <div v-else-if="addMode === 'local'" class="form-grid detail-grid-single">
         <label class="field">
           <span>Pack id</span>
           <input v-model="localDraft.id" type="text" placeholder="japanese-local" />
@@ -807,18 +1268,138 @@ useEventListener(
           </div>
         </label>
       </div>
+      <div v-else class="form-grid">
+        <label class="field field-span-2">
+          <span>Anki URL</span>
+          <input v-model="ankiDraft.anki_base_url" type="text" placeholder="http://127.0.0.1:8765" />
+        </label>
+        <label class="field">
+          <span>Deck name</span>
+          <input v-model="ankiDraft.deck_name" type="text" list="anki-deck-options-add" @blur="inspectAnkiDeckSelection()" />
+          <datalist id="anki-deck-options-add">
+            <option v-for="deck in ankiDecks" :key="deck" :value="deck" />
+          </datalist>
+        </label>
+        <label class="field">
+          <span>Grouping tag prefix</span>
+          <input v-model="ankiDraft.grouping_tag_prefix" type="text" placeholder="group:" />
+        </label>
+        <label class="field">
+          <span>Pack id</span>
+          <input v-model="ankiDraft.id" type="text" placeholder="anki-japanese-core-2k" />
+        </label>
+        <label class="field">
+          <span>Name</span>
+          <input v-model="ankiDraft.name" type="text" placeholder="Anki: Japanese::Core 2k" />
+        </label>
+        <label class="toggle-row field-span-2">
+          <span>Import images and audio</span>
+          <input v-model="ankiDraft.include_media" type="checkbox" />
+        </label>
+        <label class="toggle-row field-span-2">
+          <span>Enforce note CSS</span>
+          <input v-model="ankiDraft.enforce_own_styles" type="checkbox" />
+        </label>
+        <div class="detail-actions field-span-2">
+          <button class="action-btn" type="button" @click="loadAnkiDecks()">
+            <Search :size="14" />
+            {{ ankiDecksLoading ? 'Loading decks' : 'Load decks' }}
+          </button>
+          <button class="action-btn" type="button" @click="inspectAnkiDeckSelection()">
+            <ArrowUpRight :size="14" />
+            Inspect deck
+          </button>
+        </div>
+        <div v-if="ankiProbe" class="detail-card field-span-2 add-preview-card">
+          <div class="meta-stack">
+            <div class="meta-row">
+              <span>Deck</span>
+              <strong>{{ ankiProbe.deck_name }}</strong>
+            </div>
+            <div class="meta-row">
+              <span>Card count</span>
+              <strong>{{ ankiProbe.card_count }}</strong>
+            </div>
+            <div class="meta-row">
+              <span>Suggested world</span>
+              <strong>{{ ankiProbe.suggested_name }}</strong>
+            </div>
+          </div>
+          <div v-if="ankiProbe.available_fields.length" class="meta-chip-row">
+            <span v-for="field in ankiProbe.available_fields.slice(0, 12)" :key="field" class="meta-chip">{{ field }}</span>
+          </div>
+          <div v-if="availableAnkiNoteTypes.length" class="mapping-editor">
+            <label class="field">
+              <span>Note type</span>
+              <select v-model="selectedAnkiNoteType" @change="ensureSelectedAnkiMapping()">
+                <option v-for="noteType in availableAnkiNoteTypes" :key="noteType" :value="noteType">{{ noteType }}</option>
+              </select>
+            </label>
+            <template v-if="selectedAnkiNoteType && selectedAnkiMapping">
+              <div v-if="selectedAnkiNoteTypeFields.length" class="meta-chip-row">
+                <span v-for="field in selectedAnkiNoteTypeFields" :key="`modal-${selectedAnkiNoteType}-${field}`" class="meta-chip">{{ field }}</span>
+              </div>
+              <div class="form-grid detail-grid-single">
+                <label class="field field-span-2">
+                  <span>Title source fields</span>
+                  <input :value="joinMappingFields(selectedAnkiMapping.title_fields)" type="text" placeholder="Expression, ExpressionReading, MainDefinition" @input="updateSelectedMappingListField('title_fields', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="field">
+                  <span>Expression</span>
+                  <input :value="selectedAnkiMapping.overview_fields.expression ?? ''" type="text" placeholder="Expression" @input="updateSelectedMappingOverviewField('expression', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="field">
+                  <span>Reading</span>
+                  <input :value="selectedAnkiMapping.overview_fields.reading ?? ''" type="text" placeholder="ExpressionReading" @input="updateSelectedMappingOverviewField('reading', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="field">
+                  <span>Sentence</span>
+                  <input :value="selectedAnkiMapping.overview_fields.sentence ?? ''" type="text" placeholder="Sentence" @input="updateSelectedMappingOverviewField('sentence', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="field">
+                  <span>Definition</span>
+                  <input :value="selectedAnkiMapping.overview_fields.definition ?? ''" type="text" placeholder="MainDefinition" @input="updateSelectedMappingOverviewField('definition', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="field field-span-2">
+                  <span>Context</span>
+                  <input :value="selectedAnkiMapping.overview_fields.context ?? ''" type="text" placeholder="MiscInfo" @input="updateSelectedMappingOverviewField('context', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="field field-span-2">
+                  <span>Rendered front fields</span>
+                  <input :value="joinMappingFields(selectedAnkiMapping.rendered_front_fields)" type="text" placeholder="Expression, Sentence, Picture, ExpressionAudio" @input="updateSelectedMappingListField('rendered_front_fields', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="field field-span-2">
+                  <span>Rendered back fields</span>
+                  <input :value="joinMappingFields(selectedAnkiMapping.rendered_back_fields)" type="text" placeholder="MainDefinition, Glossary, MiscInfo" @input="updateSelectedMappingListField('rendered_back_fields', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="field">
+                  <span>CSS mode</span>
+                  <select :value="selectedAnkiMapping.css_mode ?? 'source'" @change="updateSelectedMappingCssMode(($event.target as HTMLSelectElement).value)">
+                    <option value="source">source</option>
+                    <option value="clean">clean</option>
+                  </select>
+                </label>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
       <label v-if="addMode === 'github'" class="toggle-row">
         <span>Enabled</span>
         <input v-model="remoteDraft.enabled" type="checkbox" />
       </label>
-      <label v-else class="toggle-row">
+      <label v-else-if="addMode === 'local'" class="toggle-row">
         <span>Enabled</span>
         <input v-model="localDraft.enabled" type="checkbox" />
+      </label>
+      <label v-else class="toggle-row">
+        <span>Enabled</span>
+        <input v-model="ankiDraft.enabled" type="checkbox" />
       </label>
       <div class="detail-actions">
         <button class="action-btn primary" @click="saveNewSource()">
           <Save :size="14" />
-          {{ addMode === 'github' ? 'Save source' : 'Save local source' }}
+          {{ addMode === 'github' ? 'Save source' : addMode === 'local' ? 'Save local source' : 'Save Anki import' }}
         </button>
         <button class="action-btn" @click="closeAddModal()">
           Cancel
@@ -902,13 +1483,17 @@ useEventListener(
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
   padding: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .section-switch {
   display: inline-flex;
+  flex: 1 1 0;
+  min-width: 0;
   gap: 6px;
+  flex-wrap: wrap;
   padding: 4px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
@@ -918,6 +1503,9 @@ useEventListener(
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  flex: 1 1 84px;
+  min-width: 0;
+  justify-content: center;
   padding: 8px 12px;
   border: none;
   border-radius: 10px;
@@ -948,6 +1536,7 @@ useEventListener(
 .sidebar-actions {
   display: inline-flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .list-wrap {
@@ -1130,6 +1719,17 @@ useEventListener(
   gap: 7px;
 }
 
+.field input,
+.field select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--app-text-primary);
+}
+
 .field-with-icon {
   display: flex;
   align-items: center;
@@ -1189,6 +1789,32 @@ useEventListener(
 .meta-stack {
   display: grid;
   gap: 10px;
+}
+
+.meta-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--app-text-secondary);
+  font-size: 11px;
+}
+
+.mapping-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .meta-row {
@@ -1261,6 +1887,10 @@ useEventListener(
   flex-direction: column;
   gap: 12px;
   padding: 16px;
+}
+
+.add-preview-card {
+  padding: 12px;
 }
 
 @media (max-width: 1180px) {

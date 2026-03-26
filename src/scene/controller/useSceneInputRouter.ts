@@ -63,6 +63,55 @@ export function useSceneInputRouter(options: SceneInputRouterOptions) {
 
     if (graphStore.activeBuffer !== 'none') return
 
+    if (editorMode.mode.value === 'author') {
+      const scale = event.shiftKey ? 2.5 : event.altKey ? 0.35 : 1
+      if (key === 'w' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        options.controller.nudgeSelected(0, 0, -1, scale)
+        return
+      }
+      if (key === 's' || event.key === 'ArrowDown') {
+        event.preventDefault()
+        options.controller.nudgeSelected(0, 0, 1, scale)
+        return
+      }
+      if (key === 'a' || event.key === 'ArrowLeft') {
+        event.preventDefault()
+        options.controller.nudgeSelected(-1, 0, 0, scale)
+        return
+      }
+      if (key === 'd' || event.key === 'ArrowRight') {
+        event.preventDefault()
+        options.controller.nudgeSelected(1, 0, 0, scale)
+        return
+      }
+      if (key === 'q') {
+        event.preventDefault()
+        options.controller.nudgeSelected(0, -1, 0, scale)
+        return
+      }
+      if (key === 'e') {
+        event.preventDefault()
+        options.controller.nudgeSelected(0, 1, 0, scale)
+        return
+      }
+      if (key === 'c' && graphStore.selectedNodeId) {
+        event.preventDefault()
+        options.controller.startConnectFromSelected()
+        return
+      }
+      if (key === 'x' && graphStore.selectedNodeId) {
+        event.preventDefault()
+        options.controller.expandNeighborSpacing()
+        return
+      }
+      if (key === 'g' && graphStore.selectedNodeId) {
+        event.preventDefault()
+        options.controller.spreadSelected()
+        return
+      }
+    }
+
     if (editorMode.mode.value === 'fly') {
       const flyMoveKeys = [
         settings.keys.flyForward,

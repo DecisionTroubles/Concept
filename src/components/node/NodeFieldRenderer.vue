@@ -30,7 +30,12 @@ const widget = computed(() => props.field.widget || 'text')
 <template>
   <div class="node-field">
     <div class="node-field-label">{{ label }}</div>
-    <div v-if="widget === 'long_text'" class="node-field-value node-field-value-long">
+    <div
+      v-if="widget === 'html'"
+      class="node-field-value node-field-value-html"
+      v-html="value || '<p>No value yet.</p>'"
+    />
+    <div v-else-if="widget === 'long_text'" class="node-field-value node-field-value-long">
       {{ value || 'No value yet.' }}
     </div>
     <div v-else class="node-field-value">
@@ -67,5 +72,47 @@ const widget = computed(() => props.field.widget || 'text')
 
 .node-field-value-long {
   white-space: pre-wrap;
+}
+
+.node-field-value-html {
+  white-space: normal;
+  overflow-x: auto;
+}
+
+.node-field-value-html :deep(section) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.node-field-value-html :deep(h1),
+.node-field-value-html :deep(h2),
+.node-field-value-html :deep(h3),
+.node-field-value-html :deep(h4) {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-text-secondary);
+}
+
+.node-field-value-html :deep(p),
+.node-field-value-html :deep(ul),
+.node-field-value-html :deep(ol) {
+  margin: 0;
+}
+
+.node-field-value-html :deep(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.node-field-value-html :deep(audio),
+.node-field-value-html :deep(video) {
+  width: 100%;
+  max-width: 360px;
 }
 </style>

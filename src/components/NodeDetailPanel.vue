@@ -8,9 +8,9 @@ import NodeSummaryRenderer from '@/components/node/NodeSummaryRenderer.vue'
 import NodeExtensionOutlet from '@/components/node/NodeExtensionOutlet.vue'
 import NodeViewerHeader from '@/components/node/NodeViewerHeader.vue'
 import NodeViewerTabBar, { type ViewerTab } from '@/components/node/NodeViewerTabBar.vue'
-import NodeConnectionsPage from '@/components/node/NodeConnectionsPage.vue'
 import NodeLearningPage from '@/components/node/NodeLearningPage.vue'
 import NodeHistoryPage from '@/components/node/NodeHistoryPage.vue'
+import AnkiCardPageRenderer from '@/components/node/AnkiCardPageRenderer.vue'
 import { appKernel } from '@/core/kernel'
 import { inferFallbackContentPages, parseLayout, type LayoutPage } from '@/components/node/layout'
 
@@ -21,7 +21,7 @@ type ProgressStatus = 'new' | 'learning' | 'review' | 'mastered'
 type ReviewGrade = 'again' | 'hard' | 'good' | 'easy'
 type ViewerPage =
   | { id: string; kind: 'content'; label: string; pageId: string; category: 'primary' }
-  | { id: 'connections'; kind: 'connections'; label: string; category: 'primary' }
+  | { id: string; kind: 'card'; label: string; pageId: string; cardSlot: 'front' | 'back' | 'split'; category: 'primary' }
   | { id: 'learning'; kind: 'learning'; label: string; category: 'secondary' }
   | { id: 'history'; kind: 'history'; label: string; category: 'secondary' }
   | { id: string; kind: 'extension'; label: string; extensionId: string; category: 'secondary' }
@@ -77,10 +77,15 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   }
 }
 
-const contentPages = computed<LayoutPage[]>(() => {
+const primaryLayoutPages = computed<LayoutPage[]>(() => {
   if (!node.value) return []
   const parsed = parseLayout(activeNoteType.value)
-  const authored = Array.isArray(parsed.pages) ? parsed.pages.filter(page => (page.kind ?? 'content') === 'content') : []
+  const authored = Array.isArray(parsed.pages)
+    ? parsed.pages.filter(page => {
+      const kind = page.kind ?? 'content'
+      return kind === 'content' || kind === 'card'
+    })
+    : []
   if (authored.length > 0) return authored
 
   const fieldMap = new Map(
@@ -89,34 +94,26 @@ const contentPages = computed<LayoutPage[]>(() => {
   return inferFallbackContentPages(node.value, fieldMap)
 })
 
-const explicitBuiltIns = computed(() => {
-  const parsed = parseLayout(activeNoteType.value)
-  const pages = Array.isArray(parsed.pages) ? parsed.pages : []
-  return pages.filter(page => page.kind === 'built_in')
-})
-
 const primaryPages = computed<ViewerPage[]>(() => {
-  const content = contentPages.value.map(page => ({
-    id: `content:${page.id}`,
-    kind: 'content' as const,
-    label: page.label || page.id,
-    pageId: page.id,
-    category: 'primary' as const,
-  }))
-
-  const hasExplicitConnections = explicitBuiltIns.value.some(page => page.source === 'connections')
-  if (hasExplicitConnections || content.length === 0) {
-    content.push({
-      id: 'connections',
-      kind: 'connections',
-      label: explicitBuiltIns.value.find(page => page.source === 'connections')?.label || 'Connections',
-      category: 'primary',
-    })
-    return content
-  }
-
-  content.push({ id: 'connections', kind: 'connections', label: 'Connections', category: 'primary' })
-  return content
+  return primaryLayoutPages.value.map(page => {
+    if (page.kind === 'card') {
+      return {
+        id: `card:${page.id}`,
+        kind: 'card' as const,
+        label: page.label || page.id,
+        pageId: page.id,
+        cardSlot: page.card_slot || 'split',
+        category: 'primary' as const,
+      }
+    }
+    return {
+      id: `content:${page.id}`,
+      kind: 'content' as const,
+      label: page.label || page.id,
+        pageId: page.id,
+        category: 'primary' as const,
+      }
+  })
 })
 
 const extensionPages = computed<ViewerPage[]>(() => {
@@ -175,33 +172,19 @@ const nodeHistory = computed(() =>
     .slice(0, 20)
 )
 
-const connectionBuckets = computed(() => {
-  if (!node.value) return { next: [], related: [], supporting: [] } as Record<string, Array<{ id: string; title: string; edgeType: string; relationLabel: string; targetId: string }>>
-
-  const relationKindsById = new Map(graphStore.relationKinds.map(kind => [kind.id, kind.label]))
-  const decorated = node.value.connections.map(conn => ({
-    id: conn.id,
-    title: graphStore.nodes.find(candidate => candidate.id === conn.target_id)?.title ?? conn.target_id.slice(0, 8),
-    edgeType: conn.edge_type,
-    relationLabel: relationKindsById.get(conn.relation_id ?? '') ?? conn.edge_type,
-    targetId: conn.target_id,
-  }))
-
-  return {
-    next: decorated.filter(conn => conn.edgeType === 'Prerequisite' || conn.edgeType === 'Context'),
-    related: decorated.filter(conn => conn.edgeType === 'Semantic'),
-    supporting: decorated.filter(conn => conn.edgeType === 'UserDefined'),
-  }
-})
-
 const overviewExcerpt = computed(() => {
   if (!node.value) return ''
   const fields = node.value.note_fields
+  const semanticPreview = [fields.Expression, fields.Reading, fields.Definition, fields.Sentence]
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(' · ')
   return fields.Summary
     || fields.Meaning
     || fields.Function
     || fields.Main
     || fields.Concept
+    || semanticPreview
     || fields.Example
     || node.value.content_data
     || ''
@@ -261,10 +244,6 @@ function toggleFocusView() {
 function openParentNode() {
   if (!parentNode.value) return
   graphStore.selectNode(parentNode.value.id)
-}
-
-function openNode(targetId: string) {
-  graphStore.selectNode(targetId)
 }
 
 watch(
@@ -440,15 +419,12 @@ useEventListener(
             />
           </section>
 
-          <section v-else-if="currentPage?.kind === 'connections'" class="viewer-reading">
-            <NodeConnectionsPage
-              :note-type-name="noteTypeName"
-              :status-label="STATUS_META[progressStatus].label"
-              :next-review-label="formatSchedule(node.progress_next_review_at)"
-              :next="connectionBuckets.next"
-              :related="connectionBuckets.related"
-              :supporting="connectionBuckets.supporting"
-              @open-node="openNode"
+          <section v-else-if="currentPage?.kind === 'card'" class="viewer-card-reading">
+            <AnkiCardPageRenderer
+              :key="`card-${node.id}-${currentPage.pageId}`"
+              :node="node"
+              :note-type="activeNoteType"
+              :card-slot="currentPage.cardSlot"
             />
           </section>
 
@@ -762,6 +738,10 @@ useEventListener(
 .viewer-reading {
   width: min(1120px, 100%);
   margin: 0 auto;
+}
+
+.viewer-card-reading {
+  width: 100%;
 }
 
 .viewer-reading-narrow {

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use walkdir::WalkDir;
 
+use crate::anki::{self, AnkiConnectPackSourceInput, AnkiDeckInspectInput, AnkiDeckProbe, AnkiImportConfig, AnkiNoteModelMapping};
 use crate::error::AppError;
 use crate::world_registry::{self, WorldPackInfo};
 
@@ -32,6 +33,12 @@ pub struct PackSource {
     pub last_checked_at: Option<String>,
     pub last_installed_at: Option<String>,
     pub pinned_ref: Option<String>,
+    pub deck_name: Option<String>,
+    pub anki_base_url: Option<String>,
+    pub grouping_tag_prefix: Option<String>,
+    pub include_media: bool,
+    pub enforce_own_styles: bool,
+    pub note_model_mappings: Option<Vec<AnkiNoteModelMapping>>,
 }
 
 #[taurpc::ipc_type]
@@ -86,6 +93,18 @@ struct RegistrySource {
     pinned_ref: Option<String>,
     latest_known_version: Option<String>,
     last_error: Option<String>,
+    #[serde(default)]
+    deck_name: Option<String>,
+    #[serde(default)]
+    anki_base_url: Option<String>,
+    #[serde(default)]
+    grouping_tag_prefix: Option<String>,
+    #[serde(default)]
+    include_media: bool,
+    #[serde(default)]
+    enforce_own_styles: bool,
+    #[serde(default)]
+    note_model_mappings: Option<Vec<AnkiNoteModelMapping>>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -147,12 +166,18 @@ fn to_pack_source(source: &RegistrySource) -> PackSource {
         last_checked_at: source.last_checked_at.clone(),
         last_installed_at: source.last_installed_at.clone(),
         pinned_ref: source.pinned_ref.clone(),
+        deck_name: source.deck_name.clone(),
+        anki_base_url: source.anki_base_url.clone(),
+        grouping_tag_prefix: source.grouping_tag_prefix.clone(),
+        include_media: source.include_media,
+        enforce_own_styles: source.enforce_own_styles,
+        note_model_mappings: source.note_model_mappings.clone(),
     }
 }
 
 fn managed_dir_for(source: &RegistrySource) -> Result<PathBuf, AppError> {
     let paths = paths()?;
-    let root = if source.provider == "local" {
+    let root = if matches!(source.provider.as_str(), "local" | "anki-connect") {
         &paths.local_dir
     } else {
         &paths.installed_dir
@@ -416,12 +441,32 @@ fn validate_local_source_input(input: &LocalPackSourceInput) -> Result<(), AppEr
     Ok(())
 }
 
+fn validate_anki_source_input(input: &AnkiConnectPackSourceInput) -> Result<(), AppError> {
+    if input.id.trim().is_empty() {
+        return Err(AppError::Other("Source id is required".into()));
+    }
+    if input.name.trim().is_empty() {
+        return Err(AppError::Other("Source name is required".into()));
+    }
+    if input.deck_name.trim().is_empty() {
+        return Err(AppError::Other("Anki deck name is required".into()));
+    }
+    if input.grouping_tag_prefix.trim().is_empty() {
+        return Err(AppError::Other("Grouping tag prefix is required".into()));
+    }
+    Ok(())
+}
+
 fn managed_pack_info(source: &RegistrySource) -> Result<Option<WorldPackInfo>, AppError> {
     let pack_path = managed_pack_file_for(source)?;
     if !pack_path.exists() {
         return Ok(None);
     }
-    let source_kind = if source.provider == "local" { "local" } else { "installed" };
+    let source_kind = if matches!(source.provider.as_str(), "local" | "anki-connect") {
+        "local"
+    } else {
+        "installed"
+    };
     Ok(Some(world_registry::inspect_pack_file(&pack_path, source_kind)))
 }
 
@@ -447,6 +492,18 @@ fn entry_from_source(source: &RegistrySource) -> Result<PackRegistryEntry, AppEr
                 "invalid"
             } else {
                 "tracked_local"
+            }
+        } else {
+            "not_synced"
+        }
+    } else if source.provider == "anki-connect" {
+        if source.last_error.is_some() && pack_info.is_none() {
+            "error"
+        } else if let Some(info) = &pack_info {
+            if !info.valid {
+                "invalid"
+            } else {
+                "tracked_anki"
             }
         } else {
             "not_synced"
@@ -523,6 +580,14 @@ pub fn get_pack_registry() -> Result<Vec<PackRegistryEntry>, AppError> {
     manifest.sources.iter().map(entry_from_source).collect()
 }
 
+pub async fn list_anki_decks(base_url: Option<&str>) -> Result<Vec<String>, AppError> {
+    anki::list_decks(base_url).await
+}
+
+pub async fn inspect_anki_deck(input: AnkiDeckInspectInput) -> Result<AnkiDeckProbe, AppError> {
+    anki::inspect_deck(&input).await
+}
+
 pub fn add_github_pack_source(input: GitHubPackSourceInput) -> Result<PackRegistryEntry, AppError> {
     validate_github_source_input(&input)?;
     let mut manifest = read_manifest()?;
@@ -543,6 +608,12 @@ pub fn add_github_pack_source(input: GitHubPackSourceInput) -> Result<PackRegist
         pinned_ref: input.pinned_ref,
         latest_known_version: None,
         last_error: None,
+        deck_name: None,
+        anki_base_url: None,
+        grouping_tag_prefix: None,
+        include_media: false,
+        enforce_own_styles: false,
+        note_model_mappings: None,
     };
     manifest.sources.push(source.clone());
     manifest.sources.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
@@ -570,6 +641,45 @@ pub fn add_local_pack_source(input: LocalPackSourceInput) -> Result<PackRegistry
         pinned_ref: None,
         latest_known_version: None,
         last_error: None,
+        deck_name: None,
+        anki_base_url: None,
+        grouping_tag_prefix: None,
+        include_media: false,
+        enforce_own_styles: false,
+        note_model_mappings: None,
+    };
+    manifest.sources.push(source.clone());
+    manifest.sources.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
+    write_manifest(&manifest)?;
+    entry_from_source(&source)
+}
+
+pub fn add_anki_pack_source(input: AnkiConnectPackSourceInput) -> Result<PackRegistryEntry, AppError> {
+    validate_anki_source_input(&input)?;
+    let mut manifest = read_manifest()?;
+    if manifest.sources.iter().any(|source| source.id == input.id) {
+        return Err(AppError::Other(format!("Pack source '{}' already exists", input.id)));
+    }
+    let source = RegistrySource {
+        id: input.id,
+        name: input.name,
+        provider: "anki-connect".into(),
+        repo: String::new(),
+        path: String::new(),
+        branch: String::new(),
+        enabled: input.enabled,
+        installed_version: None,
+        last_checked_at: None,
+        last_installed_at: None,
+        pinned_ref: None,
+        latest_known_version: None,
+        last_error: None,
+        deck_name: Some(input.deck_name),
+        anki_base_url: input.anki_base_url.filter(|value| !value.trim().is_empty()),
+        grouping_tag_prefix: Some(input.grouping_tag_prefix),
+        include_media: input.include_media,
+        enforce_own_styles: input.enforce_own_styles,
+        note_model_mappings: input.note_model_mappings,
     };
     manifest.sources.push(source.clone());
     manifest.sources.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
@@ -613,6 +723,30 @@ pub fn update_local_pack_source(id: &str, input: LocalPackSourceInput) -> Result
     source.name = input.name;
     source.path = input.path;
     source.enabled = input.enabled;
+    let entry = entry_from_source(source)?;
+    write_manifest(&manifest)?;
+    Ok(entry)
+}
+
+pub fn update_anki_pack_source(id: &str, input: AnkiConnectPackSourceInput) -> Result<PackRegistryEntry, AppError> {
+    validate_anki_source_input(&input)?;
+    let mut manifest = read_manifest()?;
+    let source = manifest
+        .sources
+        .iter_mut()
+        .find(|source| source.id == id)
+        .ok_or_else(|| AppError::NotFound(format!("Pack source '{id}' not found")))?;
+    if source.provider != "anki-connect" {
+        return Err(AppError::Other(format!("Pack source '{id}' is not an Anki source")));
+    }
+    source.name = input.name;
+    source.enabled = input.enabled;
+    source.deck_name = Some(input.deck_name);
+    source.anki_base_url = input.anki_base_url.filter(|value| !value.trim().is_empty());
+    source.grouping_tag_prefix = Some(input.grouping_tag_prefix);
+    source.include_media = input.include_media;
+    source.enforce_own_styles = input.enforce_own_styles;
+    source.note_model_mappings = input.note_model_mappings;
     let entry = entry_from_source(source)?;
     write_manifest(&manifest)?;
     Ok(entry)
@@ -686,6 +820,48 @@ fn sync_local_source(source: &mut RegistrySource) -> Result<(), AppError> {
     Ok(())
 }
 
+async fn sync_anki_source(source: &mut RegistrySource) -> Result<(), AppError> {
+    let deck_name = source
+        .deck_name
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| AppError::Other("Anki source is missing deck_name".into()))?;
+    let grouping_tag_prefix = source
+        .grouping_tag_prefix
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "group:".into());
+    let anki_base_url = source
+        .anki_base_url
+        .clone()
+        .unwrap_or_else(|| "http://127.0.0.1:8765".into());
+    let pack_json = anki::generate_pack_json(&AnkiImportConfig {
+        source_id: source.id.clone(),
+        source_name: source.name.clone(),
+        deck_name,
+        anki_base_url,
+        grouping_tag_prefix,
+        include_media: source.include_media,
+        enforce_own_styles: source.enforce_own_styles,
+        note_model_mappings: source.note_model_mappings.clone().unwrap_or_default(),
+    })
+    .await?;
+
+    let local_dir = managed_dir_for(source)?;
+    fs::create_dir_all(&local_dir).map_err(|e| AppError::Other(e.to_string()))?;
+    let pack_path = local_dir.join("pack.json");
+    fs::write(&pack_path, pack_json).map_err(|e| AppError::Other(e.to_string()))?;
+    let info = world_registry::inspect_pack_file(&pack_path, "local");
+    if !info.valid {
+        return Err(AppError::Other(info.error.unwrap_or_else(|| "Generated Anki pack is invalid".into())));
+    }
+    let now = now_ts();
+    source.last_checked_at = Some(now.clone());
+    source.last_installed_at = Some(now);
+    source.last_error = None;
+    Ok(())
+}
+
 pub async fn install_pack_source(id: &str) -> Result<PackRegistryEntry, AppError> {
     let mut manifest = read_manifest()?;
     let source = manifest
@@ -702,6 +878,12 @@ pub async fn install_pack_source(id: &str) -> Result<PackRegistryEntry, AppError
             }
         },
         "local" => match sync_local_source(source) {
+            Ok(()) => {}
+            Err(err) => {
+                source.last_error = Some(err.to_string());
+            }
+        },
+        "anki-connect" => match sync_anki_source(source).await {
             Ok(()) => {}
             Err(err) => {
                 source.last_error = Some(err.to_string());
@@ -747,6 +929,10 @@ pub async fn check_pack_source_updates(id: &str) -> Result<PackRegistryEntry, Ap
             } else {
                 Some(format!("Local pack not found: {}", source_pack_path.to_string_lossy()))
             };
+        }
+        "anki-connect" => {
+            source.last_checked_at = Some(now_ts());
+            source.last_error = None;
         }
         other => {
             source.last_error = Some(format!("Unsupported provider '{other}'"));

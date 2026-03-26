@@ -1,7 +1,14 @@
 import { defineStore } from 'pinia'
 import { useTauRPC } from '@/composables/useTauRPC'
 import { useSettings } from '@/composables/useSettings'
-import type { GitHubPackSourceInput, LocalPackSourceInput } from '@/bindings'
+import type {
+  AnkiConnectPackSourceInput,
+  AnkiDeckInspectInput,
+  CreateLocalWorldInput,
+  CreateNodeInput,
+  GitHubPackSourceInput,
+  LocalPackSourceInput,
+} from '@/bindings'
 import {
   createGraphDerivedState,
   createGraphResourceState,
@@ -76,6 +83,41 @@ export const useGraphStore = defineStore('graph', () => {
     await resourceActions.loadWorldPacks()
   }
 
+  async function createLocalWorld(input: CreateLocalWorldInput) {
+    const info = await useTauRPC().create_local_world(input)
+    await refreshPackRegistry()
+    if (info.world_id) {
+      await selectWorld(info.world_id)
+    }
+    return info
+  }
+
+  async function createNode(input: CreateNodeInput) {
+    return resourceActions.createNode(input)
+  }
+
+  async function createEdge(
+    sourceId: string,
+    targetId: string,
+    edgeType = 'Semantic',
+    connectionLayerId: string | null = null,
+  ) {
+    return resourceActions.createEdge(sourceId, targetId, edgeType, connectionLayerId)
+  }
+
+  async function createLayer(name: string, displayOrder: number) {
+    return resourceActions.createLayer(name, displayOrder)
+  }
+
+  async function createConnectionLayer(
+    id: string | null,
+    name: string,
+    displayOrder: number,
+    metadata: string | null = null,
+  ) {
+    return resourceActions.createConnectionLayer(id, name, displayOrder, metadata)
+  }
+
   async function addGitHubPackSource(input: GitHubPackSourceInput) {
     const entry = await useTauRPC().add_github_pack_source(input)
     await refreshPackRegistry()
@@ -94,12 +136,32 @@ export const useGraphStore = defineStore('graph', () => {
     return entry
   }
 
+  async function listAnkiDecks(baseUrl?: string | null) {
+    return useTauRPC().list_anki_decks(baseUrl?.trim() ? baseUrl.trim() : null)
+  }
+
+  async function inspectAnkiDeck(input: AnkiDeckInspectInput) {
+    return useTauRPC().inspect_anki_deck(input)
+  }
+
+  async function addAnkiPackSource(input: AnkiConnectPackSourceInput) {
+    const entry = await useTauRPC().add_anki_pack_source(input)
+    await refreshPackRegistry()
+    return entry
+  }
+
   async function inspectLocalPackPath(path: string) {
     return useTauRPC().inspect_local_pack_path(path)
   }
 
   async function updateLocalPackSource(id: string, input: LocalPackSourceInput) {
     const entry = await useTauRPC().update_local_pack_source(id, input)
+    await refreshPackRegistry()
+    return entry
+  }
+
+  async function updateAnkiPackSource(id: string, input: AnkiConnectPackSourceInput) {
+    const entry = await useTauRPC().update_anki_pack_source(id, input)
     await refreshPackRegistry()
     return entry
   }
@@ -180,6 +242,10 @@ export const useGraphStore = defineStore('graph', () => {
     loadNodes: resourceActions.loadNodes,
     markLearned: resourceActions.markLearned,
     updateNodePosition: resourceActions.updateNodePosition,
+    createNode,
+    createEdge,
+    createLayer,
+    createConnectionLayer,
     setNodeNoteType: resourceActions.setNodeNoteType,
     createNoteType: resourceActions.createNoteType,
     updateNoteType: resourceActions.updateNoteType,
@@ -221,13 +287,18 @@ export const useGraphStore = defineStore('graph', () => {
     requestFocus: sessionActions.requestFocus,
     initialize: worldActions.initialize,
     resetGraphData,
+    createLocalWorld,
     selectWorld,
     reloadActiveWorld,
     addGitHubPackSource,
     addLocalPackSource,
+    listAnkiDecks,
+    inspectAnkiDeck,
+    addAnkiPackSource,
     inspectLocalPackPath,
     updatePackSource,
     updateLocalPackSource,
+    updateAnkiPackSource,
     removePackSource,
     deleteLocalWorld,
     installPackSource,

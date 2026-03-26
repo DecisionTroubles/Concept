@@ -5,6 +5,7 @@ import NodeBlockRenderer from '@/components/node/NodeBlockRenderer.vue'
 import {
   blocksFromLegacyPage,
   inferSummaryBlocks,
+  parseJson,
   parseLayout,
   parseSchemaFields,
   type LayoutBlock,
@@ -21,7 +22,46 @@ const fieldByKey = computed(() => {
   return map
 })
 
+const noteTypeMetadata = computed(() =>
+  parseJson<Record<string, unknown>>(props.noteType?.metadata, {})
+)
+
+function hasFieldValue(key: string): boolean {
+  return Boolean(props.node.note_fields[key]?.trim())
+}
+
+function semanticSummaryBlocks(): LayoutBlock[] {
+  const blocks: LayoutBlock[] = []
+
+  const primaryFields = ['Expression', 'Reading'].filter(hasFieldValue)
+  if (primaryFields.length > 0) {
+    blocks.push({
+      type: 'field_group',
+      label: 'Card',
+      fields: primaryFields,
+      compact: true,
+    })
+  }
+
+  const detailField = ['Definition', 'Sentence', 'Context'].find(hasFieldValue)
+  if (detailField) {
+    blocks.push({
+      type: 'markdown',
+      label: detailField,
+      field: detailField,
+      compact: true,
+    })
+  }
+
+  if (blocks.length > 0) return blocks
+  return inferSummaryBlocks(props.node, fieldByKey.value)
+}
+
 const summaryBlocks = computed<LayoutBlock[]>(() => {
+  if (noteTypeMetadata.value.source === 'anki-connect') {
+    return semanticSummaryBlocks()
+  }
+
   const layout = parseLayout(props.noteType)
   const explicit = layout.summary?.blocks
   if (Array.isArray(explicit) && explicit.length > 0) return explicit.map(block => ({ ...block, compact: true }))

@@ -1,4 +1,4 @@
-import type { NoteTypeInput } from '@/bindings'
+import type { CreateNodeInput, NoteTypeInput } from '@/bindings'
 import type { GraphResourceState, GraphSessionState, GraphStatusState } from '@/stores/graph/shared'
 import { useTauRPC } from '@/composables/useTauRPC'
 import type { ReturnTypeUseSettings } from '@/stores/graph/types'
@@ -174,6 +174,61 @@ export function createGraphResourceActions(options: GraphResourceActionsOptions)
     }
   }
 
+  async function createNode(input: CreateNodeInput) {
+    try {
+      const created = await useTauRPC().create_node(input)
+      if (state.activeLayerId.value === created.layer_id) {
+        state.nodes.value = [...state.nodes.value, created]
+      }
+      return created
+    } catch (e) {
+      status.error.value = String(e)
+      throw e
+    }
+  }
+
+  async function createLayer(name: string, displayOrder: number) {
+    try {
+      const created = await useTauRPC().create_layer(name, displayOrder)
+      state.layers.value = [...state.layers.value, created].sort((a, b) => a.display_order - b.display_order)
+      return created
+    } catch (e) {
+      status.error.value = String(e)
+      throw e
+    }
+  }
+
+  async function createConnectionLayer(
+    id: string | null,
+    name: string,
+    displayOrder: number,
+    metadata: string | null = null,
+  ) {
+    try {
+      const created = await useTauRPC().create_connection_layer(id, name, displayOrder, metadata)
+      state.connectionLayers.value = [...state.connectionLayers.value, created].sort(
+        (a, b) => a.display_order - b.display_order || a.name.localeCompare(b.name)
+      )
+      return created
+    } catch (e) {
+      status.error.value = String(e)
+      throw e
+    }
+  }
+
+  async function createEdge(sourceId: string, targetId: string, edgeType: string, connectionLayerId: string | null = null) {
+    try {
+      const created = await useTauRPC().create_edge(sourceId, targetId, edgeType, connectionLayerId)
+      if (state.activeLayerId.value) {
+        state.nodes.value = await useTauRPC().get_nodes(state.activeLayerId.value)
+      }
+      return created
+    } catch (e) {
+      status.error.value = String(e)
+      throw e
+    }
+  }
+
   async function setNodeNoteType(nodeId: string, noteTypeId: string | null) {
     try {
       const updated = await useTauRPC().set_node_note_type(nodeId, noteTypeId)
@@ -302,6 +357,10 @@ export function createGraphResourceActions(options: GraphResourceActionsOptions)
     loadNodes,
     markLearned,
     updateNodePosition,
+    createNode,
+    createLayer,
+    createConnectionLayer,
+    createEdge,
     setNodeNoteType,
     createNoteType,
     updateNoteType,

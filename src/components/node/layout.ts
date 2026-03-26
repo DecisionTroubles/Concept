@@ -32,10 +32,12 @@ export type LayoutBlock = {
 export type LayoutPage = {
   id: string
   label?: string
-  kind?: 'content' | 'built_in' | 'extension'
+  kind?: 'content' | 'built_in' | 'extension' | 'card'
   source?: string
   slot?: string
   extension_id?: string
+  card_slot?: 'front' | 'back' | 'split'
+  compact_header?: boolean
   sections?: LayoutSection[]
   blocks?: LayoutBlock[]
 }

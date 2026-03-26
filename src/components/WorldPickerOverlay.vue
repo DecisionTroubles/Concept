@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import OverlayShell from '@/components/ui/OverlayShell.vue'
 
 const graphStore = useGraphStore()
 const settings = useSettings()
+const editorMode = useEditorMode()
+
+const createWorldOpen = ref(false)
+const worldName = ref('')
+const worldId = ref('')
+const worldDescription = ref('')
+const worldTemplate = ref<'blank' | 'starter'>('blank')
+const worldIdTouched = ref(false)
+const createWorldError = ref('')
 
 const validWorlds = computed(() => graphStore.worldPacks.filter(world => world.valid))
 const registryByWorldId = computed(() => {
@@ -27,6 +36,56 @@ function closePicker() {
 function openPackLibrary() {
   graphStore.closeWorldPicker()
   graphStore.openPackLibrary()
+}
+
+function enterAuthorMode() {
+  editorMode.enterAuthor()
+  closePicker()
+}
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+watch(worldName, value => {
+  if (worldIdTouched.value) return
+  worldId.value = slugify(value)
+})
+
+function openCreateWorldDialog() {
+  createWorldOpen.value = true
+  if (!worldName.value) {
+    worldName.value = 'New world'
+    worldId.value = slugify(worldName.value)
+  }
+  createWorldError.value = ''
+}
+
+function closeCreateWorldDialog() {
+  createWorldOpen.value = false
+  createWorldError.value = ''
+}
+
+async function createWorld() {
+  createWorldError.value = ''
+  try {
+    const info = await graphStore.createLocalWorld({
+      id: worldId.value.trim() || null,
+      name: worldName.value.trim(),
+      description: worldDescription.value.trim() || null,
+      template: worldTemplate.value,
+    })
+    if (info.world_id) {
+      editorMode.enterAuthor()
+    }
+    closeCreateWorldDialog()
+    closePicker()
+  } catch (error) {
+    createWorldError.value = String(error)
+  }
 }
 
 async function openWorld(worldId: string) {
@@ -101,9 +160,53 @@ useEventListener(
         </div>
 
         <div class="summary-actions">
+          <button class="summary-btn primary" @click="openCreateWorldDialog">New world</button>
+          <button
+            class="summary-btn"
+            :disabled="graphStore.worldPacks.find(world => world.world_id === graphStore.worldConfig?.id)?.source_kind !== 'local'"
+            @click="enterAuthorMode"
+          >
+            Author world
+          </button>
           <button class="summary-btn" @click="reloadCurrentWorld">Reload active project</button>
           <button class="summary-btn subtle" @click="openPackLibrary">Open pack library</button>
           <button class="summary-btn subtle" @click="closePicker">Close</button>
+        </div>
+
+        <div v-if="createWorldOpen" class="create-world-card">
+          <div class="summary-label">Create local world</div>
+          <label class="create-world-field">
+            <span>World name</span>
+            <input v-model="worldName" type="text" placeholder="Japanese notes" />
+          </label>
+          <label class="create-world-field">
+            <span>World id</span>
+            <input
+              :value="worldId"
+              type="text"
+              placeholder="japanese-notes"
+              @input="
+                worldIdTouched = true;
+                worldId = (($event.target as HTMLInputElement).value)
+              "
+            />
+          </label>
+          <label class="create-world-field">
+            <span>Description</span>
+            <textarea v-model="worldDescription" rows="3" placeholder="Optional local world description" />
+          </label>
+          <label class="create-world-field">
+            <span>Template</span>
+            <select v-model="worldTemplate">
+              <option value="blank">Blank world</option>
+              <option value="starter">Starter world</option>
+            </select>
+          </label>
+          <div v-if="createWorldError" class="world-card-error">{{ createWorldError }}</div>
+          <div class="summary-actions">
+            <button class="summary-btn subtle" @click="closeCreateWorldDialog">Cancel</button>
+            <button class="summary-btn primary" @click="createWorld">Create and open</button>
+          </div>
         </div>
       </section>
 
@@ -262,6 +365,12 @@ useEventListener(
     opacity 0.12s;
 }
 
+.summary-btn.primary {
+  color: #f2f8ff;
+  background: color-mix(in srgb, var(--app-accent) 24%, transparent);
+  border-color: color-mix(in srgb, var(--app-accent) 55%, transparent);
+}
+
 .summary-btn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--app-accent) 20%, transparent);
   border-color: color-mix(in srgb, var(--app-accent) 45%, transparent);
@@ -282,6 +391,27 @@ useEventListener(
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.create-world-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--app-accent) 7%, transparent);
+}
+
+.create-world-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.create-world-field span {
+  font-size: 12px;
+  color: var(--app-text-secondary);
 }
 
 .world-card {

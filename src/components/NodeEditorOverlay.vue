@@ -6,6 +6,7 @@ import NoteTypePageRenderer from '@/components/node/NoteTypePageRenderer.vue'
 
 const graphStore = useGraphStore()
 const settings = useSettings()
+const editorMode = useEditorMode()
 
 type EditableFieldDef = { key?: string; label?: string; widget?: string }
 
@@ -15,8 +16,10 @@ const nodeTags = ref('')
 const nodeContent = ref('')
 const nodeFields = ref<Record<string, string>>({})
 const saveStatus = ref('')
+const newConnectionLayerName = ref('')
 
 const node = computed(() => graphStore.selectedNode)
+const authoringMode = computed(() => editorMode.mode.value === 'author')
 const noteType = computed(() =>
   node.value?.note_type_id ? graphStore.noteTypes.find(note => note.id === node.value?.note_type_id) ?? null : null
 )
@@ -68,6 +71,66 @@ async function updateNodeNoteType(event: Event) {
   if (!node.value) return
   const next = (event.target as HTMLSelectElement).value || null
   await graphStore.setNodeNoteType(node.value.id, next)
+}
+
+function patchNodePosition(dx: number, dy: number, dz: number) {
+  if (!node.value) return
+  const x = (node.value.pos_x ?? 0) + dx
+  const y = (node.value.pos_y ?? 0) + dy
+  const z = (node.value.pos_z ?? 0) + dz
+  node.value.pos_x = x
+  node.value.pos_y = y
+  node.value.pos_z = z
+  graphStore.updateNodePosition(node.value.id, x, y, z)
+}
+
+function spreadNearby() {
+  if (!node.value) return
+  const sx = node.value.pos_x ?? 0
+  const sy = node.value.pos_y ?? 0
+  const sz = node.value.pos_z ?? 0
+  for (const item of graphStore.nodes) {
+    if (item.id === node.value.id) continue
+    const dx = (item.pos_x ?? 0) - sx
+    const dy = (item.pos_y ?? 0) - sy
+    const dz = (item.pos_z ?? 0) - sz
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    if (distance < 0.001 || distance > 10) continue
+    const push = 2.5 * (1 - distance / 10)
+    item.pos_x = (item.pos_x ?? 0) + (dx / distance) * push
+    item.pos_y = (item.pos_y ?? 0) + (dy / distance) * push
+    item.pos_z = (item.pos_z ?? 0) + (dz / distance) * push
+    graphStore.updateNodePosition(item.id, item.pos_x, item.pos_y, item.pos_z)
+  }
+}
+
+function expandNeighbors() {
+  if (!node.value) return
+  const neighborIds = new Set(node.value.connections.map(edge => edge.target_id))
+  for (const item of graphStore.nodes.filter(entry => neighborIds.has(entry.id))) {
+    const dx = (item.pos_x ?? 0) - (node.value.pos_x ?? 0)
+    const dy = (item.pos_y ?? 0) - (node.value.pos_y ?? 0)
+    const dz = (item.pos_z ?? 0) - (node.value.pos_z ?? 0)
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    if (distance < 0.001) continue
+    item.pos_x = (item.pos_x ?? 0) + (dx / distance) * 2
+    item.pos_y = (item.pos_y ?? 0) + (dy / distance) * 2
+    item.pos_z = (item.pos_z ?? 0) + (dz / distance) * 2
+    graphStore.updateNodePosition(item.id, item.pos_x, item.pos_y, item.pos_z)
+  }
+}
+
+async function createConnectionLayer() {
+  const name = newConnectionLayerName.value.trim()
+  if (!name) return
+  const created = await graphStore.createConnectionLayer(
+    null,
+    name,
+    graphStore.connectionLayers.length,
+    JSON.stringify({ color: '#7dd3fc', width: 2.2, line_style: 'solid' })
+  )
+  graphStore.setConnectionLayerSelection([created.id])
+  newConnectionLayerName.value = ''
 }
 
 useEventListener(
@@ -155,6 +218,38 @@ useEventListener(
             <input v-else v-model="nodeFields[field.key || '']" type="text" />
           </label>
         </section>
+
+        <section v-if="authoringMode" class="node-editor-card">
+          <div class="node-editor-section-title">Authoring</div>
+          <div class="node-editor-mini-grid">
+            <button class="node-editor-btn subtle" @click="patchNodePosition(-1, 0, 0)">Left</button>
+            <button class="node-editor-btn subtle" @click="patchNodePosition(1, 0, 0)">Right</button>
+            <button class="node-editor-btn subtle" @click="patchNodePosition(0, 0, -1)">Forward</button>
+            <button class="node-editor-btn subtle" @click="patchNodePosition(0, 0, 1)">Back</button>
+            <button class="node-editor-btn subtle" @click="patchNodePosition(0, 1, 0)">Raise</button>
+            <button class="node-editor-btn subtle" @click="patchNodePosition(0, -1, 0)">Lower</button>
+            <button class="node-editor-btn subtle" @click="spreadNearby">Spread nearby</button>
+            <button class="node-editor-btn subtle" @click="expandNeighbors">Expand neighbors</button>
+          </div>
+          <label class="node-editor-field">
+            <span>Active connection layer</span>
+            <select
+              :value="graphStore.activeConnectionLayerIds[0] ?? ''"
+              @change="graphStore.setConnectionLayerSelection([($event.target as HTMLSelectElement).value])"
+            >
+              <option v-for="layer in graphStore.connectionLayers" :key="layer.id" :value="layer.id">
+                {{ layer.name }}
+              </option>
+            </select>
+          </label>
+          <label class="node-editor-field">
+            <span>Add connection layer</span>
+            <div class="node-editor-inline">
+              <input v-model="newConnectionLayerName" type="text" placeholder="Memory links" />
+              <button class="node-editor-btn" @click="createConnectionLayer">Add</button>
+            </div>
+          </label>
+        </section>
       </div>
 
       <div v-else class="node-editor-preview">
@@ -219,6 +314,12 @@ useEventListener(
   gap: 14px;
 }
 
+.node-editor-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .node-editor-card {
   display: flex;
   flex-direction: column;
@@ -240,6 +341,11 @@ useEventListener(
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.node-editor-inline {
+  display: flex;
+  gap: 8px;
 }
 
 .node-editor-field span,

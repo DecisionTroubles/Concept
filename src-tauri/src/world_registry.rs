@@ -9,6 +9,14 @@ use crate::domain;
 use crate::error::AppError;
 use crate::graph;
 
+#[taurpc::ipc_type]
+pub struct CreateLocalWorldInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub description: Option<String>,
+    pub template: String,
+}
+
 #[derive(Clone)]
 pub struct ScanRoot {
     pub kind: String,
@@ -27,6 +35,211 @@ pub struct WorldPackInfo {
     pub is_active: bool,
     pub is_loaded: bool,
     pub error: Option<String>,
+}
+
+fn slugify(input: &str) -> String {
+    let mut slug = String::new();
+    let mut last_was_dash = false;
+    for ch in input.chars() {
+        let lowered = ch.to_ascii_lowercase();
+        if lowered.is_ascii_alphanumeric() {
+            slug.push(lowered);
+            last_was_dash = false;
+        } else if !last_was_dash {
+            slug.push('-');
+            last_was_dash = true;
+        }
+    }
+    slug.trim_matches('-').to_string()
+}
+
+fn local_root() -> Result<PathBuf, AppError> {
+    scan_roots()
+        .iter()
+        .find(|root| root.kind == "local")
+        .map(|root| root.path.clone())
+        .ok_or_else(|| AppError::Other("Local world root is not configured".into()))
+}
+
+fn blank_world_pack_json(world_id: &str, world_name: &str, description: Option<&str>) -> Result<String, AppError> {
+    let description = description.unwrap_or("Fresh blank world for direct graph authoring.");
+    let pack = serde_json::json!({
+        "version": "2",
+        "world": {
+            "id": world_id,
+            "name": world_name,
+            "layout": {},
+            "metadata": {
+                "description": description,
+                "authoring": {
+                    "mode": "blank-world",
+                    "default_layer_id": "main",
+                    "default_connection_layer_id": "all-links"
+                },
+                "focus_view": {
+                    "rings": 1,
+                    "ring_radius": 10.0,
+                    "max_neighbors": 18
+                }
+            }
+        },
+        "note_types": [
+            {
+                "id": "concept-basic",
+                "name": "Concept Basic",
+                "fields": ["Summary", "Details", "Example"],
+                "schema_json": {
+                    "fields": [
+                        { "key": "Summary", "label": "Summary", "widget": "text" },
+                        { "key": "Details", "label": "Details", "widget": "markdown" },
+                        { "key": "Example", "label": "Example", "widget": "long_text" }
+                    ]
+                },
+                "layout_json": {
+                    "pages": [
+                        {
+                            "id": "overview",
+                            "label": "Overview",
+                            "kind": "content",
+                            "sections": [
+                                { "title": "Summary", "fields": ["Summary", "Details"] }
+                            ]
+                        },
+                        {
+                            "id": "example",
+                            "label": "Example",
+                            "kind": "content",
+                            "sections": [
+                                { "title": "Example", "fields": ["Example"] }
+                            ]
+                        }
+                    ]
+                },
+                "metadata": {
+                    "authoring": true
+                },
+                "is_default": true
+            }
+        ],
+        "relation_kinds": [
+            { "id": "rel-link", "label": "Link", "directed": true, "default_weight": 1.0, "metadata": {} }
+        ],
+        "layers": [
+            { "id": "main", "name": "Main", "display_order": 0, "node_filter": {}, "edge_filter": {}, "metadata": {} }
+        ],
+        "connection_layers": [
+            {
+                "id": "all-links",
+                "name": "All links",
+                "display_order": 0,
+                "metadata": {
+                    "color": "#5dd6ff",
+                    "width": 2.4,
+                    "line_style": "solid"
+                }
+            }
+        ],
+        "nodes": [],
+        "edges": []
+    });
+    serde_json::to_string_pretty(&pack).map_err(|err| AppError::Other(err.to_string()))
+}
+
+fn starter_world_pack_json(world_id: &str, world_name: &str, description: Option<&str>) -> Result<String, AppError> {
+    let description = description.unwrap_or("Starter world scaffold for quick Concept authoring.");
+    let pack = serde_json::json!({
+        "version": "2",
+        "world": {
+            "id": world_id,
+            "name": world_name,
+            "layout": {},
+            "metadata": {
+                "description": description,
+                "authoring": {
+                    "mode": "starter-world",
+                    "default_layer_id": "main",
+                    "default_connection_layer_id": "all-links"
+                }
+            }
+        },
+        "note_types": [
+            {
+                "id": "concept-basic",
+                "name": "Concept Basic",
+                "fields": ["Summary", "Details", "Example"],
+                "schema_json": {
+                    "fields": [
+                        { "key": "Summary", "label": "Summary", "widget": "text" },
+                        { "key": "Details", "label": "Details", "widget": "markdown" },
+                        { "key": "Example", "label": "Example", "widget": "long_text" }
+                    ]
+                },
+                "layout_json": {
+                    "pages": [
+                        {
+                            "id": "overview",
+                            "label": "Overview",
+                            "kind": "content",
+                            "sections": [
+                                { "title": "Summary", "fields": ["Summary", "Details"] }
+                            ]
+                        },
+                        {
+                            "id": "example",
+                            "label": "Example",
+                            "kind": "content",
+                            "sections": [
+                                { "title": "Example", "fields": ["Example"] }
+                            ]
+                        }
+                    ]
+                },
+                "metadata": {
+                    "authoring": true
+                },
+                "is_default": true
+            }
+        ],
+        "relation_kinds": [
+            { "id": "rel-link", "label": "Link", "directed": true, "default_weight": 1.0, "metadata": {} }
+        ],
+        "layers": [
+            { "id": "main", "name": "Main", "display_order": 0, "node_filter": {}, "edge_filter": {}, "metadata": {} }
+        ],
+        "connection_layers": [
+            {
+                "id": "all-links",
+                "name": "All links",
+                "display_order": 0,
+                "metadata": {
+                    "color": "#5dd6ff",
+                    "width": 2.4,
+                    "line_style": "solid"
+                }
+            }
+        ],
+        "nodes": [
+            {
+                "id": "welcome",
+                "title": "Start here",
+                "node_type": "concept",
+                "note_type_id": "concept-basic",
+                "note_fields": {
+                    "Summary": "This starter world is ready for direct node authoring.",
+                    "Details": "Place a node in author mode, then shape links and content from there.",
+                    "Example": "Use the authoring panel to create your next node and connect it."
+                },
+                "content_data": "Starter node.",
+                "tags": ["starter"],
+                "weight": 1.0,
+                "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                "layer_membership": ["main"],
+                "metadata": {}
+            }
+        ],
+        "edges": []
+    });
+    serde_json::to_string_pretty(&pack).map_err(|err| AppError::Other(err.to_string()))
 }
 
 fn now_ts() -> String {
@@ -329,4 +542,48 @@ pub fn delete_local_world(conn: &Connection, pack_path: &str) -> Result<(), AppE
     }
 
     Ok(())
+}
+
+pub fn create_local_world(conn: &Connection, input: CreateLocalWorldInput) -> Result<WorldPackInfo, AppError> {
+    let world_name = input.name.trim();
+    if world_name.is_empty() {
+        return Err(AppError::Other("World name is required".into()));
+    }
+
+    let world_id = input
+        .id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(slugify)
+        .unwrap_or_else(|| slugify(world_name));
+    if world_id.is_empty() {
+        return Err(AppError::Other("World id could not be derived from the name".into()));
+    }
+
+    if list_world_packs(conn)?
+        .iter()
+        .any(|info| info.world_id.as_deref() == Some(world_id.as_str()))
+    {
+        return Err(AppError::Other(format!("World id '{world_id}' already exists")));
+    }
+
+    let local_root = local_root()?;
+    let world_dir = local_root.join(&world_id);
+    if world_dir.exists() {
+        return Err(AppError::Other(format!("Local world directory already exists for '{world_id}'")));
+    }
+
+    fs::create_dir_all(&world_dir).map_err(|e| AppError::Other(e.to_string()))?;
+    let pack_path = world_dir.join("pack.json");
+    let json = if input.template.eq_ignore_ascii_case("starter") {
+        starter_world_pack_json(&world_id, world_name, input.description.as_deref())?
+    } else {
+        blank_world_pack_json(&world_id, world_name, input.description.as_deref())?
+    };
+
+    fs::write(&pack_path, json).map_err(|e| AppError::Other(e.to_string()))?;
+    set_app_state(conn, "active_world_id", &world_id)?;
+
+    Ok(inspect_pack_file(&pack_path, "local"))
 }

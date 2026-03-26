@@ -1,6 +1,6 @@
 import { readonly, ref } from 'vue'
 
-export type EditorMode = 'normal' | 'fly' | 'graph'
+export type EditorMode = 'normal' | 'fly' | 'graph' | 'author'
 
 const mode = ref<EditorMode>('normal')
 
@@ -21,6 +21,10 @@ export function useEditorMode() {
     if (graphStore.selectedNodeId) mode.value = 'graph'
   }
 
+  function enterAuthor() {
+    mode.value = 'author'
+  }
+
   function escapeFromCurrentMode() {
     if (mode.value === 'fly') {
       mode.value = 'normal'
@@ -30,6 +34,10 @@ export function useEditorMode() {
       const graphStore = useGraphStore()
       graphStore.clearSelection()
       mode.value = 'normal'
+      return
+    }
+    if (mode.value === 'author') {
+      mode.value = 'graph'
     }
   }
 
@@ -40,7 +48,7 @@ export function useEditorMode() {
         if (jumpList.length > 20) jumpList.shift()
       }
       lastNodeId = id
-      mode.value = 'graph'
+      if (mode.value !== 'author') mode.value = 'graph'
       return
     }
     lastNodeId = null
@@ -56,6 +64,7 @@ export function useEditorMode() {
     enterFly,
     enterNormal,
     enterGraph,
+    enterAuthor,
     escapeFromCurrentMode,
     onNodeSelected,
     jumpBack,

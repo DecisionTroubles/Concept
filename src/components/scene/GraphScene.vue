@@ -146,7 +146,7 @@ watch(
 watch(
   () => editorMode.mode.value,
   mode => {
-    if (mode !== 'graph') hudState.clearHud()
+    if (mode !== 'graph' && mode !== 'author') hudState.clearHud()
   },
   { flush: 'post' }
 )
@@ -160,6 +160,14 @@ function handleNodeHovered(nodeId: string | null) {
   sceneController.hoverNode(nodeId)
 }
 
+function handleBackgroundHovered(position: { x: number; y: number; z: number } | null) {
+  sceneController.setPlacementPreview(position)
+}
+
+function handleBackgroundClicked(position: { x: number; y: number; z: number }) {
+  void sceneController.clickBackground(position)
+}
+
 </script>
 
 <template>
@@ -167,7 +175,11 @@ function handleNodeHovered(nodeId: string | null) {
     :snapshot="snapshot"
     :camera-controller="cameraController"
     :active-keys="inputRouter.activeKeys"
+    :author-mode="sceneController.authorActive.value"
+    :placement-preview="sceneController.placementPreview.value"
     @node-clicked="handleNodeClicked"
     @node-hovered="handleNodeHovered"
+    @background-hovered="handleBackgroundHovered"
+    @background-clicked="handleBackgroundClicked"
   />
 </template>

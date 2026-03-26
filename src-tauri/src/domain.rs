@@ -240,8 +240,8 @@ fn ensure_relation_kind(
 }
 
 fn seed_v2(conn: &Connection, pack: DomainPackV2) -> Result<(), AppError> {
-    if pack.layers.is_empty() || pack.nodes.is_empty() {
-        return Err(AppError::Other("Domain pack has no layers or nodes".into()));
+    if pack.layers.is_empty() {
+        return Err(AppError::Other("Domain pack has no layers".into()));
     }
     if pack.connection_layers.is_empty() {
         return Err(AppError::Other(
@@ -459,6 +459,7 @@ fn seed_v2(conn: &Connection, pack: DomainPackV2) -> Result<(), AppError> {
             target_id,
             &edge_type,
             Some(&edge.relation_id),
+            None,
         )?;
 
         let final_weight = edge
