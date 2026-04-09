@@ -6,6 +6,7 @@ mod extensions;
 mod graph;
 mod pack_registry;
 mod scheduler;
+mod source_pack;
 mod world_registry;
 
 use std::fs;
@@ -24,6 +25,7 @@ use scheduler::{ReviewEvent, SchedulerDescriptor};
 use world_registry::{CreateLocalWorldInput, ScanRoot, WorldPackInfo};
 use anki::{AnkiConnectPackSourceInput, AnkiDeckInspectInput, AnkiDeckProbe};
 use pack_registry::{GitHubPackSourceInput, LocalPackPathProbe, LocalPackSourceInput, PackRegistryEntry};
+use source_pack::{SourcePackCompileResult, SourcePackDiagnostics, SourcePackProbeResult};
 
 // ---------------------------------------------------------------------------
 // DB state — initialized once in setup, shared across all resolver calls.
@@ -41,132 +43,247 @@ fn db() -> &'static DbState {
 
 fn ensure_starter_pack(local_worlds_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let starter_dir = local_worlds_dir.join("starter-example");
+    let starter_source = starter_dir.join("pack.toml");
     let starter_pack = starter_dir.join("pack.json");
-    if starter_pack.exists() {
+    if starter_source.exists() && starter_pack.exists() {
         return Ok(());
     }
 
     fs::create_dir_all(&starter_dir)?;
+    fs::create_dir_all(starter_dir.join("note-types"))?;
+    fs::create_dir_all(starter_dir.join("relation-kinds"))?;
+    fs::create_dir_all(starter_dir.join("layers"))?;
+    fs::create_dir_all(starter_dir.join("connection-layers"))?;
+    fs::create_dir_all(starter_dir.join("groups"))?;
+    fs::create_dir_all(starter_dir.join("nodes"))?;
     fs::write(
-        &starter_pack,
-        r#"{
-  "version": "2",
-  "world": {
-    "id": "starter-example",
-    "name": "Starter Example",
-    "layout": {},
-    "metadata": {
-      "description": "A tiny example world shipped into app data as a local starter pack."
-    }
-  },
-  "note_types": [
-    {
-      "id": "starter-concept",
-      "name": "Starter Concept",
-      "fields": ["Summary", "Why", "Example", "Pitfall"],
-      "schema_json": {
-        "fields": [
-          { "key": "Summary", "label": "Summary", "widget": "text" },
-          { "key": "Why", "label": "Why", "widget": "textarea" },
-          { "key": "Example", "label": "Example", "widget": "code" },
-          { "key": "Pitfall", "label": "Pitfall", "widget": "textarea" }
-        ]
-      },
-      "layout_json": {},
-      "metadata": {},
-      "is_default": true
-    }
-  ],
-  "relation_kinds": [
-    { "id": "rel-explains", "label": "Explains", "directed": true, "default_weight": 1.0, "metadata": {} },
-    { "id": "rel-next", "label": "Next", "directed": true, "default_weight": 1.0, "metadata": {} }
-  ],
-  "layers": [
-    { "id": "main", "name": "Main", "display_order": 0, "node_filter": {}, "edge_filter": {}, "metadata": {} }
-  ],
-  "connection_layers": [
-    { "id": "all-links", "name": "All links", "display_order": 0, "metadata": {} }
-  ],
-  "nodes": [
-    {
-      "id": "welcome",
-      "title": "Welcome",
-      "node_type": "concept",
-      "note_type_id": "starter-concept",
-      "note_fields": {
-        "Summary": "This starter world shows the basic reading flow of Concept.",
-        "Why": "Use it as a small sanity-check world before installing larger packs from GitHub.",
-        "Example": "Open Welcome, move to Connections, then inspect Graph basics.",
-        "Pitfall": "Treating the starter pack as real content instead of a template will limit the map."
-      },
-      "content_data": "Welcome to Concept.",
-      "tags": ["starter"],
-      "weight": 1.0,
-      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
-      "layer_membership": ["main"],
-      "metadata": {}
-    },
-    {
-      "id": "graph-basics",
-      "title": "Graph basics",
-      "node_type": "concept",
-      "note_type_id": "starter-concept",
-      "note_fields": {
-        "Summary": "Nodes carry ideas, and links tell you how to move through them.",
-        "Why": "A small graph teaches the viewer and navigation model without content overload.",
-        "Example": "Welcome -> Graph basics -> Install packs",
-        "Pitfall": "Raw links without explanation make a map feel mechanical."
-      },
-      "content_data": "Graph basics.",
-      "tags": ["starter"],
-      "weight": 1.0,
-      "position": { "x": 4.0, "y": 0.0, "z": -1.5 },
-      "layer_membership": ["main"],
-      "metadata": {}
-    },
-    {
-      "id": "install-packs",
-      "title": "Install packs",
-      "node_type": "concept",
-      "note_type_id": "starter-concept",
-      "note_fields": {
-        "Summary": "Open the pack library, add GitHub sources there, then pull them into your local pack library.",
-        "Why": "Runtime packs now come from app data, not bundled domains in the repo.",
-        "Example": "Projects -> Pack library -> Add source -> Pull -> Open project",
-        "Pitfall": "Expecting repo domains to appear at runtime will not work anymore."
-      },
-      "content_data": "Install packs from GitHub.",
-      "tags": ["starter"],
-      "weight": 1.0,
-      "position": { "x": 8.0, "y": 0.0, "z": 1.5 },
-      "layer_membership": ["main"],
-      "metadata": {}
-    }
-  ],
-  "edges": [
-    {
-      "id": "edge-welcome-graph",
-      "source_id": "welcome",
-      "target_id": "graph-basics",
-      "relation_id": "rel-explains",
-      "edge_type": "Semantic",
-      "weight": 1.0,
-      "connection_layer_membership": ["all-links"],
-      "metadata": {}
-    },
-    {
-      "id": "edge-graph-install",
-      "source_id": "graph-basics",
-      "target_id": "install-packs",
-      "relation_id": "rel-next",
-      "edge_type": "Context",
-      "weight": 1.0,
-      "connection_layer_membership": ["all-links"],
-      "metadata": {}
-    }
-  ]
-}"#,
+        &starter_source,
+        r#"version = "source-v1"
+
+[world]
+id = "starter-example"
+name = "Starter Example"
+description = "A tiny example world shipped into app data as a local starter pack."
+root_node = "welcome"
+default_note_type = "starter-concept"
+
+[authoring]
+default_group = "core"
+default_layer = "main"
+
+[layout]
+mode = "force"
+node_spacing = 7.0
+group_spacing = 18.0
+focus_child_radius = 8.0
+allow_explicit_positions = true
+
+[build]
+emit_runtime_pack = true
+runtime_pack_version = "2"
+"#,
     )?;
+    fs::write(
+        starter_dir.join("theme.toml"),
+        r##"[node_types.concept]
+color = "#8fb3ff"
+emissive = "#314e93"
+radius = 1.0
+"##,
+    )?;
+    fs::write(
+        starter_dir.join("groups").join("core.toml"),
+        r##"id = "core"
+label = "Core"
+
+[style]
+color = "#38bdf8"
+emissive = "#155e75"
+"##,
+    )?;
+    fs::write(
+        starter_dir.join("layers").join("main.toml"),
+        r#"id = "main"
+label = "Main"
+"#,
+    )?;
+    fs::write(
+        starter_dir.join("connection-layers").join("all-links.toml"),
+        r##"id = "all-links"
+label = "All links"
+
+[style]
+color = "#5dd6ff"
+width = 2.4
+"##,
+    )?;
+    fs::write(
+        starter_dir.join("relation-kinds").join("rel-explains.toml"),
+        "id = \"rel-explains\"\nlabel = \"Explains\"\ndirected = true\ndefault_weight = 1.0\n",
+    )?;
+    fs::write(
+        starter_dir.join("relation-kinds").join("rel-next.toml"),
+        "id = \"rel-next\"\nlabel = \"Next\"\ndirected = true\ndefault_weight = 1.0\n",
+    )?;
+    fs::write(
+        starter_dir.join("note-types").join("starter-concept.toml"),
+        r#"id = "starter-concept"
+name = "Starter Concept"
+is_default = true
+
+[[fields]]
+key = "Summary"
+label = "Summary"
+type = "string"
+widget = "text"
+
+[[fields]]
+key = "Why"
+label = "Why"
+type = "string"
+widget = "markdown"
+
+[[fields]]
+key = "Example"
+label = "Example"
+type = "string"
+widget = "code"
+
+[[fields]]
+key = "Pitfall"
+label = "Pitfall"
+type = "string"
+widget = "markdown"
+
+[[pages]]
+id = "overview"
+label = "Overview"
+kind = "content"
+fields = ["Summary", "Why", "Pitfall"]
+
+[[pages]]
+id = "example"
+label = "Example"
+kind = "content"
+fields = ["Example"]
+
+[[pages]]
+id = "connections"
+label = "Connections"
+kind = "built_in"
+source = "connections"
+"#,
+    )?;
+    fs::write(
+        starter_dir.join("nodes").join("welcome.md"),
+        r#"+++
+id = "welcome"
+title = "Welcome"
+node_type = "concept"
+note_type = "starter-concept"
+group = "core"
+layer = "main"
+tags = ["starter"]
+
+[placement]
+x = 0.0
+y = 0.0
+z = 0.0
+locked = true
+
+[[links]]
+to = "graph-basics"
+relation = "rel-explains"
+layers = ["all-links"]
++++
+
+# Summary
+This starter world shows the basic reading flow of Concept.
+
+# Why
+Use it as a small sanity-check world before installing larger packs from GitHub.
+
+# Example
+Open Welcome, move to Connections, then inspect Graph basics.
+
+# Pitfall
+Treating the starter pack as real content instead of a template will limit the map.
+"#,
+    )?;
+    fs::write(
+        starter_dir.join("nodes").join("graph-basics.md"),
+        r#"+++
+id = "graph-basics"
+title = "Graph basics"
+node_type = "concept"
+note_type = "starter-concept"
+group = "core"
+layer = "main"
+tags = ["starter"]
+
+[placement]
+x = 4.0
+y = 0.0
+z = -1.5
+locked = true
+
+[[links]]
+to = "install-packs"
+relation = "rel-next"
+layers = ["all-links"]
++++
+
+# Summary
+Nodes carry ideas, and links tell you how to move through them.
+
+# Why
+A small graph teaches the viewer and navigation model without content overload.
+
+# Example
+Welcome -> Graph basics -> Install packs
+
+# Pitfall
+Raw links without explanation make a map feel mechanical.
+"#,
+    )?;
+    fs::write(
+        starter_dir.join("nodes").join("install-packs.md"),
+        r#"+++
+id = "install-packs"
+title = "Install packs"
+node_type = "concept"
+note_type = "starter-concept"
+group = "core"
+layer = "main"
+tags = ["starter"]
+
+[placement]
+x = 8.0
+y = 0.0
+z = 1.5
+locked = true
++++
+
+# Summary
+Open the pack library, add GitHub sources there, then pull them into your local pack library.
+
+# Why
+Runtime packs now come from app data, not bundled domains in the repo.
+
+# Example
+Projects -> Pack library -> Add source -> Pull -> Open project
+
+# Pitfall
+Expecting repo domains to appear at runtime will not work anymore.
+"#,
+    )?;
+
+    let compile_result = source_pack::compile_source_pack_json_from_path(&starter_dir)
+        .map_err(|err| format!("Failed to compile starter source pack: {err}"))?;
+    if compile_result.diagnostics.iter().any(|item| item.severity == "error") {
+        return Err(format!("Starter source pack has validation errors").into());
+    }
+    fs::write(&starter_pack, compile_result.pack_json)?;
 
     Ok(())
 }
@@ -257,6 +374,10 @@ trait GraphApi {
     async fn inspect_anki_deck(input: AnkiDeckInspectInput) -> Result<AnkiDeckProbe, String>;
     async fn add_anki_pack_source(input: AnkiConnectPackSourceInput) -> Result<PackRegistryEntry, String>;
     async fn inspect_local_pack_path(path: String) -> Result<LocalPackPathProbe, String>;
+    async fn probe_source_pack(path: String) -> Result<SourcePackProbeResult, String>;
+    async fn compile_source_pack(path: String) -> Result<SourcePackCompileResult, String>;
+    async fn validate_source_pack(path: String) -> Result<SourcePackDiagnostics, String>;
+    async fn export_runtime_pack_from_source(path: String, out_path: String) -> Result<(), String>;
     async fn update_pack_source(id: String, input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String>;
     async fn update_local_pack_source(id: String, input: LocalPackSourceInput) -> Result<PackRegistryEntry, String>;
     async fn update_anki_pack_source(id: String, input: AnkiConnectPackSourceInput) -> Result<PackRegistryEntry, String>;
@@ -512,6 +633,32 @@ impl GraphApi for ApiImpl {
 
     async fn inspect_local_pack_path(self, path: String) -> Result<LocalPackPathProbe, String> {
         pack_registry::inspect_local_pack_path(&path).map_err(|e| e.to_string())
+    }
+
+    async fn probe_source_pack(self, path: String) -> Result<SourcePackProbeResult, String> {
+        source_pack::probe_source_pack_path(std::path::Path::new(&path)).map_err(|e| e.to_string())
+    }
+
+    async fn compile_source_pack(self, path: String) -> Result<SourcePackCompileResult, String> {
+        let result = source_pack::compile_source_pack_json_from_path(std::path::Path::new(&path))
+            .map_err(|e| e.to_string())?;
+        if result.diagnostics.iter().any(|item| item.severity == "error") {
+            return Err("Source pack validation failed".into());
+        }
+        Ok(result)
+    }
+
+    async fn validate_source_pack(self, path: String) -> Result<SourcePackDiagnostics, String> {
+        source_pack::validate_source_pack_from_path(std::path::Path::new(&path)).map_err(|e| e.to_string())
+    }
+
+    async fn export_runtime_pack_from_source(self, path: String, out_path: String) -> Result<(), String> {
+        let result = source_pack::compile_source_pack_json_from_path(std::path::Path::new(&path))
+            .map_err(|e| e.to_string())?;
+        if result.diagnostics.iter().any(|item| item.severity == "error") {
+            return Err("Source pack validation failed".into());
+        }
+        std::fs::write(&out_path, result.pack_json).map_err(|e| e.to_string())
     }
 
     async fn update_pack_source(self, id: String, input: GitHubPackSourceInput) -> Result<PackRegistryEntry, String> {

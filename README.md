@@ -2,7 +2,7 @@
 
 Desktop app for learning through a navigable 3D graph of connected knowledge nodes.
 
-The system is domain-agnostic. A world is loaded from a domain pack and rendered as a 3D knowledge map with structured nodes, relation-driven edges, learning progress, and extension pages.
+The app loads a world from a pack, renders it as a 3D map, and lets you read, edit, and navigate structured nodes with note-type-driven detail pages.
 
 ## Stack
 
@@ -31,40 +31,49 @@ pnpm vite build
 
 - `src/` - Vue frontend
 - `src-tauri/` - Rust backend
-- `domains/` - bundled domain packs
 - `docs/` - design/spec docs
 - `docs/claude/` - findings, progress, and planning notes
 - `user-plugins/` - drop-in user plugins
 - `OVERRIDES.md` - customization/plugin/dataset guide
+- `WORLD_PACK.md` - source-pack authoring guide
 
-## Load Your Own 3D World
+## World Packs
 
-The app currently seeds from a domain pack JSON file.
+Runtime still loads canonical `pack.json` v2 packs, but you should author packs in the new source-pack format:
 
-Bundled example:
-- `domains/japanese/pack.json`
+- `pack.toml`
+- `theme.toml`
+- `note-types/*.toml`
+- `relation-kinds/*.toml`
+- `layers/*.toml`
+- `connection-layers/*.toml`
+- `groups/*.toml`
+- `nodes/*.md`
 
-To load your own world:
+That source pack is then compiled into runtime `pack.json`.
 
-1. create `domains/<your-world>/pack.json`
-2. follow `WORLD_PACK.md`
-3. define:
-   - `world`
-   - `note_types`
-   - `relation_kinds`
-   - `layers`
-   - `connection_layers`
-   - `nodes`
-   - `edges`
-4. restart the app
-5. open `Settings -> Worlds`
-6. choose your world and open it
+Use [WORLD_PACK.md](/C:/Projects/concept/WORLD_PACK.md) for the actual authoring workflow.
 
-Important:
-- pack files must be UTF-8 without BOM
-- nodes should use `note_type_id` + `note_fields`
-- page order in the centered node viewer comes from note type `layout_json`
-- bundled worlds are scanned from `domains/*/pack.json`
+## Current Pack Flow
+
+- app startup creates a starter source pack in app data if needed
+- the starter source pack is compiled to `pack.json`
+- pack library sources can be either:
+  - source packs
+  - runtime packs
+- source packs are compiled before install/sync
+- runtime packs still work for compatibility
+
+## Create A New World
+
+You can create a local world from the app.
+
+That now generates:
+
+- a source-pack folder on disk
+- a compiled runtime `pack.json`
+
+So a “blank” or “starter” world is no longer hand-authored as one giant JSON file.
 
 ## Update Nodes In-App
 
@@ -75,13 +84,17 @@ Current editing flow:
 3. or click the pencil button in the side panel / centered node viewer
 
 You can edit:
+
 - title
 - tags
 - note type
 - fallback content
 - structured note fields from the current note type schema
 
-`Settings -> Authoring` is now for global note type management, not focused node editing.
+Important:
+
+- these are runtime/editorial edits
+- they do not currently round-trip back into source-pack files
 
 ## Plugins and Overrides
 
@@ -100,11 +113,13 @@ export const plugins = [definePlugin({...})]
 ```
 
 Use plugins to:
+
 - override frontend module slots
 - add themes
 - add node extension pages
 
 See:
+
 - `OVERRIDES.md`
 - `user-plugins/example.plugin.ts`
 
@@ -112,3 +127,4 @@ See:
 
 - `src/bindings.ts` is generated and should be committed after IPC/type changes
 - stale dev processes can interfere with startup; fully restart when changing seed/data behavior
+- some older docs and notes may still mention `domains/*/pack.json`; current code should be treated as the source of truth

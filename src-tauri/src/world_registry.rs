@@ -8,6 +8,7 @@ use serde_json::Value;
 use crate::domain;
 use crate::error::AppError;
 use crate::graph;
+use crate::source_pack;
 
 #[taurpc::ipc_type]
 pub struct CreateLocalWorldInput {
@@ -61,185 +62,209 @@ fn local_root() -> Result<PathBuf, AppError> {
         .ok_or_else(|| AppError::Other("Local world root is not configured".into()))
 }
 
-fn blank_world_pack_json(world_id: &str, world_name: &str, description: Option<&str>) -> Result<String, AppError> {
-    let description = description.unwrap_or("Fresh blank world for direct graph authoring.");
-    let pack = serde_json::json!({
-        "version": "2",
-        "world": {
-            "id": world_id,
-            "name": world_name,
-            "layout": {},
-            "metadata": {
-                "description": description,
-                "authoring": {
-                    "mode": "blank-world",
-                    "default_layer_id": "main",
-                    "default_connection_layer_id": "all-links"
-                },
-                "focus_view": {
-                    "rings": 1,
-                    "ring_radius": 10.0,
-                    "max_neighbors": 18
-                }
-            }
-        },
-        "note_types": [
-            {
-                "id": "concept-basic",
-                "name": "Concept Basic",
-                "fields": ["Summary", "Details", "Example"],
-                "schema_json": {
-                    "fields": [
-                        { "key": "Summary", "label": "Summary", "widget": "text" },
-                        { "key": "Details", "label": "Details", "widget": "markdown" },
-                        { "key": "Example", "label": "Example", "widget": "long_text" }
-                    ]
-                },
-                "layout_json": {
-                    "pages": [
-                        {
-                            "id": "overview",
-                            "label": "Overview",
-                            "kind": "content",
-                            "sections": [
-                                { "title": "Summary", "fields": ["Summary", "Details"] }
-                            ]
-                        },
-                        {
-                            "id": "example",
-                            "label": "Example",
-                            "kind": "content",
-                            "sections": [
-                                { "title": "Example", "fields": ["Example"] }
-                            ]
-                        }
-                    ]
-                },
-                "metadata": {
-                    "authoring": true
-                },
-                "is_default": true
-            }
-        ],
-        "relation_kinds": [
-            { "id": "rel-link", "label": "Link", "directed": true, "default_weight": 1.0, "metadata": {} }
-        ],
-        "layers": [
-            { "id": "main", "name": "Main", "display_order": 0, "node_filter": {}, "edge_filter": {}, "metadata": {} }
-        ],
-        "connection_layers": [
-            {
-                "id": "all-links",
-                "name": "All links",
-                "display_order": 0,
-                "metadata": {
-                    "color": "#5dd6ff",
-                    "width": 2.4,
-                    "line_style": "solid"
-                }
-            }
-        ],
-        "nodes": [],
-        "edges": []
-    });
-    serde_json::to_string_pretty(&pack).map_err(|err| AppError::Other(err.to_string()))
+fn toml_basic_string(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\t', "\\t")
 }
 
-fn starter_world_pack_json(world_id: &str, world_name: &str, description: Option<&str>) -> Result<String, AppError> {
-    let description = description.unwrap_or("Starter world scaffold for quick Concept authoring.");
-    let pack = serde_json::json!({
-        "version": "2",
-        "world": {
-            "id": world_id,
-            "name": world_name,
-            "layout": {},
-            "metadata": {
-                "description": description,
-                "authoring": {
-                    "mode": "starter-world",
-                    "default_layer_id": "main",
-                    "default_connection_layer_id": "all-links"
-                }
-            }
-        },
-        "note_types": [
-            {
-                "id": "concept-basic",
-                "name": "Concept Basic",
-                "fields": ["Summary", "Details", "Example"],
-                "schema_json": {
-                    "fields": [
-                        { "key": "Summary", "label": "Summary", "widget": "text" },
-                        { "key": "Details", "label": "Details", "widget": "markdown" },
-                        { "key": "Example", "label": "Example", "widget": "long_text" }
-                    ]
-                },
-                "layout_json": {
-                    "pages": [
-                        {
-                            "id": "overview",
-                            "label": "Overview",
-                            "kind": "content",
-                            "sections": [
-                                { "title": "Summary", "fields": ["Summary", "Details"] }
-                            ]
-                        },
-                        {
-                            "id": "example",
-                            "label": "Example",
-                            "kind": "content",
-                            "sections": [
-                                { "title": "Example", "fields": ["Example"] }
-                            ]
-                        }
-                    ]
-                },
-                "metadata": {
-                    "authoring": true
-                },
-                "is_default": true
-            }
-        ],
-        "relation_kinds": [
-            { "id": "rel-link", "label": "Link", "directed": true, "default_weight": 1.0, "metadata": {} }
-        ],
-        "layers": [
-            { "id": "main", "name": "Main", "display_order": 0, "node_filter": {}, "edge_filter": {}, "metadata": {} }
-        ],
-        "connection_layers": [
-            {
-                "id": "all-links",
-                "name": "All links",
-                "display_order": 0,
-                "metadata": {
-                    "color": "#5dd6ff",
-                    "width": 2.4,
-                    "line_style": "solid"
-                }
-            }
-        ],
-        "nodes": [
-            {
-                "id": "welcome",
-                "title": "Start here",
-                "node_type": "concept",
-                "note_type_id": "concept-basic",
-                "note_fields": {
-                    "Summary": "This starter world is ready for direct node authoring.",
-                    "Details": "Place a node in author mode, then shape links and content from there.",
-                    "Example": "Use the authoring panel to create your next node and connect it."
-                },
-                "content_data": "Starter node.",
-                "tags": ["starter"],
-                "weight": 1.0,
-                "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
-                "layer_membership": ["main"],
-                "metadata": {}
-            }
-        ],
-        "edges": []
-    });
-    serde_json::to_string_pretty(&pack).map_err(|err| AppError::Other(err.to_string()))
+fn write_source_pack_file(path: &Path, content: &str) -> Result<(), AppError> {
+    fs::write(path, content).map_err(|e| AppError::Other(e.to_string()))
+}
+
+fn write_local_world_source_pack(
+    world_dir: &Path,
+    world_id: &str,
+    world_name: &str,
+    description: Option<&str>,
+    template: &str,
+) -> Result<(), AppError> {
+    let is_starter = template.eq_ignore_ascii_case("starter");
+    let description = if is_starter {
+        description.unwrap_or("Starter world scaffold for quick Concept authoring.")
+    } else {
+        description.unwrap_or("Fresh local world scaffold for source-pack authoring.")
+    };
+    let root_node_id = if is_starter { "welcome" } else { "start-here" };
+    let root_title = if is_starter { "Start here" } else { "New world" };
+    let root_summary = if is_starter {
+        "This starter world is ready for direct node authoring."
+    } else {
+        "This blank world gives you the smallest valid source-pack scaffold to build from."
+    };
+    let root_details = if is_starter {
+        "Place a node in author mode, then shape links and content from there."
+    } else {
+        "Rename this node, add nearby concepts, and grow the world from here. The pack files stay readable on disk."
+    };
+    let root_example = if is_starter {
+        "Use the authoring panel to create your next node and connect it."
+    } else {
+        "Create a second node, connect it with rel-link, then expand note fields when the structure feels right."
+    };
+    let world_id_toml = toml_basic_string(world_id);
+    let world_name_toml = toml_basic_string(world_name);
+    let description_toml = toml_basic_string(description);
+    let root_node_id_toml = toml_basic_string(root_node_id);
+
+    fs::create_dir_all(world_dir).map_err(|e| AppError::Other(e.to_string()))?;
+    fs::create_dir_all(world_dir.join("note-types")).map_err(|e| AppError::Other(e.to_string()))?;
+    fs::create_dir_all(world_dir.join("relation-kinds")).map_err(|e| AppError::Other(e.to_string()))?;
+    fs::create_dir_all(world_dir.join("layers")).map_err(|e| AppError::Other(e.to_string()))?;
+    fs::create_dir_all(world_dir.join("connection-layers")).map_err(|e| AppError::Other(e.to_string()))?;
+    fs::create_dir_all(world_dir.join("groups")).map_err(|e| AppError::Other(e.to_string()))?;
+    fs::create_dir_all(world_dir.join("nodes")).map_err(|e| AppError::Other(e.to_string()))?;
+
+    write_source_pack_file(
+        &world_dir.join("pack.toml"),
+        &format!(
+            r#"version = "source-v1"
+
+[world]
+id = "{world_id_toml}"
+name = "{world_name_toml}"
+description = "{description_toml}"
+root_node = "{root_node_id_toml}"
+default_note_type = "concept-basic"
+
+[authoring]
+default_group = "core"
+default_layer = "main"
+
+[layout]
+mode = "force"
+node_spacing = 7.0
+group_spacing = 18.0
+focus_child_radius = 8.0
+allow_explicit_positions = true
+
+[build]
+emit_runtime_pack = true
+runtime_pack_version = "2"
+"#
+        ),
+    )?;
+    write_source_pack_file(
+        &world_dir.join("theme.toml"),
+        r##"[node_types.concept]
+color = "#8fb3ff"
+emissive = "#314e93"
+radius = 1.0
+"##,
+    )?;
+    write_source_pack_file(
+        &world_dir.join("groups").join("core.toml"),
+        r##"id = "core"
+label = "Core"
+
+[style]
+color = "#38bdf8"
+emissive = "#155e75"
+"##,
+    )?;
+    write_source_pack_file(
+        &world_dir.join("layers").join("main.toml"),
+        r#"id = "main"
+label = "Main"
+"#,
+    )?;
+    write_source_pack_file(
+        &world_dir.join("connection-layers").join("all-links.toml"),
+        r##"id = "all-links"
+label = "All links"
+
+[style]
+color = "#5dd6ff"
+width = 2.4
+"##,
+    )?;
+    write_source_pack_file(
+        &world_dir.join("relation-kinds").join("rel-link.toml"),
+        "id = \"rel-link\"\nlabel = \"Link\"\ndirected = true\ndefault_weight = 1.0\n",
+    )?;
+    write_source_pack_file(
+        &world_dir.join("note-types").join("concept-basic.toml"),
+        r#"id = "concept-basic"
+name = "Concept Basic"
+is_default = true
+
+[[fields]]
+key = "Summary"
+label = "Summary"
+type = "string"
+widget = "text"
+
+[[fields]]
+key = "Details"
+label = "Details"
+type = "string"
+widget = "markdown"
+
+[[fields]]
+key = "Example"
+label = "Example"
+type = "string"
+widget = "long_text"
+
+[[pages]]
+id = "overview"
+label = "Overview"
+kind = "content"
+fields = ["Summary", "Details"]
+
+[[pages]]
+id = "example"
+label = "Example"
+kind = "content"
+fields = ["Example"]
+
+[[pages]]
+id = "connections"
+label = "Connections"
+kind = "built_in"
+source = "connections"
+"#,
+    )?;
+    write_source_pack_file(
+        &world_dir.join("nodes").join(format!("{root_node_id}.md")),
+        &format!(
+            r#"+++
+id = "{root_node_id}"
+title = "{root_title}"
+node_type = "concept"
+note_type = "concept-basic"
+group = "core"
+layer = "main"
+tags = ["starter"]
+
+[placement]
+x = 0.0
+y = 0.0
+z = 0.0
+locked = true
++++
+
+# Summary
+{root_summary}
+
+# Details
+{root_details}
+
+# Example
+{root_example}
+"#
+        ),
+    )?;
+
+    let compile_result = source_pack::compile_source_pack_json_from_path(world_dir)?;
+    if compile_result.diagnostics.iter().any(|item| item.severity == "error") {
+        return Err(AppError::Other("Generated source pack did not compile cleanly".into()));
+    }
+    write_source_pack_file(&world_dir.join("pack.json"), &compile_result.pack_json)?;
+    Ok(())
 }
 
 fn now_ts() -> String {
@@ -574,15 +599,18 @@ pub fn create_local_world(conn: &Connection, input: CreateLocalWorldInput) -> Re
         return Err(AppError::Other(format!("Local world directory already exists for '{world_id}'")));
     }
 
-    fs::create_dir_all(&world_dir).map_err(|e| AppError::Other(e.to_string()))?;
-    let pack_path = world_dir.join("pack.json");
-    let json = if input.template.eq_ignore_ascii_case("starter") {
-        starter_world_pack_json(&world_id, world_name, input.description.as_deref())?
-    } else {
-        blank_world_pack_json(&world_id, world_name, input.description.as_deref())?
-    };
+    write_local_world_source_pack(
+        &world_dir,
+        &world_id,
+        world_name,
+        input.description.as_deref(),
+        &input.template,
+    )
+    .inspect_err(|_| {
+        let _ = fs::remove_dir_all(&world_dir);
+    })?;
 
-    fs::write(&pack_path, json).map_err(|e| AppError::Other(e.to_string()))?;
+    let pack_path = world_dir.join("pack.json");
     set_app_state(conn, "active_world_id", &world_id)?;
 
     Ok(inspect_pack_file(&pack_path, "local"))

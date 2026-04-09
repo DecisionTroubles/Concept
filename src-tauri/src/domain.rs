@@ -3,7 +3,7 @@
 /// A domain pack is a JSON file that defines a domain-agnostic world with
 /// configurable layers, nodes, relations, and edges.
 use rusqlite::{params, Connection};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::error::AppError;
@@ -16,7 +16,7 @@ fn now_ts() -> String {
         .unwrap_or_else(|_| "0".to_string())
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct DomainPackV2 {
     pub version: String,
     pub world: PackWorldV2,
@@ -32,7 +32,7 @@ pub struct DomainPackV2 {
     pub edges: Vec<PackEdgeV2>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct PackNoteTypeV2 {
     pub id: String,
     pub name: String,
@@ -50,7 +50,7 @@ pub struct PackNoteTypeV2 {
     pub is_default: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct PackWorldV2 {
     pub id: String,
     pub name: String,
@@ -60,7 +60,7 @@ pub struct PackWorldV2 {
     pub metadata: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct PackRelationKindV2 {
     pub id: String,
     pub label: String,
@@ -72,7 +72,7 @@ pub struct PackRelationKindV2 {
     pub metadata: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct PackLayerV2 {
     pub id: String,
     pub name: String,
@@ -85,7 +85,7 @@ pub struct PackLayerV2 {
     pub metadata: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct PackConnectionLayerV2 {
     pub id: String,
     pub name: String,
@@ -94,7 +94,7 @@ pub struct PackConnectionLayerV2 {
     pub metadata: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct PackNodeV2 {
     pub id: String,
     pub title: String,
@@ -119,14 +119,14 @@ pub struct PackNodeV2 {
     pub metadata: Value,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct PackNodePositionV2 {
     pub x: f64,
     pub y: f64,
     pub z: f64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct PackEdgeV2 {
     pub id: String,
     pub source_id: String,

@@ -154,6 +154,18 @@ export const useGraphStore = defineStore('graph', () => {
     return useTauRPC().inspect_local_pack_path(path)
   }
 
+  async function probeSourcePack(path: string) {
+    return useTauRPC().probe_source_pack(path)
+  }
+
+  async function compileSourcePack(path: string) {
+    return useTauRPC().compile_source_pack(path)
+  }
+
+  async function validateSourcePack(path: string) {
+    return useTauRPC().validate_source_pack(path)
+  }
+
   async function updateLocalPackSource(id: string, input: LocalPackSourceInput) {
     const entry = await useTauRPC().update_local_pack_source(id, input)
     await refreshPackRegistry()
@@ -296,6 +308,9 @@ export const useGraphStore = defineStore('graph', () => {
     inspectAnkiDeck,
     addAnkiPackSource,
     inspectLocalPackPath,
+    probeSourcePack,
+    compileSourcePack,
+    validateSourcePack,
     updatePackSource,
     updateLocalPackSource,
     updateAnkiPackSource,

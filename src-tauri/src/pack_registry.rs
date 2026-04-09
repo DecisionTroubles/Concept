@@ -5,10 +5,9 @@ use std::sync::OnceLock;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, USER_AGENT};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use walkdir::WalkDir;
-
 use crate::anki::{self, AnkiConnectPackSourceInput, AnkiDeckInspectInput, AnkiDeckProbe, AnkiImportConfig, AnkiNoteModelMapping};
 use crate::error::AppError;
+use crate::source_pack::{self, SourcePackDiagnostic};
 use crate::world_registry::{self, WorldPackInfo};
 
 #[derive(Clone)]
@@ -46,6 +45,7 @@ pub struct PackRegistryEntry {
     pub source: PackSource,
     pub pack_info: Option<WorldPackInfo>,
     pub install_status: String,
+    pub resolved_kind: Option<String>,
     pub last_error: Option<String>,
 }
 
@@ -71,9 +71,14 @@ pub struct LocalPackSourceInput {
 #[taurpc::ipc_type]
 pub struct LocalPackPathProbe {
     pub input_path: String,
+    pub kind: String,
+    pub resolved_root_path: String,
     pub resolved_pack_path: String,
     pub world_id: Option<String>,
     pub world_name: Option<String>,
+    pub note_type_count: Option<u32>,
+    pub node_count: Option<u32>,
+    pub diagnostics: Vec<SourcePackDiagnostic>,
     pub suggested_id: String,
     pub suggested_name: String,
 }
@@ -233,10 +238,26 @@ fn inspect_pack_value(raw: &str) -> Result<(Option<String>, Option<String>), App
     Ok((world_id, world_name))
 }
 
-fn probe_pack_file(path: &PathBuf) -> Option<(PathBuf, Option<String>, Option<String>)> {
-    let raw = fs::read_to_string(path).ok()?;
-    let (world_id, world_name) = inspect_pack_value(&raw).ok()?;
-    Some((path.clone(), world_id, world_name))
+fn source_kind_label(kind: &str) -> &'static str {
+    match kind {
+        "source_pack" => "source_pack",
+        "runtime_pack" => "runtime_pack",
+        _ => "invalid",
+    }
+}
+
+fn diagnostics_summary(diagnostics: &[SourcePackDiagnostic]) -> Option<String> {
+    let messages = diagnostics
+        .iter()
+        .filter(|item| item.severity == "error")
+        .take(3)
+        .map(|item| item.message.clone())
+        .collect::<Vec<_>>();
+    if messages.is_empty() {
+        None
+    } else {
+        Some(messages.join(" | "))
+    }
 }
 
 fn resolve_local_pack_probe(input_path: &str) -> Result<LocalPackPathProbe, AppError> {
@@ -246,69 +267,42 @@ fn resolve_local_pack_probe(input_path: &str) -> Result<LocalPackPathProbe, AppE
     }
 
     let path = PathBuf::from(trimmed);
-    let resolved = if path.is_file() {
-        probe_pack_file(&path).ok_or_else(|| AppError::Other(format!("Local pack not found: {}", path.to_string_lossy())))?
-    } else if path.is_dir() {
-        let direct_pack = path.join("pack.json");
-        if let Some(found) = probe_pack_file(&direct_pack) {
-            found
-        } else {
-            let mut fallback: Option<(PathBuf, Option<String>, Option<String>)> = None;
-            for entry in WalkDir::new(&path).max_depth(3).into_iter().filter_map(Result::ok) {
-                if !entry.file_type().is_file() {
-                    continue;
-                }
-                let candidate = entry.into_path();
-                let is_json = candidate
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .map(|ext| ext.eq_ignore_ascii_case("json"))
-                    .unwrap_or(false);
-                if !is_json {
-                    continue;
-                }
-                if let Some(found) = probe_pack_file(&candidate) {
-                    let is_pack_json = candidate
-                        .file_name()
-                        .and_then(|name| name.to_str())
-                        .map(|name| name.eq_ignore_ascii_case("pack.json"))
-                        .unwrap_or(false);
-                    if is_pack_json {
-                        fallback = Some(found);
-                        break;
-                    }
-                    if fallback.is_none() {
-                        fallback = Some(found);
-                    }
-                }
-            }
-            fallback.ok_or_else(|| AppError::Other(format!("No valid pack found under: {}", path.to_string_lossy())))?
-        }
+    let probe = source_pack::probe_source_pack_path(&path)?;
+    let resolved_root_path = probe
+        .resolved_path
+        .clone()
+        .unwrap_or_else(|| path.to_string_lossy().to_string());
+    let resolved_pack_path = if probe.kind == "runtime_pack" {
+        PathBuf::from(&resolved_root_path)
+            .join("pack.json")
+            .to_string_lossy()
+            .to_string()
     } else {
-        return Err(AppError::Other(format!("Local pack not found: {}", path.to_string_lossy())));
+        PathBuf::from(&resolved_root_path)
+            .join("pack.toml")
+            .to_string_lossy()
+            .to_string()
     };
 
-    let suggested_id = resolved
-        .1
+    let suggested_id = probe
+        .world_id
         .as_deref()
         .map(slugify)
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| {
             slugify(
-                resolved
-                    .0
-                    .file_stem()
+                PathBuf::from(&resolved_root_path)
+                    .file_name()
                     .and_then(|name| name.to_str())
                     .unwrap_or("local-pack"),
             )
         });
-    let suggested_name = resolved
-        .2
+    let suggested_name = probe
+        .world_name
         .clone()
         .unwrap_or_else(|| {
-            resolved
-                .0
-                .file_stem()
+            PathBuf::from(&resolved_root_path)
+                .file_name()
                 .and_then(|name| name.to_str())
                 .unwrap_or("Local Pack")
                 .to_string()
@@ -316,9 +310,14 @@ fn resolve_local_pack_probe(input_path: &str) -> Result<LocalPackPathProbe, AppE
 
     Ok(LocalPackPathProbe {
         input_path: trimmed.to_string(),
-        resolved_pack_path: resolved.0.to_string_lossy().to_string(),
-        world_id: resolved.1,
-        world_name: resolved.2,
+        kind: source_kind_label(&probe.kind).to_string(),
+        resolved_root_path,
+        resolved_pack_path,
+        world_id: probe.world_id,
+        world_name: probe.world_name,
+        note_type_count: probe.note_type_count,
+        node_count: probe.node_count,
+        diagnostics: probe.diagnostics,
         suggested_id,
         suggested_name,
     })
@@ -330,6 +329,14 @@ fn resolve_local_pack_path(input_path: &str) -> Result<PathBuf, AppError> {
 
 pub fn inspect_local_pack_path(input_path: &str) -> Result<LocalPackPathProbe, AppError> {
     resolve_local_pack_probe(input_path)
+}
+
+fn local_source_root_path(input_path: &str) -> Result<PathBuf, AppError> {
+    Ok(PathBuf::from(resolve_local_pack_probe(input_path)?.resolved_root_path))
+}
+
+fn local_source_kind(input_path: &str) -> Result<String, AppError> {
+    Ok(resolve_local_pack_probe(input_path)?.kind)
 }
 
 fn source_ref(source: &RegistrySource) -> &str {
@@ -354,6 +361,16 @@ fn raw_pack_url(source: &RegistrySource) -> String {
     )
 }
 
+fn raw_source_pack_manifest_url(source: &RegistrySource) -> String {
+    let path = normalize_relative_path(&source.path);
+    format!(
+        "https://raw.githubusercontent.com/{}/{}/{}/pack.toml",
+        source.repo,
+        source_ref(source),
+        path
+    )
+}
+
 fn commit_api_url(source: &RegistrySource) -> String {
     let path = normalize_relative_path(&source.path);
     format!(
@@ -362,6 +379,22 @@ fn commit_api_url(source: &RegistrySource) -> String {
         source_ref(source),
         path
     )
+}
+
+fn contents_api_url(repo: &str, path: &str, git_ref: &str) -> String {
+    if path.trim().is_empty() {
+        format!(
+            "https://api.github.com/repos/{}/contents?ref={}",
+            repo, git_ref
+        )
+    } else {
+        format!(
+            "https://api.github.com/repos/{}/contents/{}?ref={}",
+            repo,
+            normalize_relative_path(path),
+            git_ref
+        )
+    }
 }
 
 fn http_client() -> Result<reqwest::Client, AppError> {
@@ -393,6 +426,44 @@ async fn fetch_remote_commit_sha(source: &RegistrySource) -> Result<String, AppE
         .ok_or_else(|| AppError::Other("GitHub response missing commit sha".into()))
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum GitHubContentsResponse {
+    File(GitHubContentsEntry),
+    Directory(Vec<GitHubContentsEntry>),
+}
+
+#[derive(Clone, Deserialize)]
+struct GitHubContentsEntry {
+    path: String,
+    #[serde(rename = "type")]
+    entry_type: String,
+    download_url: Option<String>,
+}
+
+async fn remote_source_kind(source: &RegistrySource) -> Result<String, AppError> {
+    let client = http_client()?;
+    let manifest_response = client
+        .get(raw_source_pack_manifest_url(source))
+        .send()
+        .await
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    if manifest_response.status().is_success() {
+        return Ok("source_pack".into());
+    }
+
+    let pack_response = client
+        .get(raw_pack_url(source))
+        .send()
+        .await
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    if pack_response.status().is_success() {
+        return Ok("runtime_pack".into());
+    }
+
+    Ok("invalid".into())
+}
+
 async fn fetch_remote_pack(source: &RegistrySource) -> Result<(String, String), AppError> {
     let client = http_client()?;
     let sha = fetch_remote_commit_sha(source).await?;
@@ -407,6 +478,73 @@ async fn fetch_remote_pack(source: &RegistrySource) -> Result<(String, String), 
         .await
         .map_err(|e| AppError::Other(e.to_string()))?;
     Ok((pack_json, sha))
+}
+
+async fn fetch_contents_entries(client: &reqwest::Client, repo: &str, path: &str, git_ref: &str) -> Result<Vec<GitHubContentsEntry>, AppError> {
+    let response = client
+        .get(contents_api_url(repo, path, git_ref))
+        .send()
+        .await
+        .map_err(|e| AppError::Other(e.to_string()))?
+        .error_for_status()
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    let parsed = response
+        .json::<GitHubContentsResponse>()
+        .await
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    Ok(match parsed {
+        GitHubContentsResponse::File(entry) => vec![entry],
+        GitHubContentsResponse::Directory(entries) => entries,
+    })
+}
+
+async fn fetch_remote_source_pack_to_temp(source: &RegistrySource) -> Result<PathBuf, AppError> {
+    let client = http_client()?;
+    let git_ref = source_ref(source).to_string();
+    let source_root = normalize_relative_path(&source.path);
+    let temp_root = std::env::temp_dir().join(format!("concept-source-pack-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&temp_root).map_err(|e| AppError::Other(e.to_string()))?;
+
+    let mut stack = vec![source_root.clone()];
+    while let Some(current_path) = stack.pop() {
+        let entries = fetch_contents_entries(&client, &source.repo, &current_path, &git_ref).await?;
+        for entry in entries {
+            if entry.entry_type == "dir" {
+                stack.push(entry.path.clone());
+                continue;
+            }
+            if entry.entry_type != "file" {
+                continue;
+            }
+
+            let relative = entry
+                .path
+                .strip_prefix(&source_root)
+                .unwrap_or(entry.path.as_str())
+                .trim_start_matches('/');
+            let local_path = temp_root.join(relative);
+            if let Some(parent) = local_path.parent() {
+                fs::create_dir_all(parent).map_err(|e| AppError::Other(e.to_string()))?;
+            }
+            let download_url = entry
+                .download_url
+                .clone()
+                .ok_or_else(|| AppError::Other(format!("GitHub entry '{}' has no download URL", entry.path)))?;
+            let bytes = client
+                .get(download_url)
+                .send()
+                .await
+                .map_err(|e| AppError::Other(e.to_string()))?
+                .error_for_status()
+                .map_err(|e| AppError::Other(e.to_string()))?
+                .bytes()
+                .await
+                .map_err(|e| AppError::Other(e.to_string()))?;
+            fs::write(local_path, bytes).map_err(|e| AppError::Other(e.to_string()))?;
+        }
+    }
+
+    Ok(temp_root)
 }
 
 fn validate_github_source_input(input: &GitHubPackSourceInput) -> Result<(), AppError> {
@@ -437,6 +575,12 @@ fn validate_local_source_input(input: &LocalPackSourceInput) -> Result<(), AppEr
     }
     if input.path.trim().is_empty() {
         return Err(AppError::Other("Local pack path is required".into()));
+    }
+    let probe = resolve_local_pack_probe(input.path.trim())?;
+    if probe.kind == "invalid" {
+        return Err(AppError::Other(
+            diagnostics_summary(&probe.diagnostics).unwrap_or_else(|| "Local source path is invalid".into()),
+        ));
     }
     Ok(())
 }
@@ -471,7 +615,7 @@ fn managed_pack_info(source: &RegistrySource) -> Result<Option<WorldPackInfo>, A
 }
 
 fn local_source_pack_info(source: &RegistrySource) -> Result<Option<WorldPackInfo>, AppError> {
-    let pack_path = local_source_pack_file(source)?;
+    let pack_path = managed_pack_file_for(source)?;
     if !pack_path.exists() {
         return Ok(None);
     }
@@ -479,10 +623,23 @@ fn local_source_pack_info(source: &RegistrySource) -> Result<Option<WorldPackInf
 }
 
 fn entry_from_source(source: &RegistrySource) -> Result<PackRegistryEntry, AppError> {
-    let pack_info = if source.provider == "local" {
-        local_source_pack_info(source)?
-    } else {
-        managed_pack_info(source)?
+    let pack_info = if source.provider == "local" { local_source_pack_info(source)? } else { managed_pack_info(source)? };
+    let resolved_kind = match source.provider.as_str() {
+        "local" => resolve_local_pack_probe(source.path.trim()).ok().map(|probe| probe.kind),
+        "github" => {
+            if pack_info.is_some() {
+                let install_dir = managed_dir_for(source)?;
+                let kind = if install_dir.join("source-pack.marker").exists() {
+                    "source_pack"
+                } else {
+                    "runtime_pack"
+                };
+                Some(kind.to_string())
+            } else {
+                None
+            }
+        }
+        _ => None,
     };
     let install_status = if source.provider == "local" {
         if source.last_error.is_some() && pack_info.is_none() {
@@ -534,6 +691,7 @@ fn entry_from_source(source: &RegistrySource) -> Result<PackRegistryEntry, AppEr
         source: to_pack_source(source),
         pack_info,
         install_status: install_status.to_string(),
+        resolved_kind,
         last_error: source.last_error.clone(),
     })
 }
@@ -546,15 +704,32 @@ pub fn tracked_local_source_pack_infos() -> Result<Vec<WorldPackInfo>, AppError>
         match local_source_pack_info(source) {
             Ok(Some(info)) => infos.push(info),
             Ok(None) => {
-                infos.push(WorldPackInfo {
+                let probe = resolve_local_pack_probe(&source.path).unwrap_or(LocalPackPathProbe {
+                    input_path: source.path.clone(),
+                    kind: "invalid".into(),
+                    resolved_root_path: source.path.clone(),
+                    resolved_pack_path: source.path.clone(),
                     world_id: None,
                     world_name: None,
+                    note_type_count: None,
+                    node_count: None,
+                    diagnostics: Vec::new(),
+                    suggested_id: source.id.clone(),
+                    suggested_name: source.name.clone(),
+                });
+                infos.push(WorldPackInfo {
+                    world_id: probe.world_id,
+                    world_name: probe.world_name,
                     pack_path: source.path.clone(),
                     source_kind: "local".into(),
                     valid: false,
                     is_active: false,
                     is_loaded: false,
-                    error: Some(format!("Local pack not found: {}", source.path)),
+                    error: source
+                        .last_error
+                        .clone()
+                        .or_else(|| diagnostics_summary(&probe.diagnostics))
+                        .or_else(|| Some(format!("Local pack not found: {}", source.path))),
                 });
             }
             Err(err) => {
@@ -775,11 +950,38 @@ pub fn remove_pack_source(id: &str) -> Result<(), AppError> {
 }
 
 async fn install_source(source: &mut RegistrySource) -> Result<(), AppError> {
-    let (pack_json, sha) = fetch_remote_pack(source).await?;
+    let remote_kind = remote_source_kind(source).await?;
+    let sha = fetch_remote_commit_sha(source).await?;
+    let pack_json = if remote_kind == "source_pack" {
+        let temp_root = fetch_remote_source_pack_to_temp(source).await?;
+        let compile_result = source_pack::compile_source_pack_json_from_path(&temp_root)?;
+        let _ = fs::remove_dir_all(&temp_root);
+        if compile_result
+            .diagnostics
+            .iter()
+            .any(|item| item.severity == "error")
+        {
+            return Err(AppError::Other(
+                diagnostics_summary(&compile_result.diagnostics)
+                    .unwrap_or_else(|| "Source pack validation failed".into()),
+            ));
+        }
+        compile_result.pack_json
+    } else if remote_kind == "runtime_pack" {
+        fetch_remote_pack(source).await?.0
+    } else {
+        return Err(AppError::Other("Remote source has neither pack.toml nor pack.json".into()));
+    };
     let install_dir = managed_dir_for(source)?;
     fs::create_dir_all(&install_dir).map_err(|e| AppError::Other(e.to_string()))?;
     let pack_path = install_dir.join("pack.json");
     fs::write(&pack_path, pack_json).map_err(|e| AppError::Other(e.to_string()))?;
+    let marker_path = install_dir.join("source-pack.marker");
+    if remote_kind == "source_pack" {
+        fs::write(&marker_path, "source_pack").map_err(|e| AppError::Other(e.to_string()))?;
+    } else if marker_path.exists() {
+        fs::remove_file(&marker_path).map_err(|e| AppError::Other(e.to_string()))?;
+    }
     let info = world_registry::inspect_pack_file(&pack_path, "installed");
     if !info.valid {
         return Err(AppError::Other(info.error.unwrap_or_else(|| "Installed pack is invalid".into())));
@@ -794,21 +996,51 @@ async fn install_source(source: &mut RegistrySource) -> Result<(), AppError> {
 }
 
 fn sync_local_source(source: &mut RegistrySource) -> Result<(), AppError> {
-    let source_pack_path = local_source_pack_file(source)?;
-    if !source_pack_path.exists() {
-        return Err(AppError::Other(format!(
-            "Local pack not found: {}",
-            source_pack_path.to_string_lossy()
-        )));
+    let probe = resolve_local_pack_probe(source.path.trim())?;
+    let source_kind = local_source_kind(source.path.trim())?;
+    let source_root = local_source_root_path(source.path.trim())?;
+
+    if source_kind == "invalid" {
+        return Err(AppError::Other(
+            diagnostics_summary(&probe.diagnostics).unwrap_or_else(|| "Invalid local source pack".into()),
+        ));
     }
 
-    let pack_json = fs::read_to_string(&source_pack_path).map_err(|e| AppError::Other(e.to_string()))?;
-    inspect_pack_value(&pack_json)?;
+    let pack_json = if source_kind == "source_pack" {
+        let result = source_pack::compile_source_pack_json_from_path(&source_root)?;
+        if result
+            .diagnostics
+            .iter()
+            .any(|item| item.severity == "error")
+        {
+            return Err(AppError::Other(
+                diagnostics_summary(&result.diagnostics).unwrap_or_else(|| "Source pack validation failed".into()),
+            ));
+        }
+        result.pack_json
+    } else {
+        let source_pack_path = local_source_pack_file(source)?;
+        if !source_pack_path.exists() {
+            return Err(AppError::Other(format!(
+                "Local pack not found: {}",
+                source_pack_path.to_string_lossy()
+            )));
+        }
+        let pack_json = fs::read_to_string(&source_pack_path).map_err(|e| AppError::Other(e.to_string()))?;
+        inspect_pack_value(&pack_json)?;
+        pack_json
+    };
 
     let local_dir = managed_dir_for(source)?;
     fs::create_dir_all(&local_dir).map_err(|e| AppError::Other(e.to_string()))?;
     let pack_path = local_dir.join("pack.json");
     fs::write(&pack_path, pack_json).map_err(|e| AppError::Other(e.to_string()))?;
+    let marker_path = local_dir.join("source-pack.marker");
+    if source_kind == "source_pack" {
+        fs::write(&marker_path, "source_pack").map_err(|e| AppError::Other(e.to_string()))?;
+    } else if marker_path.exists() {
+        fs::remove_file(&marker_path).map_err(|e| AppError::Other(e.to_string()))?;
+    }
     let info = world_registry::inspect_pack_file(&pack_path, "local");
     if !info.valid {
         return Err(AppError::Other(info.error.unwrap_or_else(|| "Synced local pack is invalid".into())));

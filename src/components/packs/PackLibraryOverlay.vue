@@ -8,6 +8,7 @@ import type {
   AnkiDeckProbe,
   AnkiNoteModelMapping,
   GitHubPackSourceInput,
+  LocalPackPathProbe,
   LocalPackSourceInput,
   PackRegistryEntry,
   WorldPackInfo,
@@ -56,6 +57,7 @@ const ankiDraft = ref<AnkiConnectPackSourceInput>({
 })
 const ankiDecks = ref<string[]>([])
 const ankiProbe = ref<AnkiDeckProbe | null>(null)
+const localProbe = ref<LocalPackPathProbe | null>(null)
 const ankiDecksLoading = ref(false)
 const selectedAnkiNoteType = ref('')
 
@@ -134,6 +136,7 @@ function resetLocalDraft() {
     path: '',
     enabled: true,
   }
+  localProbe.value = null
 }
 
 function resetAnkiDraft() {
@@ -234,10 +237,12 @@ async function hydrateLocalDraftFromPath(path: string) {
   if (!trimmed) return
   try {
     const probe = await graphStore.inspectLocalPackPath(trimmed)
+    localProbe.value = probe
     localDraft.value.path = trimmed
     if (!localDraft.value.id.trim()) localDraft.value.id = probe.suggested_id
     if (!localDraft.value.name.trim()) localDraft.value.name = probe.suggested_name
   } catch {
+    localProbe.value = null
     localDraft.value.path = trimmed
   }
 }
@@ -506,13 +511,23 @@ async function openWorld(worldId: string | null | undefined) {
 }
 
 function sourceStatusText(entry: PackRegistryEntry): string {
-  if (entry.source.provider === 'local') return entry.source.path
+  if (entry.source.provider === 'local') {
+    return [entry.source.path, kindLabel(entry.resolved_kind)].filter(Boolean).join(' · ')
+  }
   if (entry.source.provider === 'anki-connect') {
     return [entry.source.deck_name, entry.source.anki_base_url].filter(Boolean).join(' · ')
   }
   const parts = [entry.source.repo]
   if (entry.source.branch) parts.push(entry.source.branch)
+  if (entry.resolved_kind) parts.push(kindLabel(entry.resolved_kind) ?? entry.resolved_kind)
   return parts.join(' · ')
+}
+
+function kindLabel(kind: string | null | undefined): string | null {
+  if (!kind) return null
+  if (kind === 'source_pack') return 'source pack'
+  if (kind === 'runtime_pack') return 'runtime pack'
+  return kind.replaceAll('_', ' ')
 }
 
 function worldStatusText(world: WorldPackInfo): string {
@@ -528,6 +543,7 @@ watch(
     if (!entry) return
     if (entry.source.provider === 'local') {
       localDraft.value = localSourceToDraft(entry)
+      void hydrateLocalDraftFromPath(entry.source.path)
       return
     }
     if (entry.source.provider === 'anki-connect') {
@@ -801,6 +817,10 @@ useEventListener(
                   <strong>{{ selectedRemoteSource.install_status }}</strong>
                 </div>
                 <div class="meta-row">
+                  <span>Pack kind</span>
+                  <strong>{{ kindLabel(selectedRemoteSource.resolved_kind) ?? 'pending detect' }}</strong>
+                </div>
+                <div class="meta-row">
                   <span>Installed version</span>
                   <strong>{{ selectedRemoteSource.source.installed_version ?? 'none' }}</strong>
                 </div>
@@ -1049,7 +1069,7 @@ useEventListener(
             <section class="detail-card">
               <div class="card-head">
                 <strong>Local Source</strong>
-                <span>Track any folder or direct `pack.json` path, then sync it into the app-managed local library.</span>
+                <span>Track a source-pack folder (`pack.toml`) or direct runtime `pack.json`, then sync it into the app-managed local library.</span>
               </div>
               <div class="form-grid detail-grid-single">
                 <label class="field">
@@ -1067,7 +1087,7 @@ useEventListener(
                     <input
                       v-model="localDraft.path"
                       type="text"
-                      placeholder="C:\\packs\\japanese-pack or C:\\packs\\japanese-pack\\pack.json"
+                      placeholder="C:\\packs\\japanese-pack or C:\\packs\\japanese-pack\\pack.toml"
                       @blur="hydrateLocalDraftFromPath(localDraft.path)"
                     />
                     <button class="inline-action-btn" type="button" @click="browseLocalPackPath()">
@@ -1104,6 +1124,10 @@ useEventListener(
                   <strong>{{ selectedLocalSource.install_status }}</strong>
                 </div>
                 <div class="meta-row">
+                  <span>Pack kind</span>
+                  <strong>{{ kindLabel(selectedLocalSource.resolved_kind) ?? localProbe?.kind ?? 'unknown' }}</strong>
+                </div>
+                <div class="meta-row">
                   <span>Last checked</span>
                   <strong>{{ selectedLocalSource.source.last_checked_at ?? 'never' }}</strong>
                 </div>
@@ -1115,6 +1139,20 @@ useEventListener(
                   <span>Managed world</span>
                   <strong>{{ selectedLocalSource.pack_info?.world_name ?? 'not synced yet' }}</strong>
                 </div>
+                <div v-if="localProbe?.note_type_count != null || localProbe?.node_count != null" class="meta-row">
+                  <span>Source summary</span>
+                  <strong>{{ localProbe?.note_type_count ?? 0 }} note types · {{ localProbe?.node_count ?? 0 }} nodes</strong>
+                </div>
+              </div>
+              <div v-if="localProbe?.diagnostics?.length" class="meta-chip-row">
+                <span
+                  v-for="diagnostic in localProbe.diagnostics.slice(0, 4)"
+                  :key="`${diagnostic.code}-${diagnostic.message}`"
+                  class="meta-chip"
+                  :class="{ 'meta-chip-error': diagnostic.severity === 'error' }"
+                >
+                  {{ diagnostic.severity }}: {{ diagnostic.message }}
+                </span>
               </div>
               <div v-if="selectedLocalSource.last_error" class="error-box">
                 {{ selectedLocalSource.last_error }}
@@ -1204,7 +1242,7 @@ useEventListener(
     :subtitle="addMode === 'github'
       ? 'Create a new tracked GitHub source without crowding the main pack window'
       : addMode === 'local'
-        ? 'Track a local pack folder or direct pack.json path without crowding the main pack window'
+        ? 'Track a local source-pack folder or direct runtime pack without crowding the main pack window'
         : 'Track an Anki deck through AnkiConnect and generate a managed Concept pack'"
     width-class="pack-add-shell"
     @close="closeAddModal()"
@@ -1258,7 +1296,7 @@ useEventListener(
             <input
               v-model="localDraft.path"
               type="text"
-              placeholder="C:\\packs\\japanese-pack or C:\\packs\\japanese-pack\\pack.json"
+              placeholder="C:\\packs\\japanese-pack or C:\\packs\\japanese-pack\\pack.toml"
               @blur="hydrateLocalDraftFromPath(localDraft.path)"
             />
             <button class="inline-action-btn" type="button" @click="browseLocalPackPath()">
@@ -1806,6 +1844,12 @@ useEventListener(
   background: rgba(255, 255, 255, 0.05);
   color: var(--app-text-secondary);
   font-size: 11px;
+}
+
+.meta-chip-error {
+  color: #f3a3a0;
+  background: rgba(243, 154, 143, 0.08);
+  border: 1px solid rgba(243, 154, 143, 0.2);
 }
 
 .mapping-editor {
